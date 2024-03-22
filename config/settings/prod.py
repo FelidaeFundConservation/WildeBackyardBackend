@@ -12,7 +12,7 @@ ALLOWED_HOSTS = ["127.0.0.1", env.str("HOST_NAME", SECRETS.get("HOST-NAME"))]
 DEBUG = True
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
-WSGI_APPLICATION = "config.wsgi.staging.application"
+WSGI_APPLICATION = "config.wsgi.prod.application"
 
 
 # DATABASES
@@ -21,7 +21,7 @@ WSGI_APPLICATION = "config.wsgi.staging.application"
 DATABASES = {
     "default": {
         "ENGINE": "mssql",
-        "NAME": env.str("DB_NAME_STAGING", "prod"),
+        "NAME": env.str("DB_NAME_PROD", "prod"),
         "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST")),
         "USER": env.str("DB_USER", SECRETS.get("DB-USER")),
         "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD")),
