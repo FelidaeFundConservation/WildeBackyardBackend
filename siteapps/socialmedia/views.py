@@ -88,4 +88,11 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             if error_response is not None:
                 return error_response
 
+        # TODO: Handle creating the object
+        create_media()
+
         return Response(status=status.HTTP_201_CREATED)
+
+
+def create_media():
+    pass
