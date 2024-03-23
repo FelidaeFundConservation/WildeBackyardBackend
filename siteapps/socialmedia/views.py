@@ -1,6 +1,5 @@
 import requests
 from django.shortcuts import render
-from google.cloud import storage
 from rest_framework import authentication, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
