@@ -33,7 +33,7 @@ LOGIN_URL = "/users/login"
 # To store read secrets from key vault
 SECRETS = {}
 
-if not env_file.is_file():
+if env_file.is_file():
     env.read_env(env_file)
 else:
     VAULT_URL = env.str("AZURE_KEY_VAULT_URL")

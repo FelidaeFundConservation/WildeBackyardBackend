@@ -5,15 +5,17 @@ from .base import *  # noqa
 # NOTE: SECURITY WARNING: App Engine's security features ensure that it is safe to
 # have ALLOWED_HOSTS = ['*'] when the app is deployed. If you deploy a Django
 # app not on App Engine, make sure to set an appropriate host here.
-ALLOWED_HOSTS = ["127.0.0.1", env.str("HOST_NAME", SECRETS.get("HOST-NAME"))]
+ALLOWED_HOSTS = ["127.0.0.1", env.str("WEBSITE_HOSTNAME", SECRETS.get("HOST-NAME"))]
 
 # DEBUG MODE
 # ------------------------------------------------------------------------------
-DEBUG = True
+DEBUG = False
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.prod.application"
-
+AZURE_STORAGE_CONTAINER_URL_PROD = env.str(
+    "AZURE_STORAGE_CONTAINER_URL_PROD", SECRETS.get("AZURE-STORAGE-CONTAINER-URL-PROD")
+)
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -36,7 +38,7 @@ DATABASES = {
 # MEDIA
 # ------------------------------------------------------------------------------
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-MEDIA_URL = f""
+MEDIA_URL = f"{AZURE_STORAGE_CONTAINER_URL_PROD}/media/"
 
 
 # EMAIL

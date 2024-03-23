@@ -30,7 +30,6 @@ DATABASES = {
 
 # MEDIA
 # ------------------------------------------------------------------------------
-AZURE_CONTAINER_NAME = env("AZURE_CONTAINER_NAME_DEV")
 DEFAULT_FILE_STORAGE = ("storages.backends.azure_storage.AzureStorage",)
 MEDIA_URL = f""
 
