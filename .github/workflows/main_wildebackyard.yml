@@ -26,13 +26,10 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-      
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Collect staticfiles
-        run: python manage.py collectstatic
-        
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
@@ -64,7 +61,7 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      
+
       - name: Login to Azure
         uses: azure/login@v1
         with:
@@ -78,4 +75,4 @@ jobs:
         with:
           app-name: 'wildebackyard'
           slot-name: 'Production'
-          
+
