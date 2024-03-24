@@ -1,3 +1,5 @@
+import json
+
 import requests
 from django.shortcuts import render
 from rest_framework import authentication, permissions, status
@@ -14,58 +16,60 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        data = json.loads(request.body)
+
         # The image or video file (if any)
-        media_bytes = request.POST.get("mediaBytes")
+        media_bytes = data.get("mediaBytes")
 
         # Whether the user has opted for public, obfuscated, or private
-        privacy_setting = request.POST.get("privacySetting")
+        privacy_setting = data.get("privacySetting")
 
         # The time and date the encounter occured
-        encounter_datetime = request.POST.get("encounterDatetime")
+        encounter_datetime = data.get("encounterDatetime")
 
         # Exact location of the encounter
-        latitude = request.POST.get("latitude")
-        longitude = request.POST.get("longitude")
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
 
         # A circle radius where the true location may be in
-        accuracy_meters = request.POST.get("accuracyMeters")
+        accuracy_meters = data.get("accuracyMeters")
 
         # The length of one side of the box
-        obfuscation_kilometers = request.POST.get("obfuscationKilometers")
+        obfuscation_kilometers = data.get("obfuscationKilometers")
         # This is a list of 4 points creating an offset box from the true point,
         # to obscure the true location from the public. Used in obfuscation mode.
-        obfuscation_box_corners = request.POST.get("obfuscationBoxCorners")
+        obfuscation_box_corners = data.get("obfuscationBoxCorners")
 
         # The saved locality, country, and zip code string of the location
-        geocoded_location_locality = request.POST.get("geocodedLocationLocality")
-        geocoded_location_state = request.POST.get("geocodedLocationState")
-        geocoded_location_country = request.POST.get("geocodedLocationCountry")
-        geocoded_location_zip_code = request.POST.get("geocodedLocationZipCode")
+        geocoded_location_locality = data.get("geocodedLocationLocality")
+        geocoded_location_state = data.get("geocodedLocationState")
+        geocoded_location_country = data.get("geocodedLocationCountry")
+        geocoded_location_zip_code = data.get("geocodedLocationZipCode")
 
         # Text content
-        title = request.POST.get("postTitle")
-        body = request.POST.get("postBody")
+        title = data.get("postTitle")
+        body = data.get("postBody")
 
         # Whether the user allowed public research usage
-        research_use_allowed = request.POST.get("researchUseAllowed")
+        research_use_allowed = data.get("researchUseAllowed")
 
         # The brand and type of camera used to take the media (if any)
-        camera_model = request.POST.get("cameraModel")
-        camera_deployment_date = request.POST.get("cameraDeploymentDate")
-        camera_timestamp_offset_error_details = request.POST.get("timestampOffsetErrorDetails")
+        camera_model = data.get("cameraModel")
+        camera_deployment_date = data.get("cameraDeploymentDate")
+        camera_timestamp_offset_error_details = data.get("timestampOffsetErrorDetails")
 
-        habitat_type = request.POST.get("habitatType")
+        habitat_type = data.get("habitatType")
 
         # 4 corners of the obfuscation box, if given
         obfuscation_box_corners = [
-            request.POST.get("corner1Latitude"),
-            request.POST.get("corner1Longitude"),
-            request.POST.get("corner2Latitude"),
-            request.POST.get("corner2Longitude"),
-            request.POST.get("corner3Latitude"),
-            request.POST.get("corner3Longitude"),
-            request.POST.get("corner4Latitude"),
-            request.POST.get("corner4Longitude"),
+            data.get("corner1Latitude"),
+            data.get("corner1Longitude"),
+            data.get("corner2Latitude"),
+            data.get("corner2Longitude"),
+            data.get("corner3Latitude"),
+            data.get("corner3Longitude"),
+            data.get("corner4Latitude"),
+            data.get("corner4Longitude"),
         ]
 
         # Begin validation
