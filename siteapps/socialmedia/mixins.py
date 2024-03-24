@@ -33,15 +33,15 @@ class PrivacySettingValidationMixin:
     def validate_privacy_setting(self, privacy_setting):
         if privacy_setting is None:
             return createResponse400(
-                "No privacy setting provided. Please provide a setting ('public', 'obfuscated', or 'private')."
+                "No privacy setting provided. Please provide a setting ('public', 'obscured', or 'private')."
             )
         elif (
             privacy_setting != settings.PRIVACY_SETTING_PUBLIC
-            and privacy_setting != settings.PRIVACY_SETTING_OBFUSCATED
+            and privacy_setting != settings.PRIVACY_SETTING_OBSCURED
             and privacy_setting != settings.PRIVACY_SETTING_PRIVATE
         ):
             return createResponse400(
-                f"Invalid privacy setting '{privacy_setting}' provided. Must be 'public', 'obfuscated', or 'private'."
+                f"Invalid privacy setting '{privacy_setting}' provided. Must be 'public', 'obscured', or 'private'."
             )
         else:
             return None
@@ -78,7 +78,7 @@ class PostInputsValidationMixin:
             )
 
         # Privacy-setting specific checks
-        if privacy_setting == settings.PRIVACY_SETTING_OBFUSCATED:
+        if privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             if obfuscation_kilometers < 1 or obfuscation_kilometers > 10:
                 return createResponse400("Invalid obfuscation range. Must be between 1 and 10 kilometers.")
 
