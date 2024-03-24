@@ -79,7 +79,7 @@ class PostInputsValidationMixin:
 
         # Privacy-setting specific checks
         if privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
-            if obfuscation_kilometers < 1 or obfuscation_kilometers > 10:
+            if obfuscation_kilometers is None or int(obfuscation_kilometers) < 1 or int(obfuscation_kilometers) > 10:
                 return createResponse400("Invalid obfuscation range. Must be between 1 and 10 kilometers.")
 
 
