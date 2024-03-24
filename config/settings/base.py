@@ -233,7 +233,7 @@ EMAIL_SUBJECT_PREFIX = env(
     default="[WildeBackyard]",
 )
 # Sendgrid email settings
-SENDGRID_API_KEY = env("SENDGRID_API_KEY", SECRETS.get("SENDGRID-API-KEY"))
+SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", SECRETS.get("SENDGRID-API-KEY"))
 EMAIL_HOST = "smtp.sendgrid.net"
 EMAIL_HOST_USER = "apikey"
 EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
