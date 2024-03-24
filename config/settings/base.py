@@ -248,5 +248,5 @@ EMAIL_USE_TLS = True
 # ------------------------------------------------------------------------------
 # Put your variables here.
 PRIVACY_SETTING_PUBLIC = "public"
-PRIVACY_SETTING_OBFUSCATED = "obfuscated"
+PRIVACY_SETTING_OBSCURED = "obscured"
 PRIVACY_SETTING_PRIVATE = "private"

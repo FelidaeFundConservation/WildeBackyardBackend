@@ -25,7 +25,7 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         privacy_setting = data.get("privacySetting")
 
         # The time and date the encounter occured
-        encounter_datetime = data.get("encounterDatetime")
+        encounter_datetime = data.get("encounterDate")
 
         # Exact location of the encounter
         latitude = data.get("latitude")

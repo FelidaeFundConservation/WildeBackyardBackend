@@ -65,7 +65,7 @@ class MediaPost(TextComment):
     geoprivacy = models.CharField(
         choices=(
             (1, settings.PRIVACY_SETTING_PUBLIC),
-            (2, settings.PRIVACY_SETTING_OBFUSCATED),
+            (2, settings.PRIVACY_SETTING_OBSCURED),
             (3, settings.PRIVACY_SETTING_PRIVATE),
         ),
         max_length=16,
