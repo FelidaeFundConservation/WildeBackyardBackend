@@ -137,6 +137,8 @@ DATABASES = {
     }
 }
 
+# Limit data upload size to 50 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -232,6 +234,7 @@ EMAIL_SUBJECT_PREFIX = env(
     "DJANGO_EMAIL_SUBJECT_PREFIX",
     default="[WildeBackyard]",
 )
+
 # Sendgrid email settings
 SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", SECRETS.get("SENDGRID-API-KEY"))
 EMAIL_HOST = "smtp.sendgrid.net"
