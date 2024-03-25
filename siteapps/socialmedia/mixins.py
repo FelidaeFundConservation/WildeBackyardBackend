@@ -56,12 +56,13 @@ class PostInputsValidationMixin:
         accuracy_meters,
         obfuscation_kilometers,
         obfuscation_box_corners,
-        geocoded_location_name,
+        geocoded_location_country,
         research_use_allowed,
+        post_title,
     ):
         # The geocoded location from the coordinates
-        if geocoded_location_name is None or len(geocoded_location_name) == 0:
-            return createResponse400("Empty or no geocoded location name provided.")
+        if geocoded_location_country is None or len(geocoded_location_country) == 0:
+            return createResponse400("Empty or no geocoded location country provided (at least country is required).")
 
         # Datetime string to convert
         if encounter_datetime is None:
@@ -81,6 +82,16 @@ class PostInputsValidationMixin:
         if privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             if obfuscation_kilometers is None or int(obfuscation_kilometers) < 1 or int(obfuscation_kilometers) > 10:
                 return createResponse400("Invalid obfuscation range. Must be between 1 and 10 kilometers.")
+
+            # 4 corners with latitude and longitude, so 8 values
+            if len(obfuscation_box_corners) != 8:
+                return createResponse400(
+                    f"Invalid number of values for obfuscation box coordinates ({len(obfuscation_box_corners)} provided.)"
+                )
+
+        # Check if a post title was given
+        if post_title is None:
+            return createResponse400("No post title provided.")
 
 
 def createResponse400(message):

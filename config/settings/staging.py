@@ -13,9 +13,7 @@ DEBUG = True
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.staging.application"
-AZURE_STORAGE_CONTAINER_URL_STAGING = env.str(
-    "AZURE_STORAGE_CONTAINER_URL_STAGING", SECRETS.get("AZURE-STORAGE-CONTAINER-URL-STAGING")
-)
+
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -38,7 +36,9 @@ DATABASES = {
 # MEDIA
 # ------------------------------------------------------------------------------
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-MEDIA_URL = f"{AZURE_STORAGE_CONTAINER_URL_STAGING}/media/"
+AZURE_STORAGE_CONTAINER_NAME = env.str(
+    "AZURE_STORAGE_CONTAINER_NAME_STAGING", SECRETS["AZURE-STORAGE-CONTAINER-NAME-STAGING"]
+)
 
 
 # EMAIL

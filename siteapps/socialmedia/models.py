@@ -60,6 +60,9 @@ class MediaPost(TextComment):
     # Circle radius where the true point may be within
     accuracy_ring_radius_meters = models.IntegerField(null=True)
 
+    # When the encounter occurred
+    encounter_datetime = models.DateTimeField()
+
     # All media types are collapsed into a single model for query performance,
     # Field names are differentiated for security (i.e public latitude, private latitude, etc.)
     geoprivacy = models.CharField(

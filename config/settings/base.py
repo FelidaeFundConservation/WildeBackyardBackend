@@ -17,6 +17,7 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 # Repo root
+ROOT_URLCONF = "config.urls"
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # siteapps/
 APPS_DIR = ROOT_DIR / "siteapps"
@@ -139,6 +140,8 @@ DATABASES = {
 
 # Limit data upload size to 50 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
+
+AZURE_STORAGE_ACCOUNT_NAME = env.str("AZURE_STORAGE_ACCOUNT_NAME", SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME"))
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
