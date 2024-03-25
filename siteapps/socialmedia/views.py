@@ -1,14 +1,21 @@
+import hashlib
 import json
 
 import requests
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
+from dateutil import parser
+from django.conf import settings
 from django.shortcuts import render
 from rest_framework import authentication, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from siteapps.socialmedia.mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin
+from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin
+from .models import Media, MediaPost, TextComment
 
+DATE_FORMAT = "%B %d, %Y %I:%M %p"
 
 # Create your views here.
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
@@ -21,11 +28,14 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         # The image or video file (if any)
         media_bytes = data.get("mediaBytes")
 
+        # Check if the media is a video
+        is_video = data.get("isVideo")
+
         # Whether the user has opted for public, obfuscated, or private
         privacy_setting = data.get("privacySetting")
 
         # The time and date the encounter occured
-        encounter_datetime = data.get("encounterDate")
+        encounter_datetime = data.get("encounterDatetime")
 
         # Exact location of the encounter
         latitude = data.get("latitude")
@@ -61,18 +71,18 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         habitat_type = data.get("habitatType")
 
         # 4 corners of the obfuscation box, if given
-        obfuscation_box_corners = [
-            data.get("corner1Latitude"),
-            data.get("corner1Longitude"),
-            data.get("corner2Latitude"),
-            data.get("corner2Longitude"),
-            data.get("corner3Latitude"),
-            data.get("corner3Longitude"),
-            data.get("corner4Latitude"),
-            data.get("corner4Longitude"),
-        ]
+        obfuscation_box_corners = {
+            "obfuscation_box_corner_1_latitude": data.get("corner1Latitude"),
+            "obfuscation_box_corner_1_longitude": data.get("corner1Longitude"),
+            "obfuscation_box_corner_2_latitude": data.get("corner2Latitude"),
+            "obfuscation_box_corner_2_longitude": data.get("corner2Longitude"),
+            "obfuscation_box_corner_3_latitude": data.get("corner3Latitude"),
+            "obfuscation_box_corner_3_longitude": data.get("corner3Longitude"),
+            "obfuscation_box_corner_4_latitude": data.get("corner4Latitude"),
+            "obfuscation_box_corner_4_longitude": data.get("corner4Longitude"),
+        }
 
-        # Begin validation
+        # Argument validation
         errors = [
             self.validate_latitude_longitude(latitude, longitude),
             self.validate_privacy_setting(privacy_setting),
@@ -84,6 +94,7 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
                 obfuscation_box_corners,
                 geocoded_location_country,
                 research_use_allowed,
+                title,
             ),
         ]
 
@@ -91,11 +102,84 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             if error_response is not None:
                 return error_response
 
-        # TODO: Handle creating the object
-        create_media()
+        kwargs = {
+            "geoprivacy": privacy_setting,
+            "encounter_datetime": parser.parse(encounter_datetime),
+            "accuracy_ring_radius_meters": accuracy_meters,
+            "geocoded_location_country": geocoded_location_country,
+            "research_use_allowed": json.loads(research_use_allowed),
+            "title": title,
+        }
+
+        # Set geoprivacy-specific keyword args
+        if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
+            kwargs["public_location_latitude"] = latitude
+            kwargs["public_location_longitude"] = longitude
+        elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
+            kwargs["true_location_latitude"] = latitude
+            kwargs["true_location_longitude"] = longitude
+
+            kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
+
+            kwargs.update(obfuscation_box_corners)
+        elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
+            kwargs["private_location_latitude"] = latitude
+            kwargs["private_location_longitude"] = longitude
+
+        # Set optional arguments
+
+        # TODO: Handle creating the media object
+        media_obj = None
+
+        if media_bytes is not None:
+            if is_video == True:
+                media_obj = create_video_media(media_bytes=media_bytes)
+            else:
+                media_obj = create_image_media(media_bytes=media_bytes)
+
+        if media_obj is not None:
+            kwargs["media"] = media_obj
+
+        if body is not None:
+            kwargs["text_content"] = body
+        if geocoded_location_locality is not None:
+            kwargs["geocoded_location_locality"] = geocoded_location_locality
+        if geocoded_location_state is not None:
+            kwargs["geocoded_location_state"] = geocoded_location_state
+        if geocoded_location_zip_code is not None:
+            kwargs["geocoded_location_zip_code"] = geocoded_location_zip_code
+        if camera_model is not None:
+            kwargs["camera_model"] = camera_model
+        if camera_deployment_date is not None:
+            kwargs["camera_deployment_date"] = parser.parse(camera_deployment_date)
+        if camera_timestamp_offset_error_details is not None:
+            kwargs["camera_timestamp_offset_error_details"] = camera_timestamp_offset_error_details
+        if habitat_type is not None:
+            kwargs["habitat_type"] = habitat_type
+
+        # Finally, create the post object with given args
+        MediaPost.objects.create(**kwargs, created_by=request.user)
 
         return Response(status=status.HTTP_201_CREATED)
 
 
-def create_media():
-    pass
+def create_image_media(media_bytes):
+    content_hash = hashlib.sha256(media_bytes).hexdigest()
+
+    if not Media.objects.filter(content_hash=content_hash).exists():
+        blob_service_client = BlobServiceClient(
+            account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
+            credential=DefaultAzureCredential(),
+        )
+        blob_client = blob_service_client.get_blob_client(
+            container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}"
+        )
+
+        blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+
+    # TODO: Return public URL of media
+    return
+
+
+def create_video_media(media_bytes):
+    content_hash = hashlib.sha256(media_bytes).hexdigest()

@@ -13,6 +13,9 @@ ALLOWED_HOSTS = ["127.0.0.1", env.str("HOST_NAME")]
 # ------------------------------------------------------------------------------
 DEBUG = True
 
+# Skip email verification in local dev so the API unit tests work easily
+ACCOUNT_EMAIL_VERIFICATION = "none"
+
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.local.application"
 
