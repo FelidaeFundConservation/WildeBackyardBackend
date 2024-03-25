@@ -35,7 +35,7 @@ class SocialMediaPostAPITestCase(TestCase):
         headers = self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
         # Request data for social media create API
-        self.data = (
+        self.create_post_data = (
             {
                 "postTitle": "This is a new post!",
                 "latitude": -1.23,
@@ -49,7 +49,7 @@ class SocialMediaPostAPITestCase(TestCase):
         )
 
     def test_create_post_no_media(self):
-        response = self.client.post("/socialmedia/api/post/create/", self.data, format="json")
+        response = self.client.post("/socialmedia/api/post/create/", self.create_post_data, format="json")
 
         self.assertEqual(response.status_code, 201)
 
@@ -57,8 +57,15 @@ class SocialMediaPostAPITestCase(TestCase):
 
         # Check the proper fields are populated
         self.assertIsNotNone(post_obj.created_by)
-        print(self.data)
-        self.assertEqual(post_obj.geoprivacy, self.data[0].get("privacySetting"))
-        self.assertEqual(post_obj.public_location_latitude, self.data[0].get("latitude"))
-        self.assertEqual(post_obj.public_location_longitude, self.data[0].get("longitude"))
-        self.assertEqual(post_obj.geocoded_location_country, self.data[0].get("geocodedLocationCountry"))
+
+        self.assertEqual(post_obj.geoprivacy, self.create_post_data[0].get("privacySetting"))
+        self.assertEqual(post_obj.public_location_latitude, self.create_post_data[0].get("latitude"))
+        self.assertEqual(post_obj.public_location_longitude, self.create_post_data[0].get("longitude"))
+        self.assertEqual(post_obj.geocoded_location_country, self.create_post_data[0].get("geocodedLocationCountry"))
+
+    def test_get_feed_recent_posts(self):
+        # Create a few posts
+        self.client.post("/socialmedia/api/post/create/", self.create_post_data, format="json")
+        self.client.post("/socialmedia/api/post/create/", self.create_post_data, format="json")
+
+        response = self.client.post("/socialmedia/api/feed/get_recent_posts/", {}, format="json")

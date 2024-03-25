@@ -17,6 +17,94 @@ from .models import Media, MediaPost, TextComment
 
 DATE_FORMAT = "%B %d, %Y %I:%M %p"
 
+
+class GetRecentPostsView(APIView):
+    def post(self, request):
+        data = json.loads(request.body)
+
+        # The center of the circle to check, if given
+        user_latitude = data.get("userLatitude")
+        user_longitude = data.get("userLongitude")
+
+        # The radius of the circle to check for posts updates
+        distance_radius = data.get("distance_radius")
+
+        # A specific zip code to look for posts in
+        zip_code = data.get("zipCode")
+
+        post_data = []
+
+        if user_latitude is None and user_longitude is None and zip_code is None:
+            media_posts = MediaPost.objects.all().order_by("-created")[:10]
+
+        for post in media_posts:
+            location_info_fields = [
+                post.geocoded_location_locality,
+                post.geocoded_location_state,
+                post.geocoded_location_country,
+                post.geocoded_location_zip_code,
+            ]
+            geocoded_location = (", ".join(filter(None, location_info_fields)),)
+
+            additional_data = {
+                "camera_model": post.camera_model,
+                "camera_deployment_date": post.camera_deployment_date,
+                "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
+                "habitat_type": post.habitat_type,
+            }
+
+            media_data = (
+                {
+                    "url": post.media.file_cloud_path,
+                    "is_video": post.media.is_video,
+                }
+                if post.media
+                else None
+            )
+
+            current_data = {
+                "id": post.id,
+                "geoprivacy": post.geoprivacy,
+                "created_by": post.created_by.name,
+                "encounter_datetime": post.encounter_datetime,
+                "research_use_allowed": post.research_use_allowed,
+                "media": media_data,
+                "additional_info": additional_data,
+            }
+
+            if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+                current_data.update(
+                    {
+                        "geocoded_location": geocoded_location,
+                        "latitude": post.public_location_latitude,
+                        "longitude": post.public_location_longitude,
+                        "accuracy": post.accuracy_ring_radius_meters,
+                    }
+                )
+            elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+                current_data.update(
+                    {
+                        "geocoded_location": geocoded_location,
+                        "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
+                        "corner_1_latitude": post.obfuscation_box_corner_1_latitude,
+                        "corner_1_longitude": post.obfuscation_box_corner_1_longitude,
+                        "corner_2_latitude": post.obfuscation_box_corner_2_latitude,
+                        "corner_2_longitude": post.obfuscation_box_corner_2_longitude,
+                        "corner_3_latitude": post.obfuscation_box_corner_3_latitude,
+                        "corner_3_longitude": post.obfuscation_box_corner_3_longitude,
+                        "corner_4_latitude": post.obfuscation_box_corner_4_latitude,
+                        "corner_4_longitude": post.obfuscation_box_corner_4_longitude,
+                    }
+                )
+            elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+                # Don't send any location data for private.
+                pass
+
+            post_data.append(current_data)
+
+        return Response(status=status.HTTP_200_OK, data=post_data)
+
+
 # Create your views here.
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
@@ -24,6 +112,10 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
 
     def post(self, request):
         data = json.loads(request.body)
+
+        # No idea why this returns a list locally but not when deployed, but this'll fix that.
+        if type(data) is list:
+            data = data[0]
 
         # The image or video file (if any)
         media_bytes = data.get("mediaBytes")
@@ -132,7 +224,7 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         media_obj = None
 
         if media_bytes is not None:
-            if is_video == True:
+            if is_video is True:
                 media_obj = create_video_media(media_bytes=media_bytes)
             else:
                 media_obj = create_image_media(media_bytes=media_bytes)
