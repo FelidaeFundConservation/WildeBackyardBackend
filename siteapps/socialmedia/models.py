@@ -17,7 +17,7 @@ class Media(TimeStampedModel):
     is_video = models.BooleanField(default=False)
 
     # The path to the media file in storage
-    file_gcloud_path = models.CharField(max_length=250)
+    file_cloud_path = models.CharField(max_length=250)
 
     # Unique content identifier for deduplication
     content_hash = models.CharField(max_length=64)

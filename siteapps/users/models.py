@@ -1,9 +1,16 @@
+import random
+import string
 import uuid
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
+
+
+def generate_random_name():
+    random_digits = "".join(random.choices(string.digits, k=6))
+    return "Backyarder" + random_digits
 
 
 # Model to extend django user model to have additional profile fields
@@ -14,7 +21,7 @@ class User(AbstractUser, TimeStampedModel):
     email = models.EmailField("email address", unique=True)
 
     #: Keep only a name field instead of first & last names
-    name = models.CharField("Name", blank=True, max_length=255)
+    name = models.CharField("Name", max_length=255, default=generate_random_name)
     first_name = None  # type: ignore
     last_name = None  # type: ignore
 
