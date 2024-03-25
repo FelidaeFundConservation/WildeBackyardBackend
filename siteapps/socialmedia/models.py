@@ -102,7 +102,7 @@ class MediaPost(TextComment):
     # Human readable location info
     geocoded_location_locality = models.CharField(max_length=64, null=True)
     geocoded_location_state = models.CharField(max_length=64, null=True)
-    geocoded_location_country = models.CharField(max_length=64)
+    geocoded_location_country = models.CharField(max_length=64, null=True)
     geocoded_location_zip_code = models.CharField(max_length=64, null=True)
 
     # Supplementary info to understand the submission

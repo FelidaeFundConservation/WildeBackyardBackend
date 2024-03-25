@@ -60,10 +60,6 @@ class PostInputsValidationMixin:
         research_use_allowed,
         post_title,
     ):
-        # The geocoded location from the coordinates
-        if geocoded_location_country is None or len(geocoded_location_country) == 0:
-            return createResponse400("Empty or no geocoded location country provided (at least country is required).")
-
         # Datetime string to convert
         if encounter_datetime is None:
             return createResponse400("No encounter datetime provided.")
