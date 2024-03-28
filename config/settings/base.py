@@ -138,8 +138,11 @@ DATABASES = {
     }
 }
 
-# Limit data upload size to 50 MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
+
+REST_FRAMEWORK = {"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination", "PAGE_SIZE": 20}
+
+# Limit data upload size to 20 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520
 
 AZURE_STORAGE_ACCOUNT_NAME = env.str("AZURE_STORAGE_ACCOUNT_NAME", SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME"))
 

@@ -44,7 +44,7 @@ class GetRecentPostsView(APIView):
                 post.geocoded_location_country,
                 post.geocoded_location_zip_code,
             ]
-            geocoded_location = (", ".join(filter(None, location_info_fields)),)
+            geocoded_location = ", ".join(filter(None, location_info_fields))
 
             additional_data = {
                 "camera_model": post.camera_model,
@@ -70,6 +70,8 @@ class GetRecentPostsView(APIView):
                 "research_use_allowed": post.research_use_allowed,
                 "media": media_data,
                 "additional_info": additional_data,
+                "title": post.title,
+                "body": post.text_content,
             }
 
             if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
