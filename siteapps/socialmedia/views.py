@@ -8,20 +8,27 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from dateutil import parser
 from django.conf import settings
-from django.shortcuts import render
+from django.db import models
+from django.db.models import Func, Q
 from PIL import Image
 from rest_framework import authentication, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin
+from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import Media, MediaPost, TextComment
 
 DATE_FORMAT = "%B %d, %Y %I:%M %p"
 
 
-class GetRecentPostsView(APIView):
+class Haversine(Func):
+    function = "HAVING"
+    template = "(6371 * acos(cos(radians(%(lat)s)) * cos(radians(%(lat_field)s)) * cos(radians(%(lng_field)s) - radians(%(lng)s)) + sin(radians(%(lat)s)) * sin(radians(%(lat_field)s))))"
+    output_field = models.FloatField()
+
+
+class GetRecentPostsView(APIView, LatLngValidationMixin):
     def post(self, request):
         data = json.loads(request.body)
 
@@ -30,16 +37,51 @@ class GetRecentPostsView(APIView):
         user_longitude = data.get("userLongitude")
 
         # The radius of the circle to check for posts updates
-        distance_radius = data.get("distance_radius")
+        distance_radius = data.get("distanceRadius")
 
         # A specific zip code to look for posts in
         zip_code = data.get("zipCode")
 
         post_data = []
 
-        if user_latitude is None and user_longitude is None and zip_code is None:
-            media_posts = MediaPost.objects.all().order_by("-created")[:10]
+        # Filter by zipcode
+        if zip_code:
+            media_posts = MediaPost.objects.filter(geocoded_location_zip_code=zip_code).order_by("-created")
+        # Filter by distance
+        elif user_latitude or user_longitude or distance_radius:
+            # Argument validation
+            errors = [
+                self.validate_latitude_longitude(user_latitude, user_longitude),
+                None if distance_radius is not None else createResponse400("No distance radius to search given."),
+            ]
 
+            for error_response in errors:
+                if error_response is not None:
+                    return error_response
+
+            media_posts = (
+                MediaPost.objects.annotate(
+                    distance_public=Haversine(
+                        lat=user_latitude,
+                        lng=user_longitude,
+                        lat_field="public_location_latitude",
+                        lng_field="public_location_longitude",
+                    ),
+                    distance_true=Haversine(
+                        lat=user_latitude,
+                        lng=user_longitude,
+                        lat_field="true_location_latitude",
+                        lng_field="true_location_longitude",
+                    ),
+                )
+                .filter(Q(distance_public__lte=distance_radius) | Q(distance_true__lte=distance_radius))
+                .order_by("-created")
+            )
+        # If no arguments given, get global posts
+        else:
+            media_posts = MediaPost.objects.all().order_by("-created")
+
+        # Collect and format post information to send
         for post in media_posts:
             location_info_fields = [
                 post.geocoded_location_locality,
@@ -87,6 +129,7 @@ class GetRecentPostsView(APIView):
                     }
                 )
             elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+                # WARNING: Don't send true location for obscured.
                 current_data.update(
                     {
                         "geocoded_location": geocoded_location,
@@ -102,7 +145,7 @@ class GetRecentPostsView(APIView):
                     }
                 )
             elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
-                # Don't send any location data for private.
+                # WARNING: Don't send any location data for private.
                 pass
 
             post_data.append(current_data)
