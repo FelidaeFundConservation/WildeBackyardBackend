@@ -1,5 +1,7 @@
+import base64
 import hashlib
 import json
+from io import BytesIO
 
 import requests
 from azure.identity import DefaultAzureCredential
@@ -7,6 +9,7 @@ from azure.storage.blob import BlobServiceClient
 from dateutil import parser
 from django.conf import settings
 from django.shortcuts import render
+from PIL import Image
 from rest_framework import authentication, permissions, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -226,10 +229,16 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         media_obj = None
 
         if media_bytes is not None:
-            if is_video is True:
-                media_obj = create_video_media(media_bytes=media_bytes)
+            media_bytes = convert_base64_bytes(media_bytes, is_video=is_video)
+            content_hash = hashlib.sha256(media_bytes).hexdigest()
+            # Check if the file already exists
+            if not Media.objects.filter(content_hash=content_hash).exists():
+                if is_video is True:
+                    media_obj = create_video_media(media_bytes=media_bytes, content_hash=content_hash, request=request)
+                else:
+                    media_obj = create_image_media(media_bytes=media_bytes, content_hash=content_hash, request=request)
             else:
-                media_obj = create_image_media(media_bytes=media_bytes)
+                media_obj = Media.objects.get(content_hash=content_hash)
 
         if media_obj is not None:
             kwargs["media"] = media_obj
@@ -257,23 +266,38 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         return Response(status=status.HTTP_201_CREATED)
 
 
-def create_image_media(media_bytes):
-    content_hash = hashlib.sha256(media_bytes).hexdigest()
+def convert_base64_bytes(media_bytes_base64, is_video=False):
+    media_bytes_base64 = bytearray(base64.b64decode(media_bytes_base64))
 
-    if not Media.objects.filter(content_hash=content_hash).exists():
-        blob_service_client = BlobServiceClient(
-            account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
-            credential=DefaultAzureCredential(),
-        )
-        blob_client = blob_service_client.get_blob_client(
-            container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}"
-        )
+    if is_video:
+        return media_bytes_base64
+    else:
+        image = Image.open(BytesIO(media_bytes_base64))
 
-        blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+        # Make the image into a thumbnail
+        image.thumbnail(size=settings.PHOTO_MAX_SIZE)
 
-    # TODO: Return public URL of media
-    return
+        thumbnail_bytes_io = BytesIO()
+        image.save(thumbnail_bytes_io, format="JPEG")
+        thumbnail_bytes = thumbnail_bytes_io.getvalue()
+
+        return thumbnail_bytes
+
+
+def create_image_media(media_bytes, content_hash, request):
+    blob_service_client = BlobServiceClient(
+        account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
+        credential=DefaultAzureCredential(),
+    )
+    blob_client = blob_service_client.get_blob_client(
+        container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.JPEG"
+    )
+
+    blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+
+    return Media.objects.create(file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user)
 
 
 def create_video_media(media_bytes):
-    content_hash = hashlib.sha256(media_bytes).hexdigest()
+    # TODO: Implement video upload.
+    pass
