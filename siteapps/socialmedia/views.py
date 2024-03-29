@@ -276,8 +276,11 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 
         # Make the image into a thumbnail
         image.thumbnail(size=settings.PHOTO_MAX_SIZE)
-
         thumbnail_bytes_io = BytesIO()
+
+        # .jpg doesn't support alpha channel, remove it if it exists.
+        if image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
         image.save(thumbnail_bytes_io, format="JPEG")
         thumbnail_bytes = thumbnail_bytes_io.getvalue()
 
