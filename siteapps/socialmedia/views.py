@@ -276,10 +276,9 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             content_hash = hashlib.sha256(media_bytes).hexdigest()
             # Check if the file already exists
             if not Media.objects.filter(content_hash=content_hash).exists():
-                if is_video is True:
-                    media_obj = create_video_media(media_bytes=media_bytes, content_hash=content_hash, request=request)
-                else:
-                    media_obj = create_image_media(media_bytes=media_bytes, content_hash=content_hash, request=request)
+                media_obj = create_media(
+                    media_bytes=media_bytes, content_hash=content_hash, request=request, is_video=is_video
+                )
             else:
                 media_obj = Media.objects.get(content_hash=content_hash)
 
@@ -330,20 +329,20 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
         return thumbnail_bytes
 
 
-def create_image_media(media_bytes, content_hash, request):
+def create_media(media_bytes, content_hash, request, is_video=False):
+    file_extension = "MP4" if is_video else "JPEG"
+
     blob_service_client = BlobServiceClient(
         account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
         credential=DefaultAzureCredential(),
     )
+
     blob_client = blob_service_client.get_blob_client(
-        container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.JPEG"
+        container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.{file_extension}"
     )
 
     blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
 
-    return Media.objects.create(file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user)
-
-
-def create_video_media(media_bytes):
-    # TODO: Implement video upload.
-    pass
+    return Media.objects.create(
+        file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
+    )
