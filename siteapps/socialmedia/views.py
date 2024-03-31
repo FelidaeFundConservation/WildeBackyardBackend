@@ -111,6 +111,8 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "id": post.id,
                 "geoprivacy": post.geoprivacy,
                 "created_by": post.created_by.name,
+                "liked": check_post_is_liked_by(media_post_obj=post, user=request.user),
+                "like_count": post.upvoted_by.all().count(),
                 "encounter_datetime": post.encounter_datetime,
                 "research_use_allowed": post.research_use_allowed,
                 "media": media_data,
@@ -153,6 +155,10 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         return Response(status=status.HTTP_200_OK, data=post_data)
 
 
+def check_post_is_liked_by(media_post_obj, user):
+    return media_post_obj.upvoted_by.filter(id=user.id).exists()
+
+
 class LikePostView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -169,7 +175,7 @@ class LikePostView(APIView):
                 media_post_obj = MediaPost.objects.get(id=media_post_id)
 
                 # Toggle the like status
-                if media_post_obj.upvoted_by.filter(id=request.user.id).exists():
+                if check_post_is_liked_by(media_post_obj=media_post_obj, user=request.user):
                     media_post_obj.upvoted_by.remove(request.user)
                 else:
                     media_post_obj.upvoted_by.add(request.user)
