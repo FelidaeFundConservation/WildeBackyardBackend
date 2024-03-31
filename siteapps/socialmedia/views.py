@@ -153,6 +153,37 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         return Response(status=status.HTTP_200_OK, data=post_data)
 
 
+class LikePostView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        media_post_id = data.get("mediaPostId")
+
+        if media_post_id is None:
+            return createResponse400("The media post ID to like/unlike was not provided.")
+        else:
+            try:
+                media_post_obj = MediaPost.objects.get(id=media_post_id)
+
+                # Toggle the like status
+                if media_post_obj.upvoted_by.filter(id=request.user.id).exists():
+                    media_post_obj.upvoted_by.remove(request.user)
+                else:
+                    media_post_obj.upvoted_by.add(request.user)
+
+                return Response(
+                    status=status.HTTP_200_OK,
+                )
+
+            except Exception:
+                return Response(
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+
 # Create your views here.
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
