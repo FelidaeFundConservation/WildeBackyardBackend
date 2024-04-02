@@ -28,131 +28,144 @@ class Haversine(Func):
     output_field = models.FloatField()
 
 
-class GetRecentPostsView(APIView, LatLngValidationMixin):
-    def post(self, request):
-        data = json.loads(request.body)
+def get_posts(self, request):
+    data = json.loads(request.body)
+    # The center of the circle to check, if given
+    user_latitude = data.get("userLatitude")
+    user_longitude = data.get("userLongitude")
 
-        # The center of the circle to check, if given
-        user_latitude = data.get("userLatitude")
-        user_longitude = data.get("userLongitude")
+    # The radius of the circle to check for posts updates
+    distance_radius = data.get("distanceRadius")
 
-        # The radius of the circle to check for posts updates
-        distance_radius = data.get("distanceRadius")
+    # A specific zip code to look for posts in
+    zip_code = data.get("zipCode")
 
-        # A specific zip code to look for posts in
-        zip_code = data.get("zipCode")
+    post_data = []
 
-        post_data = []
+    # Filter by zipcode
+    if zip_code:
+        media_posts = MediaPost.objects.filter(geocoded_location_zip_code=zip_code).order_by("-created")
+    # Filter by distance
+    elif user_latitude or user_longitude or distance_radius:
+        # Argument validation
+        errors = [
+            self.validate_latitude_longitude(user_latitude, user_longitude),
+            None if distance_radius is not None else createResponse400("No distance radius to search given."),
+        ]
 
-        # Filter by zipcode
-        if zip_code:
-            media_posts = MediaPost.objects.filter(geocoded_location_zip_code=zip_code).order_by("-created")
-        # Filter by distance
-        elif user_latitude or user_longitude or distance_radius:
-            # Argument validation
-            errors = [
-                self.validate_latitude_longitude(user_latitude, user_longitude),
-                None if distance_radius is not None else createResponse400("No distance radius to search given."),
-            ]
+        for error_response in errors:
+            if error_response is not None:
+                return error_response
 
-            for error_response in errors:
-                if error_response is not None:
-                    return error_response
-
-            media_posts = (
-                MediaPost.objects.annotate(
-                    distance_public=Haversine(
-                        lat=user_latitude,
-                        lng=user_longitude,
-                        lat_field="public_location_latitude",
-                        lng_field="public_location_longitude",
-                    ),
-                    distance_true=Haversine(
-                        lat=user_latitude,
-                        lng=user_longitude,
-                        lat_field="true_location_latitude",
-                        lng_field="true_location_longitude",
-                    ),
-                )
-                .filter(Q(distance_public__lte=distance_radius) | Q(distance_true__lte=distance_radius))
-                .order_by("-created")
+        media_posts = (
+            MediaPost.objects.annotate(
+                distance_public=Haversine(
+                    lat=user_latitude,
+                    lng=user_longitude,
+                    lat_field="public_location_latitude",
+                    lng_field="public_location_longitude",
+                ),
+                distance_true=Haversine(
+                    lat=user_latitude,
+                    lng=user_longitude,
+                    lat_field="true_location_latitude",
+                    lng_field="true_location_longitude",
+                ),
             )
-        # If no arguments given, get global posts
-        else:
-            media_posts = MediaPost.objects.all().order_by("-created")
+            .filter(Q(distance_public__lte=distance_radius) | Q(distance_true__lte=distance_radius))
+            .order_by("-created")
+        )
+    # If no arguments given, get global posts
+    else:
+        media_posts = MediaPost.objects.all().order_by("-created")
 
-        # Collect and format post information to send
-        for post in media_posts:
-            location_info_fields = [
-                post.geocoded_location_locality,
-                post.geocoded_location_state,
-                post.geocoded_location_country,
-                post.geocoded_location_zip_code,
-            ]
-            geocoded_location = ", ".join(filter(None, location_info_fields))
+    # Collect and format post information to send
+    for post in media_posts:
+        location_info_fields = [
+            post.geocoded_location_locality,
+            post.geocoded_location_state,
+            post.geocoded_location_country,
+            post.geocoded_location_zip_code,
+        ]
+        geocoded_location = ", ".join(filter(None, location_info_fields))
 
-            additional_data = {
-                "camera_model": post.camera_model,
-                "camera_deployment_date": post.camera_deployment_date,
-                "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
-                "habitat_type": post.habitat_type,
+        additional_data = {
+            "camera_model": post.camera_model,
+            "camera_deployment_date": post.camera_deployment_date,
+            "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
+            "habitat_type": post.habitat_type,
+        }
+
+        media_data = (
+            {
+                "url": post.media.file_cloud_path,
+                "is_video": post.media.is_video,
             }
+            if post.media
+            else None
+        )
 
-            media_data = (
+        current_data = {
+            "id": post.id,
+            "geoprivacy": post.geoprivacy,
+            "created_by": post.created_by.name,
+            "liked": check_post_is_liked_by(media_post_obj=post, user=request.user),
+            "like_count": post.upvoted_by.all().count(),
+            "encounter_datetime": post.encounter_datetime,
+            "research_use_allowed": post.research_use_allowed,
+            "media": media_data,
+            "additional_info": additional_data,
+            "title": post.title,
+            "body": post.text_content,
+        }
+
+        if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+            current_data.update(
                 {
-                    "url": post.media.file_cloud_path,
-                    "is_video": post.media.is_video,
+                    "geocoded_location": geocoded_location,
+                    "latitude": post.public_location_latitude,
+                    "longitude": post.public_location_longitude,
+                    "accuracy": post.accuracy_ring_radius_meters,
                 }
-                if post.media
-                else None
             )
+        elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+            # WARNING: Don't send true location for obscured.
+            current_data.update(
+                {
+                    "geocoded_location": geocoded_location,
+                    "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
+                    "corner_1_latitude": post.obfuscation_box_corner_1_latitude,
+                    "corner_1_longitude": post.obfuscation_box_corner_1_longitude,
+                    "corner_2_latitude": post.obfuscation_box_corner_2_latitude,
+                    "corner_2_longitude": post.obfuscation_box_corner_2_longitude,
+                    "corner_3_latitude": post.obfuscation_box_corner_3_latitude,
+                    "corner_3_longitude": post.obfuscation_box_corner_3_longitude,
+                    "corner_4_latitude": post.obfuscation_box_corner_4_latitude,
+                    "corner_4_longitude": post.obfuscation_box_corner_4_longitude,
+                }
+            )
+        elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+            # WARNING: Don't send any location data for private.
+            pass
 
-            current_data = {
-                "id": post.id,
-                "geoprivacy": post.geoprivacy,
-                "created_by": post.created_by.name,
-                "liked": check_post_is_liked_by(media_post_obj=post, user=request.user),
-                "like_count": post.upvoted_by.all().count(),
-                "encounter_datetime": post.encounter_datetime,
-                "research_use_allowed": post.research_use_allowed,
-                "media": media_data,
-                "additional_info": additional_data,
-                "title": post.title,
-                "body": post.text_content,
-            }
+        post_data.append(current_data)
 
-            if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
-                current_data.update(
-                    {
-                        "geocoded_location": geocoded_location,
-                        "latitude": post.public_location_latitude,
-                        "longitude": post.public_location_longitude,
-                        "accuracy": post.accuracy_ring_radius_meters,
-                    }
-                )
-            elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
-                # WARNING: Don't send true location for obscured.
-                current_data.update(
-                    {
-                        "geocoded_location": geocoded_location,
-                        "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
-                        "corner_1_latitude": post.obfuscation_box_corner_1_latitude,
-                        "corner_1_longitude": post.obfuscation_box_corner_1_longitude,
-                        "corner_2_latitude": post.obfuscation_box_corner_2_latitude,
-                        "corner_2_longitude": post.obfuscation_box_corner_2_longitude,
-                        "corner_3_latitude": post.obfuscation_box_corner_3_latitude,
-                        "corner_3_longitude": post.obfuscation_box_corner_3_longitude,
-                        "corner_4_latitude": post.obfuscation_box_corner_4_latitude,
-                        "corner_4_longitude": post.obfuscation_box_corner_4_longitude,
-                    }
-                )
-            elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
-                # WARNING: Don't send any location data for private.
-                pass
+    return Response(status=status.HTTP_200_OK, data=post_data)
 
-            post_data.append(current_data)
 
-        return Response(status=status.HTTP_200_OK, data=post_data)
+# This endpoint uses the user's data since without auth an anonymous user is given
+class GetRecentPostsAuthenticatedView(APIView, LatLngValidationMixin):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        return get_posts(self, request)
+
+
+# This is callable without logging in, but doesn't track user info
+class GetRecentPostsNoAuthView(APIView, LatLngValidationMixin):
+    def post(self, request):
+        return get_posts(self, request)
 
 
 def check_post_is_liked_by(media_post_obj, user):
