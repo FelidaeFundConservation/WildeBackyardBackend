@@ -2,14 +2,16 @@ from django.urls import path
 
 from siteapps.socialmedia.views import (
     CreatePostView,
-    GetRecentPostsAuthenticatedView,
-    GetRecentPostsNoAuthView,
+    GetPostResponsesAuthenticatedView,
+    GetPostResponsesNoAuthView,
+    GetRecentPostsView,
     LikePostView,
 )
 
 urlpatterns = [
     path("api/posts/create/", CreatePostView.as_view(), name="create_post"),
     path("api/posts/like/", LikePostView.as_view(), name="like_post"),
-    path("api/feed/get/auth", GetRecentPostsAuthenticatedView.as_view(), name="get_posts_authenticated"),
-    path("api/feed/get/noauth", GetRecentPostsNoAuthView.as_view(), name="get_posts_no_auth"),
+    path("api/feed/get/", GetRecentPostsView.as_view(), name="get_posts"),
+    path("api/posts/responses/get/noauth", GetPostResponsesNoAuthView.as_view(), name="get_post_responses_noauth"),
+    path("api/posts/responses/get/auth", GetPostResponsesAuthenticatedView.as_view(), name="get_post_responses_auth"),
 ]
