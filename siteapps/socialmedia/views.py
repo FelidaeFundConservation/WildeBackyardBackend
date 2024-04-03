@@ -12,6 +12,7 @@ from django.db import models
 from django.db.models import Func, Q
 from PIL import Image
 from rest_framework import authentication, permissions, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -80,8 +81,14 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         else:
             media_posts = MediaPost.objects.all().order_by("-created")
 
+        # Apply pagination
+        paginator = PageNumberPagination()
+        paginator.page_size = 20  # Adjust as needed
+
+        paginated_media_posts = paginator.paginate_queryset(media_posts, request)
+
         # Collect and format post information to send
-        for post in media_posts:
+        for post in paginated_media_posts:
             location_info_fields = [
                 post.geocoded_location_locality,
                 post.geocoded_location_state,
@@ -149,7 +156,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
             post_data.append(current_data)
 
-        return Response(status=status.HTTP_200_OK, data=post_data)
+        return paginator.get_paginated_response(post_data)
 
 
 def check_post_is_liked_by(media_post_obj, user):

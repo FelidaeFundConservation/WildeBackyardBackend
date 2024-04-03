@@ -49,7 +49,7 @@ class SocialMediaPostAPITestCase(TestCase):
         )
 
     def test_create_post_no_media(self):
-        response = self.client.post("/socialmedia/api/post/create/", self.create_post_data, format="json")
+        response = self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
         self.assertEqual(response.status_code, 201)
 
@@ -65,7 +65,7 @@ class SocialMediaPostAPITestCase(TestCase):
 
     def test_get_feed_recent_posts(self):
         # Create a few posts
-        self.client.post("/socialmedia/api/post/create/", self.create_post_data, format="json")
-        self.client.post("/socialmedia/api/post/create/", self.create_post_data, format="json")
+        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
-        response = self.client.post("/socialmedia/api/feed/get_recent_posts/", {}, format="json")
+        response = self.client.post("/socialmedia/api/feed/get/", {}, format="json")
