@@ -20,8 +20,6 @@ from rest_framework.views import APIView
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import Media, MediaPost, TextComment
 
-DATE_FORMAT = "%B %d, %Y %I:%M %p"
-
 
 class Haversine(Func):
     function = "HAVING"
