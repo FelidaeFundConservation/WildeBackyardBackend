@@ -36,6 +36,7 @@ class SocialMediaPostAPITestCase(TestCase):
         headers = self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
         # Request data for social media create API
+        SpeciesName.objects.create(name="Acorn Woodpecker", scientific_name="a scientific name")
         self.create_post_data = (
             {
                 "postTitle": "This is a new post!",
@@ -46,6 +47,7 @@ class SocialMediaPostAPITestCase(TestCase):
                 "encounterDatetime": "March 22, 2024 12:38 PM",
                 "researchUseAllowed": "true",
                 "accuracyMeters": 50,
+                "species": "Acorn Woodpecker",
             },
         )
 
@@ -70,3 +72,4 @@ class SocialMediaPostAPITestCase(TestCase):
         self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
         response = self.client.post("/socialmedia/api/feed/get/", {}, format="json")
+        print(response.content)
