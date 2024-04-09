@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import logging
 from io import BytesIO
 
 import requests
@@ -16,6 +17,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from siteapps.species.models import SpeciesName
 
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import Media, MediaPost, TextComment
@@ -39,6 +42,9 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         # A specific zip code to look for posts in
         zip_code = data.get("zipCode")
+
+        # A species to filter by
+        species = data.get("species")
 
         post_data = []
 
@@ -79,6 +85,10 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         else:
             media_posts = MediaPost.objects.all().order_by("-created")
 
+        # If a species was selected, only get posts of that species
+        if species is not None:
+            media_posts = media_posts.filter(species__name=species)
+
         # Apply pagination
         paginator = PageNumberPagination()
         paginator.page_size = 20  # Adjust as needed
@@ -116,6 +126,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "geoprivacy": post.geoprivacy,
                 "created_by": post.created_by.name,
                 "encounter_datetime": post.encounter_datetime,
+                "species": getattr(post.species, 'name', None),
                 "research_use_allowed": post.research_use_allowed,
                 "media": media_data,
                 "additional_info": additional_data,
@@ -251,6 +262,9 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         # Whether the user has opted for public, obfuscated, or private
         privacy_setting = data.get("privacySetting")
 
+        # The name of the species the user selected
+        species = data.get("species")
+
         # The time and date the encounter occured
         encounter_datetime = data.get("encounterDatetime")
 
@@ -370,6 +384,11 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             kwargs["geocoded_location_state"] = geocoded_location_state
         if geocoded_location_zip_code is not None:
             kwargs["geocoded_location_zip_code"] = geocoded_location_zip_code
+        if species is not None:
+            try:
+                kwargs["species"] = SpeciesName.objects.get(name=species)
+            except Exception:
+                logging.error(f"No species name found named {species}.")
         if camera_model is not None:
             kwargs["camera_model"] = camera_model
         if camera_deployment_date is not None:

@@ -6,6 +6,8 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
 
+from siteapps.species.models import SpeciesName
+
 User = get_user_model()
 
 # Images or videos
@@ -73,6 +75,9 @@ class MediaPost(TextComment):
         ),
         max_length=16,
     )
+
+    # The species the user specified was sighted
+    species = models.ForeignKey(SpeciesName, on_delete=models.SET_NULL, null=True, blank=True)
 
     ########################
     # Public Information
