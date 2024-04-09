@@ -7,6 +7,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, force_authenticate
 
 from siteapps.socialmedia.models import Media, MediaPost, TextComment
+from siteapps.species.models import SpeciesName
 from siteapps.users.models import User
 
 # Create your tests here.

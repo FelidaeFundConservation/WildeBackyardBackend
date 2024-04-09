@@ -22,4 +22,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("users/", include(("users.urls", "users"), namespace="app_users")),
     path("socialmedia/", include(("socialmedia.urls", "socialmedia"), namespace="socialmedia")),
+    path("species/", include(("species.urls", "species"), namespace="species")),
 ]

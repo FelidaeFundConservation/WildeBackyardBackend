@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "siteapps.users",
     "siteapps.socialmedia",
+    "siteapps.species",
 ]
 
 MIDDLEWARE = [
