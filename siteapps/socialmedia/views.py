@@ -91,7 +91,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         # Apply pagination
         paginator = PageNumberPagination()
-        paginator.page_size = 20  # Adjust as needed
+        paginator.page_size = 10  # Adjust as needed
 
         paginated_media_posts = paginator.paginate_queryset(media_posts, request)
 
