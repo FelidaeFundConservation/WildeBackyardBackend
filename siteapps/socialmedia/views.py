@@ -124,9 +124,9 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             current_data = {
                 "id": post.id,
                 "geoprivacy": post.geoprivacy,
-                "created_by": post.created_by.name,
+                "created_by": getattr(post.created_by, "name", "Deleted User"),
                 "encounter_datetime": post.encounter_datetime,
-                "species": getattr(post.species, 'name', None),
+                "species": getattr(post.species, "name", None),
                 "research_use_allowed": post.research_use_allowed,
                 "media": media_data,
                 "additional_info": additional_data,

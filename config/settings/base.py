@@ -232,15 +232,12 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 DEFAULT_FROM_EMAIL = env(
     "DJANGO_DEFAULT_FROM_EMAIL",
-    default="Admin <noreply@wildebackyard.org>",
+    default="Admin <noreply@wildepod.org>",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
-EMAIL_SUBJECT_PREFIX = env(
-    "DJANGO_EMAIL_SUBJECT_PREFIX",
-    default="[WildeBackyard]",
-)
+EMAIL_SUBJECT_PREFIX = "[Wilde Backyard]"
 
 # Sendgrid email settings
 SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", SECRETS.get("SENDGRID-API-KEY"))
