@@ -72,4 +72,21 @@ class SocialMediaPostAPITestCase(TestCase):
         self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
         response = self.client.post("/socialmedia/api/feed/get/", {}, format="json")
+        # print(response.content)
+
+    def test_get_comments(self):
+        # Create a few posts
+        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+
+        self.client.post(
+            "/socialmedia/api/comments/create/",
+            {"parentPostId": MediaPost.objects.all().first().id, "commentText": "Hello there!"},
+            format="json",
+        )
+
+        response = self.client.post(
+            "/socialmedia/api/posts/responses/get/noauth",
+            {"mediaPostId": MediaPost.objects.all().first().id},
+            format="json",
+        )
         print(response.content)
