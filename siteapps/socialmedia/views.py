@@ -188,8 +188,7 @@ def get_post_responses(request):
                 data={
                     "like_count": media_post_obj.upvoted_by.all().count(),
                     "liked_by_current_user": check_post_is_liked_by(media_post_obj=media_post_obj, user=request.user),
-                    # TODO: Send the comments too when implemented
-                    "comments": None,
+                    "comments": media_post_obj.replies.values_list("created_by__name", "text_content"),
                 },
             )
         except Exception:
@@ -241,7 +240,34 @@ class LikePostView(APIView):
                 )
 
 
-# Create your views here.
+class CreateCommentView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        parent_post_id = data.get("parentPostId")
+        comment_text = data.get("commentText")
+
+        media_post = MediaPost.objects.filter(id=parent_post_id)
+
+        # Input validation
+        if parent_post_id is None:
+            return createResponse400("The post to reply to wasn't specified.")
+        if not media_post.exists():
+            return Response(
+                status=status.HTTP_404_NOT_FOUND, data={"error": f"Post with id {parent_post_id} wasn't found."}
+            )
+        if comment_text is None or len(comment_text) == 0:
+            return createResponse400("The provided comment text is empty.")
+
+        # If everything's fine, create and add the comment
+        media_post.first().replies.add(TextComment.objects.create(text_content=comment_text, created_by=request.user))
+
+        return Response(status=status.HTTP_201_CREATED)
+
+
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
