@@ -30,6 +30,14 @@ class Haversine(Func):
     output_field = models.FloatField()
 
 
+class ZipCodePagination(PageNumberPagination):
+    page_size_query_param = "zip_page_size"
+
+
+class LocalPagination(PageNumberPagination):
+    page_size_query_param = "local_page_size"
+
+
 class GetRecentPostsView(APIView, LatLngValidationMixin):
     def post(self, request):
         data = json.loads(request.body)
@@ -51,6 +59,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         # Filter by zipcode
         if zip_code:
             media_posts = MediaPost.objects.filter(geocoded_location_zip_code=zip_code).order_by("-created")
+            paginator = ZipCodePagination()
         # Filter by distance
         elif user_latitude or user_longitude or distance_radius:
             # Argument validation
@@ -81,18 +90,19 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 .filter(Q(distance_public__lte=distance_radius) | Q(distance_true__lte=distance_radius))
                 .order_by("-created")
             )
+
+            paginator = LocalPagination()
         # If no arguments given, get global posts
         else:
             media_posts = MediaPost.objects.all().order_by("-created")
+            paginator = PageNumberPagination()
 
         # If a species was selected, only get posts of that species
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
 
         # Apply pagination
-        paginator = PageNumberPagination()
         paginator.page_size = 10  # Adjust as needed
-
         paginated_media_posts = paginator.paginate_queryset(media_posts, request)
 
         # Collect and format post information to send
