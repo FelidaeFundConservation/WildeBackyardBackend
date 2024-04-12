@@ -44,6 +44,7 @@ class SocialMediaPostAPITestCase(TestCase):
                 "longitude": 4.56,
                 "privacySetting": "public",
                 "geocodedLocationCountry": "United States",
+                "geocodedLocationZipCode": "12345",
                 "encounterDatetime": "March 22, 2024 12:38 PM",
                 "researchUseAllowed": "true",
                 "accuracyMeters": 50,
@@ -68,11 +69,15 @@ class SocialMediaPostAPITestCase(TestCase):
 
     def test_get_feed_recent_posts(self):
         # Create a few posts
-        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
-        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+        for _num in range(0, 23):
+            self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
         response = self.client.post("/socialmedia/api/feed/get/", {}, format="json")
-        # print(response.content)
+
+        response = self.client.post("/socialmedia/api/feed/get/?random_arg=12345", {"zipcode": "12345"}, format="json")
+        response = self.client.post(
+            "/socialmedia/api/feed/get/?random_arg=12345&page=2", {"zipcode": "12345"}, format="json"
+        )
 
     def test_get_comments(self):
         # Create a few posts
@@ -89,4 +94,4 @@ class SocialMediaPostAPITestCase(TestCase):
             {"mediaPostId": MediaPost.objects.all().first().id},
             format="json",
         )
-        print(response.content)
+        # print(response.content)
