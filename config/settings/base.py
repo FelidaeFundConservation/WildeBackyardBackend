@@ -140,7 +140,7 @@ DATABASES = {
 }
 
 
-REST_FRAMEWORK = {"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination", "PAGE_SIZE": 20}
+REST_FRAMEWORK = {"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination", "PAGE_SIZE": 10}
 
 # Limit data upload size to 20 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520

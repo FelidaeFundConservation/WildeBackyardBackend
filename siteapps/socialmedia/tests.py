@@ -72,12 +72,15 @@ class SocialMediaPostAPITestCase(TestCase):
         for _num in range(0, 23):
             self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
-        response = self.client.post("/socialmedia/api/feed/get/", {}, format="json")
+        self.client.post("/socialmedia/api/feed/get/", {}, format="json")
 
-        response = self.client.post("/socialmedia/api/feed/get/?random_arg=12345", {"zipcode": "12345"}, format="json")
+        response = self.client.post("/socialmedia/api/feed/get/?random_arg=12345", {"zipCode": "12345"}, format="json")
+
         response = self.client.post(
-            "/socialmedia/api/feed/get/?random_arg=12345&page=2", {"zipcode": "12345"}, format="json"
+            "/socialmedia/api/feed/get/?random_arg=12345&offset=10", {"zipCode": "12345"}, format="json"
         )
+
+        self.assertEqual(response.status_code, 200)
 
     def test_get_comments(self):
         # Create a few posts
