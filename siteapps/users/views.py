@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.shortcuts import render
 from rest_framework import authentication, permissions, status
@@ -21,3 +23,18 @@ class UserProfileView(APIView):
         }
 
         return Response(status=status.HTTP_200_OK, data=data)
+
+
+class ChangeUsernameView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        new_username = data.get("newUsername")
+
+        request.user.name = new_username
+        request.user.save()
+
+        return Response(status=status.HTTP_200_OK)
