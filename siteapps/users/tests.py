@@ -34,3 +34,12 @@ class UsersAPITestCase(TestCase):
         response = self.client.get("/users/profile/", format="json")
 
         print(response.content)
+
+    def test_change_username(self):
+        new_username = "MyName1234"
+
+        response = self.client.post("/users/profile/change_username", {"newUsername": new_username}, format="json")
+
+        user = User.objects.get(id=self.user.id)
+
+        self.assertEqual(user.name, new_username)
