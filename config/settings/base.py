@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "siteapps.users",
     "siteapps.socialmedia",
     "siteapps.species",
+    "siteapps.mapbox",
 ]
 
 MIDDLEWARE = [
@@ -246,6 +247,9 @@ EMAIL_HOST_USER = "apikey"
 EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+
+# Mapbox
+MAPBOX_SECRET_TOKEN = env.str("MAPBOX_SECRET_TOKEN", SECRETS.get("MAPBOX-SECRET-TOKEN"))
 
 
 # CUSTOM VARIABLES
