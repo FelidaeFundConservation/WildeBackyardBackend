@@ -23,7 +23,7 @@ class GetMapboxLocationSearchSuggestions(APIView):
         api_url = "https://api.mapbox.com/search/searchbox/v1/suggest?"
 
         response = requests.get(
-            url=f"{api_url}q={search_text}&limit=5&access_token={settings.MAPBOX_SECRET_TOKEN}&session_token={request.user.id}"
+            url=f"{api_url}q={search_text}&limit=5&access_token={settings.MAPBOX_SECRET_TOKEN}&session_token={request.user.id}&types=poi,address"
         )
 
         if response.status_code == 200:
