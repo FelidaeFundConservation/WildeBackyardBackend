@@ -28,7 +28,9 @@ class GetMapboxLocationSearchSuggestions(APIView):
 
         if response.status_code == 200:
             data = json.loads(response.content)
-            suggestions = [(location["name"], location["full_address"]) for location in data["suggestions"]]
+
+            # Last element of list is metadata, so it should be removed
+            suggestions = [(location["name"], location["full_address"]) for location in data["suggestions"][0:-1]]
 
             return Response(status=status.HTTP_200_OK, data={"suggestions": suggestions})
         else:
