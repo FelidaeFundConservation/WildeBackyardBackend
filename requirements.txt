@@ -9,6 +9,7 @@ django-allauth==0.61.1
 django-cors-headers==4.3.1
 django-environ==0.11.2
 django-model-utils==4.4.0
+django-rest-passwordreset==1.4.1
 django-simple-history==3.5.0
 django-storages[azure]
 djangorestframework==3.14.0

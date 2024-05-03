@@ -23,14 +23,14 @@ class GetMapboxLocationSearchSuggestions(APIView):
         api_url = "https://api.mapbox.com/search/searchbox/v1/suggest?"
 
         response = requests.get(
-            url=f"{api_url}q={search_text}&limit=5&access_token={settings.MAPBOX_SECRET_TOKEN}&session_token={request.user.id}&types=poi,address"
+            url=f"{api_url}q={search_text}&limit=4&access_token={settings.MAPBOX_SECRET_TOKEN}&session_token={request.user.id}&types=poi,address"
         )
 
         if response.status_code == 200:
             data = json.loads(response.content)
 
             # Last element of list is metadata, so it should be removed
-            suggestions = [(location["name"], location["full_address"]) for location in data["suggestions"][0:-1]]
+            suggestions = [(location["name"], location["full_address"]) for location in data["suggestions"]]
 
             return Response(status=status.HTTP_200_OK, data={"suggestions": suggestions})
         else:
