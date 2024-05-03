@@ -33,7 +33,7 @@ class UsersAPITestCase(TestCase):
     def test_get_profile(self):
         response = self.client.get("/users/profile/", format="json")
 
-        print(response.content)
+        # print(response.content)
 
     def test_change_username(self):
         new_username = "MyName1234"
@@ -43,3 +43,10 @@ class UsersAPITestCase(TestCase):
         user = User.objects.get(id=self.user.id)
 
         self.assertEqual(user.name, new_username)
+
+    def test_username_too_short(self):
+        new_username = "sh"
+
+        response = self.client.post("/users/profile/change_username", {"newUsername": new_username}, format="json")
+        # print(response.content)
+        self.assertEqual(response.status_code, 400)

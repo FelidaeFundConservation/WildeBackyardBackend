@@ -35,8 +35,8 @@ class MapboxAPITestCase(TestCase):
         headers = self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
     def test_search_suggestions(self):
-        response = self.client.post("/mapbox/api/search_suggestions/", {"searchText": "Mount Wand"}, format="json")
-
+        response = self.client.post("/mapbox/api/search_suggestions/", {"searchText": "Felidae"}, format="json")
+        print(response.content)
         self.assertEqual(response.status_code, 200)
 
     def test_geocode(self):

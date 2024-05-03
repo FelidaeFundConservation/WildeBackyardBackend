@@ -34,6 +34,14 @@ class ChangeUsernameView(APIView):
 
         new_username = data.get("newUsername")
 
+        if len(new_username) < 3:
+            message = "Username must be at least 3 characters long."
+
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"error": message},
+            )
+
         request.user.name = new_username
         request.user.save()
 
