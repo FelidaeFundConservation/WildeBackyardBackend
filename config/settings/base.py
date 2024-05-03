@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     "dj_rest_auth.registration",
     "allauth",
     "allauth.account",
+    "django_rest_passwordreset",
     "siteapps.users",
     "siteapps.socialmedia",
     "siteapps.species",
