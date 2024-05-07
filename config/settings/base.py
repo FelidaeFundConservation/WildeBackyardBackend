@@ -137,9 +137,6 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
-            "libraries": {
-                "password_reset_token_template_filter": "siteapps.users.password_reset_token_template_filter",
-            },
         },
     },
 ]
