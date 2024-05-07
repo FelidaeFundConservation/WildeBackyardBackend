@@ -9,11 +9,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .throttles import (
+    GeocodePerDayThrottle,
+    GeocodePerMinuteThrottle,
+    SearchSuggestionsPerDayThrottle,
+    SearchSuggestionsPerMinuteThrottle,
+)
+
 
 # Create your views here.
 class GetMapboxLocationSearchSuggestions(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SearchSuggestionsPerMinuteThrottle, SearchSuggestionsPerDayThrottle]
 
     def post(self, request):
         data = json.loads(request.body)
@@ -42,6 +50,7 @@ class GetMapboxLocationSearchSuggestions(APIView):
 class GetMapboxGeocode(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [GeocodePerMinuteThrottle, GeocodePerDayThrottle]
 
     def post(self, request):
         data = json.loads(request.body)
