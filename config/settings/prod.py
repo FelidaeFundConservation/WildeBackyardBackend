@@ -5,7 +5,11 @@ from .base import *  # noqa
 # NOTE: SECURITY WARNING: App Engine's security features ensure that it is safe to
 # have ALLOWED_HOSTS = ['*'] when the app is deployed. If you deploy a Django
 # app not on App Engine, make sure to set an appropriate host here.
-ALLOWED_HOSTS = ["127.0.0.1", env.str("WEBSITE_HOSTNAME", SECRETS.get("HOST-NAME"))]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    os.environ["WEBSITE_HOSTNAME"] if "WEBSITE_HOSTNAME" in os.environ else SECRETS.get("HOST-NAME"),
+]
 
 # DEBUG MODE
 # ------------------------------------------------------------------------------
