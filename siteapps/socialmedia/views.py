@@ -9,6 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from dateutil import parser
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Func, Q
 from PIL import Image
@@ -21,7 +22,7 @@ from rest_framework.views import APIView
 from siteapps.species.models import SpeciesName
 
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
-from .models import Media, MediaPost, TextComment
+from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 
 class Haversine(Func):
@@ -208,6 +209,41 @@ class GetPostResponsesAuthenticatedView(APIView):
     # Authenticated endpoint tracks the user, so can check if user liked the post
     def post(self, request):
         return get_post_responses(request)
+
+
+class CreateInappropriateContentReport(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        content_id = data.get("contentId")
+        content_type = data.get("contentType")
+
+        report_kwargs = {
+            "reported_by": request.user,
+        }
+
+        # Get the relevant comment/post object to report
+        try:
+            if content_type == "TextComment":
+                report_kwargs["reported_comment"] = TextComment.objects.get(id=content_id)
+            elif content_type == "MediaPost":
+                report_kwargs["reported_post"] = MediaPost.objects.get(id=content_id)
+            else:
+                createResponse400("Invalid content type provided (must be either 'TextComment' or 'MediaPost.'")
+        except ObjectDoesNotExist:
+            return Response(
+                status=status.HTTP_404_NOT_FOUND, data={"error": f"Post or comment with id {content_id} wasn't found."}
+            )
+
+        # Create the report object if it doesn't exist
+        InappropriateContentReport.objects.get_or_create(**report_kwargs)
+
+        return Response(
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class LikePostView(APIView):
