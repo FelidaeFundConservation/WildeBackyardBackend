@@ -132,3 +132,22 @@ class MediaPost(TextComment):
     # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
     private_location_latitude = models.FloatField(null=True)
     private_location_longitude = models.FloatField(null=True)
+
+
+# Model to handle reports for inappropriate content
+class InappropriateContentReport(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Who reported the media/comment
+    reported_by = models.ForeignKey(User, related_name="reported_by_user", on_delete=models.SET_NULL, null=True)
+
+    # Can report either comments or posts
+    reported_comment = models.ForeignKey(
+        TextComment, related_name="reported_comment", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    reported_post = models.ForeignKey(
+        MediaPost, related_name="reported_post", on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    # Whether the report has been handled by a moderator/staff
+    resolved = models.BooleanField(default=False)
