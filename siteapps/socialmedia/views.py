@@ -189,7 +189,7 @@ def get_post_responses(request):
                     "like_count": media_post_obj.upvoted_by.all().count(),
                     "liked_by_current_user": check_post_is_liked_by(media_post_obj=media_post_obj, user=request.user),
                     "comments": media_post_obj.replies.order_by("-created").values_list(
-                        "created_by__name", "text_content", "created"
+                        "created_by__name", "text_content", "created", "id"
                     ),
                 },
             )
