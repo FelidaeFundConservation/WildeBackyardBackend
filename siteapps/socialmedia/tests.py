@@ -97,4 +97,25 @@ class SocialMediaPostAPITestCase(TestCase):
             {"mediaPostId": MediaPost.objects.all().first().id},
             format="json",
         )
-        # print(response.content)
+
+    def test_report_posts(self):
+        # Create a post
+        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+
+        self.client.post(
+            "/socialmedia/api/comments/create/",
+            {"parentPostId": MediaPost.objects.all().first().id, "commentText": "Hello there!"},
+            format="json",
+        )
+
+        response = self.client.post(
+            "/socialmedia/api/posts/report_content/",
+            {"contentId": MediaPost.objects.all().first().id, "contentType": "MediaPost"},
+            format="json",
+        )
+
+        response = self.client.post(
+            "/socialmedia/api/posts/report_content/",
+            {"contentId": TextComment.objects.all().first().id, "contentType": "TextComment"},
+            format="json",
+        )

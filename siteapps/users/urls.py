@@ -4,7 +4,7 @@ from dj_rest_auth.views import LoginView, LogoutView, UserDetailsView
 from django.urls import path
 
 from . import views
-from .views import ChangeUsernameView, UserProfileView
+from .views import ChangeUsernameView, DeleteAccountView, UserProfileView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="rest_register"),
@@ -12,4 +12,5 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="rest_logout"),
     path("profile/", UserProfileView.as_view(), name="user_profile"),
     path("profile/change_username", ChangeUsernameView.as_view(), name="change_username"),
+    path("delete_account", DeleteAccountView.as_view(), name="delete_account"),
 ]

@@ -46,3 +46,24 @@ class ChangeUsernameView(APIView):
         request.user.save()
 
         return Response(status=status.HTTP_200_OK)
+
+
+class DeleteAccountView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        confirmation_string = data.get("confirmation_string")
+
+        # Confirm user input to delete account
+        if confirmation_string == self.request.user.name:
+            self.request.user.delete()
+            return Response(status=status.HTTP_200_OK)
+        else:
+            message = "The account deletion code was not input correctly."
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"error": message},
+            )
