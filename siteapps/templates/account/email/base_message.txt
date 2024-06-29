@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with site_name=current_site.name %}To Wilde Backyard user:{% endblocktrans %}
+
+{% block content %}{% endblock content %}
+
+{% blocktrans with site_name=current_site.name site_domain=current_site.domain %}- Felidae Conservation Fund{% endblocktrans %}
+{% endautoescape %}

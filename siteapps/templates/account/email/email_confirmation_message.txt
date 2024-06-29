@@ -1,0 +1,9 @@
+{% load account %}{% user_display user as user_display %}{% load i18n %}{% autoescape off %}{% blocktrans with site_name=current_site.name site_domain=current_site.domain %}Welcome to Wilde Backyard! You're nearly done creating your account and getting set to discovering the wildlife in your backyard!
+
+To complete registration, please click the following <a href="{{ activate_url }}" target="_blank">link.</a>
+{% endblocktrans %}
+{% blocktrans with site_name=current_site.name site_domain=current_site.domain %}- Felidae Conservation Fund
+{{ site_domain }}{% endblocktrans %}
+{% endautoescape %}
+
+{% load i18n %}
