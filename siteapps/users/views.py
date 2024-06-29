@@ -55,7 +55,7 @@ class DeleteAccountView(APIView):
     def post(self, request):
         data = json.loads(request.body)
 
-        confirmation_string = data.get("confirmation_string")
+        confirmation_string = data.get("confirmationString")
 
         # Confirm user input to delete account
         if confirmation_string == self.request.user.name:
