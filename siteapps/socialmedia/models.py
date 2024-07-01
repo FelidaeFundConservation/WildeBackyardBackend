@@ -42,11 +42,6 @@ class TextComment(TimeStampedModel):
     # Like count
     upvoted_by = models.ManyToManyField(User, blank=True, related_name="upvoted_by")
 
-    # The post or its media has been flagged for inappropriate content, and has not been resolved
-    is_flagged_as_reported = models.BooleanField(default=False)
-    # Tracking who reported the post in the past
-    reported_by = models.ManyToManyField(User, blank=True, related_name="reported_by")
-
 
 # A specialized post with media and title, used for main posts
 class MediaPost(TextComment):
