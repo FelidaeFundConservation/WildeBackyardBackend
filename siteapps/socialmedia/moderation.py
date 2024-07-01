@@ -1,0 +1,96 @@
+import json
+
+from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework import authentication, permissions, status
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from siteapps.users.models import BannedEmail
+
+from .mixins import createResponse400
+from .models import InappropriateContentReport, Media, MediaPost, TextComment
+
+
+class CreateInappropriateContentReportView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        content_id = data.get("contentId")
+        content_type = data.get("contentType")
+
+        report_kwargs = {
+            "reported_by": request.user,
+        }
+
+        # Get the relevant comment/post object to report
+        try:
+            if content_type == "TextComment":
+                report_kwargs["reported_comment"] = TextComment.objects.get(id=content_id)
+            elif content_type == "MediaPost":
+                report_kwargs["reported_post"] = MediaPost.objects.get(id=content_id)
+            else:
+                createResponse400("Invalid content type provided (must be either 'TextComment' or 'MediaPost.'")
+        except ObjectDoesNotExist:
+            return Response(
+                status=status.HTTP_404_NOT_FOUND, data={"error": f"Post or comment with id {content_id} wasn't found."}
+            )
+
+        # Create the report object if it doesn't exist
+        InappropriateContentReport.objects.get_or_create(**report_kwargs)
+
+        return Response(
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# Get info for a reported media/comment for admin to view
+class GetNextReportedContentView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        DELETED_USER = "Deleted User"
+        EMAIL_FIELD = "email"
+        NAME_FIELD = "name"
+
+        # Look for next report to review
+        report = InappropriateContentReport.objects.filter(resolved=False)
+
+        if report.exists():
+            report_obj = report.first()
+
+            # Reported content is a comment
+            if report_obj.reported_comment is not None:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={
+                        "report_id": report_obj.id,
+                        "content_id": report_obj.reported_comment.id,
+                        "user_email": getattr(report_obj.reported_comment.created_by, EMAIL_FIELD, DELETED_USER),
+                        "user_name": getattr(report_obj.reported_comment.created_by, NAME_FIELD, DELETED_USER),
+                        "text_content": report_obj.reported_comment.text_content,
+                    },
+                )
+            # Reported content is a media post
+            elif report_obj.reported_post is not None:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={
+                        "report_id": report_obj.id,
+                        "content_id": report_obj.reported_post.id,
+                        "user_email": getattr(report_obj.reported_post.created_by, EMAIL_FIELD, DELETED_USER),
+                        "user_name": getattr(report_obj.reported_post.created_by, NAME_FIELD, DELETED_USER),
+                        "media": getattr(report_obj.reported_post.media, "file_cloud_path", None),
+                        "title": report_obj.reported_post.title,
+                        "text_content": report_obj.reported_post.text_content,
+                    },
+                )
+        else:
+            return Response(
+                status=status.HTTP_200_OK,
+            )
