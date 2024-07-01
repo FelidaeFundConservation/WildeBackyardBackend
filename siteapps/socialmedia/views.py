@@ -15,7 +15,7 @@ from django.db.models import Func, Q
 from PIL import Image
 from rest_framework import authentication, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -212,7 +212,7 @@ class GetPostResponsesAuthenticatedView(APIView):
         return get_post_responses(request)
 
 
-class CreateInappropriateContentReport(APIView):
+class CreateInappropriateContentReportView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
@@ -245,6 +245,52 @@ class CreateInappropriateContentReport(APIView):
         return Response(
             status=status.HTTP_201_CREATED,
         )
+
+
+# Get info for a reported media/comment for admin to view
+class GetNextReportedContentView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        DELETED_USER = "Deleted User"
+        EMAIL_FIELD = "email"
+        NAME_FIELD = "name"
+
+        # Look for next report to review
+        report = InappropriateContentReport.objects.filter(resolved=False)
+
+        if report.exists():
+            report_obj = report.first()
+
+            # Reported content is a comment
+            if report_obj.reported_comment is not None:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={
+                        "id": report_obj.reported_comment.id,
+                        "user_email": getattr(report_obj.reported_comment.created_by, EMAIL_FIELD, DELETED_USER),
+                        "user_name": getattr(report_obj.reported_comment.created_by, NAME_FIELD, DELETED_USER),
+                        "text_content": report_obj.reported_comment.text_content,
+                    },
+                )
+            # Reported content is a media post
+            elif report_obj.reported_post is not None:
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={
+                        "id": report_obj.reported_post.id,
+                        "user_email": getattr(report_obj.reported_post.created_by, EMAIL_FIELD, DELETED_USER),
+                        "user_name": getattr(report_obj.reported_post.created_by, NAME_FIELD, DELETED_USER),
+                        "media": getattr(report_obj.reported_post.media, "file_cloud_path", None),
+                        "title": report_obj.reported_post.title,
+                        "text_content": report_obj.reported_post.text_content,
+                    },
+                )
+        else:
+            return Response(
+                status=status.HTTP_200_OK,
+            )
 
 
 class LikePostView(APIView):

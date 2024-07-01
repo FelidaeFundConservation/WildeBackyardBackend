@@ -6,7 +6,7 @@ from django.test import TestCase
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, force_authenticate
 
-from siteapps.socialmedia.models import Media, MediaPost, TextComment
+from siteapps.socialmedia.models import InappropriateContentReport, Media, MediaPost, TextComment
 from siteapps.species.models import SpeciesName
 from siteapps.users.models import BannedEmail, User
 
@@ -127,3 +127,13 @@ class SocialMediaPostAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 405)
         self.assertFalse(MediaPost.objects.filter(created_by__email=self.user.email).exists())
+
+    def test_banned_user_create_media_post(self):
+        self.user.is_staff = True
+        self.user.save()
+
+        response = self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+
+        InappropriateContentReport.objects.create(reported_post=MediaPost.objects.all().first())
+
+        response = self.client.get("/socialmedia/api/posts/review_reports/", format="json")
