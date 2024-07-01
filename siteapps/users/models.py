@@ -25,13 +25,6 @@ class User(AbstractUser, TimeStampedModel):
     first_name = None  # type: ignore
     last_name = None  # type: ignore
 
-    # The user's homebase location
-    location_latitude = models.FloatField(null=True)
-    location_longitude = models.FloatField(null=True)
-
-    # Zip code if the user doesn't want to give precise location
-    zipcode = models.IntegerField(null=True)
-
     # History of model instance changes
     history = HistoricalRecords()
 
@@ -43,3 +36,9 @@ class User(AbstractUser, TimeStampedModel):
 
     class Meta:
         ordering = ("name", "email")
+
+
+# Track emails so users can't delete/recreate account to circumvent comment/media bans
+class BannedEmail(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField("email address", unique=True)

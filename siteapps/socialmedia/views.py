@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from siteapps.species.models import SpeciesName
+from siteapps.users.models import BannedEmail
 
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
@@ -289,6 +290,13 @@ class CreateCommentView(APIView):
 
         media_post = MediaPost.objects.filter(id=parent_post_id)
 
+        # Check if user is banned
+        if BannedEmail.objects.filter(email=request.user.email).exists():
+            return Response(
+                status=status.HTTP_405_METHOD_NOT_ALLOWED,
+                data={"error": "This account is not allowed to make comments."},
+            )
+
         # Input validation
         if parent_post_id is None:
             return createResponse400("The post to reply to wasn't specified.")
@@ -375,6 +383,12 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             "obfuscation_box_corner_4_latitude": data.get("corner4Latitude"),
             "obfuscation_box_corner_4_longitude": data.get("corner4Longitude"),
         }
+
+        # Check is user is banned
+        if BannedEmail.objects.filter(email=request.user.email).exists():
+            return Response(
+                status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}
+            )
 
         # Argument validation
         errors = [
