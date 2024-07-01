@@ -138,6 +138,10 @@ TEMPLATES = [
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
+                "django.template.context_processors.i18n",
+                "django.template.context_processors.media",
+                "django.template.context_processors.static",
+                "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
             ],
         },
@@ -256,7 +260,7 @@ DEFAULT_FROM_EMAIL = env(
 SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
 EMAIL_SUBJECT_PREFIX = "[Wilde Backyard]"
-
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 
 # Sendgrid email settings
 SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", SECRETS.get("SENDGRID-API-KEY"))
