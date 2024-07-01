@@ -25,6 +25,9 @@ class User(AbstractUser, TimeStampedModel):
     first_name = None  # type: ignore
     last_name = None  # type: ignore
 
+    # The number of warnings the user has received
+    warnings = models.IntegerField(default=0)
+
     # History of model instance changes
     history = HistoricalRecords()
 
