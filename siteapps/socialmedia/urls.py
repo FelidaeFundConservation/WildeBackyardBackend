@@ -1,10 +1,9 @@
 from django.urls import path, re_path
 
+from siteapps.socialmedia.moderation import CreateInappropriateContentReportView, GetNextReportedContentView
 from siteapps.socialmedia.views import (
     CreateCommentView,
-    CreateInappropriateContentReportView,
     CreatePostView,
-    GetNextReportedContentView,
     GetPostResponsesAuthenticatedView,
     GetPostResponsesNoAuthView,
     GetRecentPostsView,
