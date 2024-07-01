@@ -94,3 +94,107 @@ class GetNextReportedContentView(APIView):
             return Response(
                 status=status.HTTP_200_OK,
             )
+
+
+# Resolve reported content by clearing (i.e. nothing wrong with content)
+class ClearReportView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        report_id = data.get("reportId")
+
+        # Get the specified report to clear
+        try:
+            report_obj = InappropriateContentReport.objects.get(id=report_id)
+        except ObjectDoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": f"Report with id {report_id} not found."})
+
+        report_obj.resolved = True
+        report_obj.save()
+
+        return Response(
+            status=status.HTTP_200_OK,
+        )
+
+
+# For minor conduct (ex: rudeness), remove only the offending post and issue a warning
+class IssueWarningView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        report_id = data.get("reportId")
+
+        # Get the specified report to clear
+        try:
+            report_obj = InappropriateContentReport.objects.get(id=report_id)
+        except ObjectDoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": f"Report with id {report_id} not found."})
+
+        user_to_warn = None
+
+        # Delete the offending post or comment
+        if report_obj.reported_comment is not None:
+            user_to_warn = report_obj.reported_comment.created_by
+            report_obj.reported_comment.delete()
+        if report_obj.reported_post is not None:
+            user_to_warn = report_obj.reported_post.created_by
+            report_obj.reported_post.delete()
+
+        # Increment the user's warn count
+        if user_to_warn:
+            user_to_warn.warnings += 1
+            user_to_warn.save()
+
+        # Resolve the report
+        report_obj.resolved = True
+        report_obj.save()
+
+        return Response(
+            status=status.HTTP_200_OK,
+        )
+
+
+# For major conduct (ex: bad profanity, explicit, etc) or multiple warnings, ban user from posting and remove all content related to them
+class BanUserView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        report_id = data.get("reportId")
+
+        # Get the specified report to clear
+        try:
+            report_obj = InappropriateContentReport.objects.get(id=report_id)
+        except ObjectDoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": f"Report with id {report_id} not found."})
+
+        user_to_ban = None
+
+        # Get user to ban
+        if report_obj.reported_comment is not None:
+            user_to_ban = report_obj.reported_comment.created_by
+        if report_obj.reported_post is not None:
+            user_to_ban = report_obj.reported_post.created_by
+
+        # Delete all content related to user
+        if user_to_ban:
+            MediaPost.objects.filter(created_by=user_to_ban).delete()
+            TextComment.objects.filter(created_by=user_to_ban).delete()
+            # Add email to banned list to avoid account recreation bypass
+            BannedEmail.objects.create(email=user_to_ban.email)
+
+        # Resolve the report
+        report_obj.resolved = True
+        report_obj.save()
+
+        return Response(
+            status=status.HTTP_200_OK,
+        )

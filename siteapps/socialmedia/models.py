@@ -136,6 +136,9 @@ class InappropriateContentReport(TimeStampedModel):
     # Who reported the media/comment
     reported_by = models.ForeignKey(User, related_name="reported_by_user", on_delete=models.SET_NULL, null=True)
 
+    # The user the report was made against
+    reported_user = models.ForeignKey(User, related_name="reported_user", on_delete=models.SET_NULL, null=True)
+
     # Can report either comments or posts
     reported_comment = models.ForeignKey(
         TextComment, related_name="reported_comment", on_delete=models.SET_NULL, null=True, blank=True
@@ -146,3 +149,6 @@ class InappropriateContentReport(TimeStampedModel):
 
     # Whether the report has been handled by a moderator/staff
     resolved = models.BooleanField(default=False)
+
+    # Describes the offense the user was warned for (if any)
+    warning_notes = models.CharField(max_length=800, null=True, blank=True)
