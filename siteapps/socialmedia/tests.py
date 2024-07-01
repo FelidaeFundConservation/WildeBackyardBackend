@@ -8,7 +8,7 @@ from rest_framework.test import APIClient, force_authenticate
 
 from siteapps.socialmedia.models import Media, MediaPost, TextComment
 from siteapps.species.models import SpeciesName
-from siteapps.users.models import User
+from siteapps.users.models import BannedEmail, User
 
 # Create your tests here.
 
@@ -119,3 +119,11 @@ class SocialMediaPostAPITestCase(TestCase):
             {"contentId": TextComment.objects.all().first().id, "contentType": "TextComment"},
             format="json",
         )
+
+    def test_banned_user_create_media_post(self):
+        BannedEmail.objects.create(email=self.user.email)
+
+        response = self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+
+        self.assertEqual(response.status_code, 405)
+        self.assertFalse(MediaPost.objects.filter(created_by__email=self.user.email).exists())
