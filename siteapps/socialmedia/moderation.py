@@ -2,6 +2,7 @@ import json
 
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from rest_framework import authentication, permissions, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -129,6 +130,7 @@ class IssueWarningView(APIView):
         data = json.loads(request.body)
 
         report_id = data.get("reportId")
+        warning_notes = data.get("warningNotes")
 
         # Get the specified report to clear
         try:
@@ -142,16 +144,18 @@ class IssueWarningView(APIView):
         if report_obj.reported_comment is not None:
             user_to_warn = report_obj.reported_comment.created_by
             report_obj.reported_comment.delete()
+            report_obj.reported_comment = None
         if report_obj.reported_post is not None:
             user_to_warn = report_obj.reported_post.created_by
             report_obj.reported_post.delete()
-
+            report_obj.reported_post = None
         # Increment the user's warn count
         if user_to_warn:
             user_to_warn.warnings += 1
             user_to_warn.save()
 
         # Resolve the report
+        report_obj.warning_notes = warning_notes
         report_obj.resolved = True
         report_obj.save()
 
@@ -169,6 +173,7 @@ class BanUserView(APIView):
         data = json.loads(request.body)
 
         report_id = data.get("reportId")
+        ban_reason = data.get("banReason")
 
         # Get the specified report to clear
         try:
@@ -188,8 +193,10 @@ class BanUserView(APIView):
         if user_to_ban:
             MediaPost.objects.filter(created_by=user_to_ban).delete()
             TextComment.objects.filter(created_by=user_to_ban).delete()
+            report_obj.reported_post = None
+            report_obj.reported_comment = None
             # Add email to banned list to avoid account recreation bypass
-            BannedEmail.objects.create(email=user_to_ban.email)
+            BannedEmail.objects.create(email=user_to_ban.email, ban_reason=ban_reason)
 
         # Resolve the report
         report_obj.resolved = True

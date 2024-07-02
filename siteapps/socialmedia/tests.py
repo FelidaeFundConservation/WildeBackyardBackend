@@ -109,16 +109,31 @@ class SocialMediaPostAPITestCase(TestCase):
         )
 
         response = self.client.post(
-            "/socialmedia/api/posts/report_content/",
+            "/socialmedia/api/posts/reports/create",
             {"contentId": MediaPost.objects.all().first().id, "contentType": "MediaPost"},
             format="json",
         )
 
+        self.user.is_staff = True
+        self.user.save()
+
         response = self.client.post(
-            "/socialmedia/api/posts/report_content/",
+            "/socialmedia/api/posts/reports/create",
             {"contentId": TextComment.objects.all().first().id, "contentType": "TextComment"},
             format="json",
         )
+
+        response = self.client.get(
+            "/socialmedia/api/posts/reports/review",
+            format="json",
+        )
+
+        response = self.client.post(
+            "/socialmedia/api/posts/reports/ban",
+            {"reportId": json.loads(response.content)["report_id"], "banReason": "Did a bad thing."},
+            format="json",
+        )
+
 
     def test_banned_user_create_media_post(self):
         BannedEmail.objects.create(email=self.user.email)
@@ -136,4 +151,4 @@ class SocialMediaPostAPITestCase(TestCase):
 
         InappropriateContentReport.objects.create(reported_post=MediaPost.objects.all().first())
 
-        response = self.client.get("/socialmedia/api/posts/review_reports/", format="json")
+        response = self.client.get("/socialmedia/api/posts/reports/review", format="json")
