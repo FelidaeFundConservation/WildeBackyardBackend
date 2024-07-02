@@ -44,4 +44,6 @@ class User(AbstractUser, TimeStampedModel):
 # Track emails so users can't delete/recreate account to circumvent comment/media bans
 class BannedEmail(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
     email = models.EmailField("email address", unique=True)
+    ban_reason = models.CharField(max_length=800, default="")

@@ -151,4 +151,4 @@ class InappropriateContentReport(TimeStampedModel):
     resolved = models.BooleanField(default=False)
 
     # Describes the offense the user was warned for (if any)
-    warning_notes = models.CharField(max_length=800, null=True, blank=True)
+    warning_notes = models.CharField(max_length=800, default="")
