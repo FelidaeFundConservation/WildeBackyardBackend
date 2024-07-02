@@ -20,6 +20,8 @@ class UserProfileView(APIView):
             "joined_date": request.user.created.strftime(settings.READABLE_DATE_FORMAT),
             "display_name": request.user.name,
             "sightings_count": MediaPost.objects.filter(created_by=request.user).count(),
+            "is_staff": request.user.is_staff,
+            "is_superuser": request.user.is_superuser,
         }
 
         return Response(status=status.HTTP_200_OK, data=data)

@@ -134,7 +134,6 @@ class SocialMediaPostAPITestCase(TestCase):
             format="json",
         )
 
-
     def test_banned_user_create_media_post(self):
         BannedEmail.objects.create(email=self.user.email)
 

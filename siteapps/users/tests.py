@@ -58,6 +58,6 @@ class UsersAPITestCase(TestCase):
 
         user = User.objects.get(id=self.user.id)
 
-        response2 = self.client.post("/users/delete_account", {"confirmation_string": new_username}, format="json")
+        response2 = self.client.post("/users/delete_account", {"confirmationString": new_username}, format="json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(User.objects.filter(name=new_username).exists(), False)
