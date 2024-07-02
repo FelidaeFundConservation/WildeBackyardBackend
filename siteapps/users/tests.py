@@ -61,3 +61,16 @@ class UsersAPITestCase(TestCase):
         response2 = self.client.post("/users/delete_account", {"confirmationString": new_username}, format="json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(User.objects.filter(name=new_username).exists(), False)
+
+    def test_edit_staff(self):
+        self.user.is_superuser = True
+        self.user.is_staff = False
+        self.user.save()
+
+        self.assertEqual(self.user.is_staff, False)
+
+        response = self.client.post(
+            "/users/edit_staff", {"accountEmail": self.user.email, "setStaff": True}, format="json"
+        )
+
+        self.assertEqual(self.user.is_staff, True)
