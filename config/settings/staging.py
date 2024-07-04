@@ -7,6 +7,7 @@ from .base import *  # noqa
 # app not on App Engine, make sure to set an appropriate host here.
 ALLOWED_HOSTS = ["127.0.0.1", env.str("WEBSITE_HOSTNAME", SECRETS.get("HOST-NAME"))]
 
+
 # DEBUG MODE
 # ------------------------------------------------------------------------------
 DEBUG = True
@@ -21,7 +22,7 @@ WSGI_APPLICATION = "config.wsgi.staging.application"
 DATABASES = {
     "default": {
         "ENGINE": "mssql",
-        "NAME": env.str("DB_NAME_STAGING", "prod"),
+        "NAME": env.str("DB_NAME_STAGING", "staging"),
         "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST")),
         "USER": env.str("DB_USER", SECRETS.get("DB-USER")),
         "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD")),
@@ -37,7 +38,7 @@ DATABASES = {
 # ------------------------------------------------------------------------------
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
 AZURE_STORAGE_CONTAINER_NAME = env.str(
-    "AZURE_STORAGE_CONTAINER_NAME_STAGING", SECRETS["AZURE-STORAGE-CONTAINER-NAME-STAGING"]
+    "AZURE_STORAGE_CONTAINER_NAME_STAGING", SECRETS.get("AZURE-STORAGE-CONTAINER-NAME-STAGING")
 )
 
 
