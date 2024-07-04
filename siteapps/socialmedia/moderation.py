@@ -26,14 +26,17 @@ class CreateInappropriateContentReportView(APIView):
 
         report_kwargs = {
             "reported_by": request.user,
+            "resolved": False,
         }
 
         # Get the relevant comment/post object to report
         try:
             if content_type == "TextComment":
                 report_kwargs["reported_comment"] = TextComment.objects.get(id=content_id)
+                report_kwargs["reported_user"] = report_kwargs["reported_comment"].created_by
             elif content_type == "MediaPost":
                 report_kwargs["reported_post"] = MediaPost.objects.get(id=content_id)
+                report_kwargs["reported_user"] = report_kwargs["reported_post"].created_by
             else:
                 createResponse400("Invalid content type provided (must be either 'TextComment' or 'MediaPost.'")
         except ObjectDoesNotExist:
@@ -56,7 +59,6 @@ class GetNextReportedContentView(APIView):
 
     def get(self, request):
         DELETED_USER = "Deleted User"
-        EMAIL_FIELD = "email"
         NAME_FIELD = "name"
 
         # Look for next report to review
@@ -72,9 +74,8 @@ class GetNextReportedContentView(APIView):
                     data={
                         "report_id": report_obj.id,
                         "content_id": report_obj.reported_comment.id,
-                        "user_email": getattr(report_obj.reported_comment.created_by, EMAIL_FIELD, DELETED_USER),
                         "user_name": getattr(report_obj.reported_comment.created_by, NAME_FIELD, DELETED_USER),
-                        "text_content": report_obj.reported_comment.text_content,
+                        "text_content": TextComment.objects.get(id=report_obj.reported_comment.id).text_content,
                     },
                 )
             # Reported content is a media post
@@ -84,17 +85,16 @@ class GetNextReportedContentView(APIView):
                     data={
                         "report_id": report_obj.id,
                         "content_id": report_obj.reported_post.id,
-                        "user_email": getattr(report_obj.reported_post.created_by, EMAIL_FIELD, DELETED_USER),
                         "user_name": getattr(report_obj.reported_post.created_by, NAME_FIELD, DELETED_USER),
                         "media": getattr(report_obj.reported_post.media, "file_cloud_path", None),
                         "title": report_obj.reported_post.title,
                         "text_content": report_obj.reported_post.text_content,
                     },
                 )
-        else:
-            return Response(
-                status=status.HTTP_200_OK,
-            )
+
+        return Response(
+            status=status.HTTP_200_OK,
+        )
 
 
 # Resolve reported content by clearing (i.e. nothing wrong with content)
