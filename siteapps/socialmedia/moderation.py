@@ -24,6 +24,11 @@ class CreateInappropriateContentReportView(APIView):
         content_id = data.get("contentId")
         content_type = data.get("contentType")
 
+        if content_id is None:
+            return createResponse400("The ID of the content to report was not provided.")
+        if content_type is None:
+            return createResponse400("The content type was not provided.")
+
         report_kwargs = {
             "reported_by": request.user,
             "resolved": False,
@@ -68,7 +73,7 @@ class GetNextReportedContentView(APIView):
             report_obj = report.first()
 
             # Reported content is a comment
-            if report_obj.reported_comment is not None:
+            if report_obj.reported_comment:
                 return Response(
                     status=status.HTTP_200_OK,
                     data={
@@ -79,7 +84,7 @@ class GetNextReportedContentView(APIView):
                     },
                 )
             # Reported content is a media post
-            elif report_obj.reported_post is not None:
+            elif report_obj.reported_post:
                 return Response(
                     status=status.HTTP_200_OK,
                     data={
@@ -91,9 +96,13 @@ class GetNextReportedContentView(APIView):
                         "text_content": report_obj.reported_post.text_content,
                     },
                 )
+            else:
+                return Response(
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                ) 
 
         return Response(
-            status=status.HTTP_200_OK,
+            status=status.HTTP_404_NOT_FOUND,
         )
 
 
@@ -106,6 +115,9 @@ class ClearReportView(APIView):
         data = json.loads(request.body)
 
         report_id = data.get("reportId")
+
+        if report_id is None:
+            return createResponse400("The report ID to clear was not provided.")
 
         # Get the specified report to clear
         try:
@@ -131,6 +143,11 @@ class IssueWarningView(APIView):
 
         report_id = data.get("reportId")
         warning_notes = data.get("warningNotes")
+
+        if report_id is None:
+            return createResponse400("The report ID to determine who to warn was not provided.")
+        if warning_notes is None:
+            return createResponse400("The warning reason was not provided.")
 
         # Get the specified report to clear
         try:
@@ -174,6 +191,11 @@ class BanUserView(APIView):
 
         report_id = data.get("reportId")
         ban_reason = data.get("banReason")
+
+        if report_id is None:
+            return createResponse400("The report ID to determine who to ban was not provided.")
+        if ban_reason is None:
+            return createResponse400("The ban reason was not provided.")
 
         # Get the specified report to clear
         try:
