@@ -35,6 +35,10 @@ class SpeciesAPITestCase(TestCase):
         token = json.loads(login_response.content)["key"]
         headers = self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
-    def test_get_feed_recent_posts(self):
+    def test_get_species_names(self):
         SpeciesName.objects.create(name="Test", scientific_name="Science")
         response = self.client.get("/species/api/names/get/", {}, format="json")
+
+    def test_create_species_name(self):
+        response = self.client.post("/species/api/names/create/", {"name": "speCieS"}, format="json")
+
