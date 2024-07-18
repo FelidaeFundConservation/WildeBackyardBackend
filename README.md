@@ -11,6 +11,7 @@ python -m venv /path/to/new/virtual/environment
 ```
 4. Navigate to the wildebackyard directory. Install dependencies with pip within the venv.
 ```
+call venv/Scripts/activate.bat
 pip install -r requirements.txt
 ```
 
@@ -27,12 +28,19 @@ However, there is an issue with the token model that causes a NOT NULL constrain
 ### As a current workaround, the the "id" field needs to be removed from the model and migrations for this package.
 
 1. Navigate to the installed package, such as wildebackyard\venv\Lib\site-packages\django_rest_passwordreset.
-2. Delete the "id" AutoField in the ResetPasswordToken model.
-3. Delete all migration files within the passwordreset package.
-4. Remake migrations.
+2. Enter the migrations folder.
+3. Delete all migration files within the passwordreset package (the numbered ones with 0001_SOMETHING, 0002_SOMETHING, etc).
+4. Find the alternative migration file in the Slack channel, or ask for it.
+5. Add this alt. migration file in the folder.
+
+<i>The directory should look like this (this is the alternative 0001_initial.py file, not the original)</i>
+![image](https://github.com/user-attachments/assets/d958a5aa-2346-4b8d-ae2f-ac8d9ec80e98)
+
+
+6. Migrate to your local DB.
 
 ```
-python manage.py makemigrations
+python manage.py migrate --settings=config.settings.local
 ```
 
 The migrations should now be consistent with the database, and should work locally for development.
@@ -45,9 +53,10 @@ Try running the server to see if it works.
 python manage.py runserver --settings=config.settings.local
 ```
 
-To connect to staging or even prod databases, replace "local" with "staging" or "prod."
+To connect to staging or even prod databases, replace "local" with "staging" or "prod."<br>
+It's recommended to use the staging environment for development to test with data in the actual Cloud DB.
 
-<i>(!) Please be careful when working with data while connected to prod, as this is live data.</i>
+<i>(!) Please be very careful when working with data while connected to prod, as this is live data seen by users.</i>
 
 ---
 ## Developing A Feature
