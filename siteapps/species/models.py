@@ -5,7 +5,7 @@ from model_utils.models import TimeStampedModel
 # Create your models here.
 class SpeciesName(TimeStampedModel):
     name = models.CharField("Common Name", max_length=250, unique=True)
-    scientific_name = models.CharField(max_length=250, unique=True)
+    scientific_name = models.CharField(max_length=250, null=True, blank=True)
 
     # Species name is currently used and shown in the annotation widget
     active = models.BooleanField(default=True)
