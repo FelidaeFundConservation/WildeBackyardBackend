@@ -46,7 +46,6 @@ class SocialMediaPostAPITestCase(TestCase):
                 "geocodedLocationCountry": "United States",
                 "geocodedLocationZipCode": "12345",
                 "encounterDatetime": "March 22, 2024 12:38 PM",
-                "researchUseAllowed": "true",
                 "accuracyMeters": 50,
                 "species": "Acorn Woodpecker",
             },

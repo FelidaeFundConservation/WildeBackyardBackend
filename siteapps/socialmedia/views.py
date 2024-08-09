@@ -128,7 +128,6 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "created_by": getattr(post.created_by, "name", "Deleted User"),
                 "encounter_datetime": post.encounter_datetime,
                 "species": getattr(post.species, "name", None),
-                "research_use_allowed": post.research_use_allowed,
                 "media": media_data,
                 "additional_info": additional_data,
                 "title": post.title,
@@ -327,9 +326,6 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         title = data.get("postTitle")
         body = data.get("postBody")
 
-        # Whether the user allowed public research usage
-        research_use_allowed = data.get("researchUseAllowed")
-
         # The brand and type of camera used to take the media (if any)
         camera_model = data.get("cameraModel")
         camera_deployment_date = data.get("cameraDeploymentDate")
@@ -366,7 +362,6 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
                 obfuscation_kilometers,
                 obfuscation_box_corners,
                 geocoded_location_country,
-                research_use_allowed,
                 title,
             ),
         ]
@@ -380,7 +375,6 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             "encounter_datetime": parser.parse(encounter_datetime),
             "accuracy_ring_radius_meters": accuracy_meters,
             "geocoded_location_country": geocoded_location_country,
-            "research_use_allowed": json.loads(research_use_allowed),
             "title": title,
         }
 
