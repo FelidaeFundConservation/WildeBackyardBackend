@@ -57,16 +57,11 @@ class PostInputsValidationMixin:
         obfuscation_kilometers,
         obfuscation_box_corners,
         geocoded_location_country,
-        research_use_allowed,
         post_title,
     ):
         # Datetime string to convert
         if encounter_datetime is None:
             return createResponse400("No encounter datetime provided.")
-
-        # Whether public research is allowed to use the post's info
-        if research_use_allowed is None:
-            return createResponse400("No 'research use allowed' preference provided.")
 
         # A ring where the true location may lie
         if accuracy_meters is None:
