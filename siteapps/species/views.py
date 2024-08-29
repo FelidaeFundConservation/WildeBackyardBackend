@@ -12,7 +12,8 @@ from siteapps.species.models import SpeciesName
 class GetSpeciesNamesView(APIView):
     def get(self, request):
         species_names = list(SpeciesName.objects.all().values_list("name", flat=True))
-        return Response(status=status.HTTP_200_OK, data=species_names)
+        data = {"species_names": species_names}
+        return Response(status=status.HTTP_200_OK, data=data)
 
 
 class CreateSpeciesNameView(APIView):
