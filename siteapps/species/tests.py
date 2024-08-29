@@ -38,7 +38,14 @@ class SpeciesAPITestCase(TestCase):
     def test_get_species_names(self):
         SpeciesName.objects.create(name="Test", scientific_name="Science")
         response = self.client.get("/species/api/names/get/", {}, format="json")
+        
+        # Validate the output
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"species_names": ["Test"]})
 
     def test_create_species_name(self):
         response = self.client.post("/species/api/names/create/", {"name": "speCieS"}, format="json")
-
+        
+        # Validate the response and the database entry
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(SpeciesName.objects.filter(name="Species").exists())
