@@ -276,125 +276,14 @@ class CreateCommentView(APIView):
 
         return Response(status=status.HTTP_201_CREATED)
 
-
-class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
-    authentication_classes = [authentication.TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        data = json.loads(request.body)
-
-        # No idea why this returns a list locally but not when deployed, but this'll fix that.
-        if type(data) is list:
-            data = data[0]
-
+class PostViewValidation:
+    @staticmethod
+    def process_media(data, request):
         # The image or video file (if any)
         media_bytes = data.get("mediaBytes")
-
         # Check if the media is a video
         is_video = data.get("isVideo")
-
-        # Whether the user has opted for public, obfuscated, or private
-        privacy_setting = data.get("privacySetting")
-
-        # The name of the species the user selected
-        species = data.get("species")
-
-        # The time and date the encounter occured
-        encounter_datetime = data.get("encounterDatetime")
-
-        # Exact location of the encounter
-        latitude = data.get("latitude")
-        longitude = data.get("longitude")
-
-        # A circle radius where the true location may be in
-        accuracy_meters = data.get("accuracyMeters")
-
-        # The length of one side of the box
-        obfuscation_kilometers = data.get("obfuscationKilometers")
-        # This is a list of 4 points creating an offset box from the true point,
-        # to obscure the true location from the public. Used in obfuscation mode.
-        obfuscation_box_corners = data.get("obfuscationBoxCorners")
-
-        # The saved locality, country, and zip code string of the location
-        geocoded_location_locality = data.get("geocodedLocationLocality")
-        geocoded_location_state = data.get("geocodedLocationState")
-        geocoded_location_country = data.get("geocodedLocationCountry")
-        geocoded_location_zip_code = data.get("geocodedLocationZipCode")
-
-        # Text content
-        title = data.get("postTitle")
-        body = data.get("postBody")
-
-        # The brand and type of camera used to take the media (if any)
-        camera_model = data.get("cameraModel")
-        camera_deployment_date = data.get("cameraDeploymentDate")
-        camera_timestamp_offset_error_details = data.get("timestampOffsetErrorDetails")
-
-        habitat_type = data.get("habitatType")
-
-        # 4 corners of the obfuscation box, if given
-        obfuscation_box_corners = {
-            "obfuscation_box_corner_1_latitude": data.get("corner1Latitude"),
-            "obfuscation_box_corner_1_longitude": data.get("corner1Longitude"),
-            "obfuscation_box_corner_2_latitude": data.get("corner2Latitude"),
-            "obfuscation_box_corner_2_longitude": data.get("corner2Longitude"),
-            "obfuscation_box_corner_3_latitude": data.get("corner3Latitude"),
-            "obfuscation_box_corner_3_longitude": data.get("corner3Longitude"),
-            "obfuscation_box_corner_4_latitude": data.get("corner4Latitude"),
-            "obfuscation_box_corner_4_longitude": data.get("corner4Longitude"),
-        }
-
-        # Check is user is banned
-        if BannedEmail.objects.filter(email=request.user.email).exists():
-            return Response(
-                status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}
-            )
-
-        # Argument validation
-        errors = [
-            self.validate_latitude_longitude(latitude, longitude),
-            self.validate_privacy_setting(privacy_setting),
-            self.validate_arguments_exist(
-                privacy_setting,
-                encounter_datetime,
-                accuracy_meters,
-                obfuscation_kilometers,
-                obfuscation_box_corners,
-                geocoded_location_country,
-                title,
-            ),
-        ]
-
-        for error_response in errors:
-            if error_response is not None:
-                return error_response
-
-        kwargs = {
-            "geoprivacy": privacy_setting,
-            "encounter_datetime": parser.parse(encounter_datetime),
-            "accuracy_ring_radius_meters": accuracy_meters,
-            "geocoded_location_country": geocoded_location_country,
-            "title": title,
-        }
-
-        # Set geoprivacy-specific keyword args
-        if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
-            kwargs["public_location_latitude"] = latitude
-            kwargs["public_location_longitude"] = longitude
-        elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
-            kwargs["true_location_latitude"] = latitude
-            kwargs["true_location_longitude"] = longitude
-
-            kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
-
-            kwargs.update(obfuscation_box_corners)
-        elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
-            kwargs["private_location_latitude"] = latitude
-            kwargs["private_location_longitude"] = longitude
-
-        # Set optional arguments
-
+    
         # TODO: Handle creating the media object
         media_obj = None
 
@@ -408,9 +297,62 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
                 )
             else:
                 media_obj = Media.objects.get(content_hash=content_hash)
+        return media_obj
+    
+    @staticmethod
+    def set_geoprivacy_kwargs(data, privacy_setting, kwargs):
+        # Exact location of the encounter
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        # The length of one side of the box
+        obfuscation_kilometers = data.get("obfuscationKilometers")
+        # This is a list of 4 points creating an offset box from the true point,
+        # to obscure the true location from the public. Used in obfuscation mode.
+        obfuscation_box_corners = data.get("obfuscationBoxCorners")
+        # 4 corners of the obfuscation box, if given
+        obfuscation_box_corners = {
+            "obfuscation_box_corner_1_latitude": data.get("corner1Latitude"),
+            "obfuscation_box_corner_1_longitude": data.get("corner1Longitude"),
+            "obfuscation_box_corner_2_latitude": data.get("corner2Latitude"),
+            "obfuscation_box_corner_2_longitude": data.get("corner2Longitude"),
+            "obfuscation_box_corner_3_latitude": data.get("corner3Latitude"),
+            "obfuscation_box_corner_3_longitude": data.get("corner3Longitude"),
+            "obfuscation_box_corner_4_latitude": data.get("corner4Latitude"),
+            "obfuscation_box_corner_4_longitude": data.get("corner4Longitude"),
+        }
 
-        if media_obj is not None:
-            kwargs["media"] = media_obj
+        # Set geoprivacy-specific keyword args
+        if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
+            kwargs["public_location_latitude"] = latitude
+            kwargs["public_location_longitude"] = longitude
+        elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
+            kwargs["true_location_latitude"] = latitude
+            kwargs["true_location_longitude"] = longitude
+            kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
+            kwargs.update(obfuscation_box_corners)
+        elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
+            kwargs["private_location_latitude"] = latitude
+            kwargs["private_location_longitude"] = longitude
+    
+    @staticmethod
+    def set_optional_kwargs(data, kwargs):
+        body = data.get("postBody")
+
+        # The name of the species the user selected
+        species = data.get("species")
+
+        # The saved locality, country, and zip code string of the location
+        geocoded_location_locality = data.get("geocodedLocationLocality")
+        geocoded_location_state = data.get("geocodedLocationState")
+        geocoded_location_country = data.get("geocodedLocationCountry")
+        geocoded_location_zip_code = data.get("geocodedLocationZipCode")
+
+        # The brand and type of camera used to take the media (if any)
+        camera_model = data.get("cameraModel")
+        camera_deployment_date = data.get("cameraDeploymentDate")
+        camera_timestamp_offset_error_details = data.get("timestampOffsetErrorDetails")
+
+        habitat_type = data.get("habitatType")
 
         if body is not None:
             kwargs["text_content"] = body
@@ -433,6 +375,61 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             kwargs["camera_timestamp_offset_error_details"] = camera_timestamp_offset_error_details
         if habitat_type is not None:
             kwargs["habitat_type"] = habitat_type
+
+class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        # No idea why this returns a list locally but not when deployed, but this'll fix that.
+        if type(data) is list:
+            data = data[0]        
+
+        # Check is user is banned
+        if BannedEmail.objects.filter(email=request.user.email).exists():
+            return Response(
+                status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}
+            )
+
+        # Validate arguments
+        errors = [
+            self.validate_latitude_longitude(data.get("latitude"), data.get("longitude")),
+            self.validate_privacy_setting(data.get("privacySetting")),
+            self.validate_arguments_exist(
+                data.get("privacySetting"),
+                data.get("encounterDatetime"),
+                data.get("accuracyMeters"),
+                data.get("obfuscationKilometers"),
+                data.get("obfuscationBoxCorners"),
+                data.get("geocodedLocationCountry"),
+                data.get("postTitle"),
+            ),
+        ]
+        
+        for error_response in errors:
+            if error_response is not None:
+                return error_response
+
+        kwargs = {
+            "geoprivacy": data.get("privacySetting"),
+            "encounter_datetime": parser.parse(data.get("encounterDatetime")),
+            "accuracy_ring_radius_meters": data.get("accuracyMeters"),
+            "geocoded_location_country": data.get("geocodedLocationCountry"),
+            "title": data.get("postTitle"),
+        }
+
+        # Process Media
+        media_obj = PostViewValidation.process_media(data, request)
+        if media_obj is not None:
+            kwargs["media"] = media_obj
+
+        # Set geoprivacy-specific keyword arguments
+        PostViewValidation.set_geoprivacy_kwargs(data, data.get("privacySetting"), kwargs)
+
+        # Set optional keyword arguments
+        PostViewValidation.set_optional_kwargs(data, kwargs)
 
         # Finally, create the post object with given args
         MediaPost.objects.create(**kwargs, created_by=request.user)
@@ -478,3 +475,79 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     return Media.objects.create(
         file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
     )
+
+class EditPostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        # No idea why this returns a list locally but not when deployed, but this'll fix that.
+        if type(data) is list:
+            data = data[0]
+
+        # Check if user is banned
+        if BannedEmail.objects.filter(email=request.user.email).exists():
+            return Response(
+                status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}
+            )
+
+        # Check if the post exists and the user is the creator
+        try:
+            post = MediaPost.objects.get(id=data.get("postId"))
+        except MediaPost.DoesNotExist:
+            return Response(
+                status=status.HTTP_404_NOT_FOUND,
+                data={"error": "Post not found."}
+            )
+
+        # Ensure the authenticated user is the one who created the post
+        if post.created_by != request.user:
+            return Response(
+                status=status.HTTP_403_FORBIDDEN,
+                data={"error": "You do not have permission to edit this post."}
+            )
+
+        # Validate arguments
+        errors = [
+            self.validate_latitude_longitude(data.get("latitude"), data.get("longitude")),
+            self.validate_privacy_setting(data.get("privacySetting")),
+            self.validate_arguments_exist(
+                data.get("privacySetting"),
+                data.get("encounterDatetime"),
+                data.get("accuracyMeters"),
+                data.get("obfuscationKilometers"),
+                data.get("obfuscationBoxCorners"),
+                data.get("geocodedLocationCountry"),
+                data.get("postTitle"),
+            ),
+        ]
+
+        for error_response in errors:
+            if error_response is not None:
+                return error_response
+
+        kwargs = {
+            "geoprivacy": data.get("privacySetting"),
+            "encounter_datetime": parser.parse(data.get("encounterDatetime")),
+            "accuracy_ring_radius_meters": data.get("accuracyMeters"),
+            "geocoded_location_country": data.get("geocodedLocationCountry"),
+            "title": data.get("postTitle"),
+        }
+
+        # Process media
+        media_obj = PostViewValidation.process_media(data, request)
+        if media_obj:
+            kwargs["media"] = media_obj
+
+        # Set geoprivacy-specific keyword arguments
+        PostViewValidation.set_geoprivacy_kwargs(data, data.get("privacySetting"), kwargs)
+
+        # Set optional keyword arguments
+        PostViewValidation.set_optional_kwargs(data, kwargs)
+
+        # Update the post
+        MediaPost.objects.filter(id=data.get("postId")).update(**kwargs)
+
+        return Response(status=status.HTTP_200_OK)
