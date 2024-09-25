@@ -88,9 +88,9 @@ class EditStaffRoleView(APIView):
             set_staff = data.get("setStaff")
 
             # Check arguments
-            if not account_email:
+            if account_email == None:
                 return createResponse400("The account email to grant/revoke staff membership was not provided.")
-            if not set_staff:
+            if set_staff == None:
                 return createResponse400("Staff membership to change to was not provided.")
 
             # Grant or revoke staff for user

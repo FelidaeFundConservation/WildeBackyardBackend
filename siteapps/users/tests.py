@@ -63,14 +63,25 @@ class UsersAPITestCase(TestCase):
         self.assertEqual(User.objects.filter(name=new_username).exists(), False)
 
     def test_edit_staff(self):
+        # Make sure the user is a superuser
         self.user.is_superuser = True
-        self.user.is_staff = False
+        self.user.is_staff = True
         self.user.save()
 
-        self.assertEqual(self.user.is_staff, False)
+        # Ensure initial state
+        self.assertEqual(self.user.is_staff, True)
 
+        # Make the POST request to the API
         response = self.client.post(
-            "/users/edit_staff", {"accountEmail": self.user.email, "setStaff": True}, format="json"
+            "/users/edit_staff", {"accountEmail": self.user.email, "setStaff": False}, format="json"
         )
 
-        self.assertEqual(self.user.is_staff, True)
+        # Reload the user from the database
+        self.user.refresh_from_db()
+
+        # Ensure the response is successful
+        self.assertEqual(response.status_code, 200)
+
+        # Assert that the user is now marked as staff
+        self.assertEqual(self.user.is_staff, False)
+
