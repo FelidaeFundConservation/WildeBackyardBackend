@@ -278,6 +278,18 @@ class CreateCommentView(APIView):
 
 class PostViewValidation:
     @staticmethod
+    def validate_data_and_permissions(data, request):
+        # Check if data is a list and extract first element if necessary
+        if isinstance(data, list):
+            data = data[0]
+        
+        # Check if the user is banned from posting
+        if BannedEmail.objects.filter(email=request.user.email).exists():
+            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}), None
+        
+        return None, data
+
+    @staticmethod
     def process_media(data, request):
         # The image or video file (if any)
         media_bytes = data.get("mediaBytes")
@@ -376,6 +388,53 @@ class PostViewValidation:
         if habitat_type is not None:
             kwargs["habitat_type"] = habitat_type
 
+    @staticmethod
+    def validate_and_extract_data(data, request):
+        # Extract required data
+        encounter_datetime = data.get("encounterDatetime")
+        privacy_setting = data.get("privacySetting")
+        accuracy_meters = data.get("accuracyMeters")
+        geocoded_location_country = data.get("geocodedLocationCountry")
+        post_title = data.get("postTitle")
+
+        # Validate arguments
+        errors = [
+            LatLngValidationMixin.validate_latitude_longitude(latitude=data.get("latitude"), longitude=data.get("longitude")),
+            PrivacySettingValidationMixin.validate_privacy_setting(privacy_setting),
+            PostInputsValidationMixin.validate_arguments_exist(
+                privacy_setting,
+                encounter_datetime,
+                accuracy_meters,
+                data.get("obfuscationKilometers"),
+                data.get("obfuscationBoxCorners"),
+                geocoded_location_country,
+                post_title,
+            ),
+        ]
+        for error_response in errors:
+            if error_response is not None:
+                return error_response, None
+
+        # Prepare kwargs
+        kwargs = {
+            "geoprivacy": privacy_setting,
+            "encounter_datetime": parser.parse(encounter_datetime),
+            "accuracy_ring_radius_meters": accuracy_meters,
+            "geocoded_location_country": geocoded_location_country,
+            "title": post_title,
+        }
+
+        # Process media if available
+        media_obj = PostViewValidation.process_media(data, request)
+        if media_obj is not None:
+            kwargs["media"] = media_obj
+
+        # Set geoprivacy and optional keyword arguments
+        PostViewValidation.set_geoprivacy_kwargs(data, privacy_setting, kwargs)
+        PostViewValidation.set_optional_kwargs(data, kwargs)
+
+        return None, kwargs
+
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -383,53 +442,15 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
     def post(self, request):
         data = json.loads(request.body)
 
-        # No idea why this returns a list locally but not when deployed, but this'll fix that.
-        if type(data) is list:
-            data = data[0]        
-
-        # Check is user is banned
-        if BannedEmail.objects.filter(email=request.user.email).exists():
-            return Response(
-                status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}
-            )
+        # Validate data and check permissions
+        error_response, data = PostViewValidation.validate_data_and_permissions(data, request)
+        if error_response:
+            return error_response
 
         # Validate arguments
-        errors = [
-            self.validate_latitude_longitude(data.get("latitude"), data.get("longitude")),
-            self.validate_privacy_setting(data.get("privacySetting")),
-            self.validate_arguments_exist(
-                data.get("privacySetting"),
-                data.get("encounterDatetime"),
-                data.get("accuracyMeters"),
-                data.get("obfuscationKilometers"),
-                data.get("obfuscationBoxCorners"),
-                data.get("geocodedLocationCountry"),
-                data.get("postTitle"),
-            ),
-        ]
-        
-        for error_response in errors:
-            if error_response is not None:
-                return error_response
-
-        kwargs = {
-            "geoprivacy": data.get("privacySetting"),
-            "encounter_datetime": parser.parse(data.get("encounterDatetime")),
-            "accuracy_ring_radius_meters": data.get("accuracyMeters"),
-            "geocoded_location_country": data.get("geocodedLocationCountry"),
-            "title": data.get("postTitle"),
-        }
-
-        # Process Media
-        media_obj = PostViewValidation.process_media(data, request)
-        if media_obj is not None:
-            kwargs["media"] = media_obj
-
-        # Set geoprivacy-specific keyword arguments
-        PostViewValidation.set_geoprivacy_kwargs(data, data.get("privacySetting"), kwargs)
-
-        # Set optional keyword arguments
-        PostViewValidation.set_optional_kwargs(data, kwargs)
+        error_response, kwargs = PostViewValidation.validate_and_extract_data(data, request)
+        if error_response:
+            return error_response
 
         # Finally, create the post object with given args
         MediaPost.objects.create(**kwargs, created_by=request.user)
@@ -483,15 +504,10 @@ class EditPostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin
     def post(self, request):
         data = json.loads(request.body)
 
-        # No idea why this returns a list locally but not when deployed, but this'll fix that.
-        if type(data) is list:
-            data = data[0]
-
-        # Check if user is banned
-        if BannedEmail.objects.filter(email=request.user.email).exists():
-            return Response(
-                status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}
-            )
+        # Validate data and check permissions
+        error_response, data = PostViewValidation.validate_data_and_permissions(data, request)
+        if error_response:
+            return error_response
 
         # Check if the post exists and the user is the creator
         try:
@@ -509,43 +525,9 @@ class EditPostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin
                 data={"error": "You do not have permission to edit this post."}
             )
 
-        # Validate arguments
-        errors = [
-            self.validate_latitude_longitude(data.get("latitude"), data.get("longitude")),
-            self.validate_privacy_setting(data.get("privacySetting")),
-            self.validate_arguments_exist(
-                data.get("privacySetting"),
-                data.get("encounterDatetime"),
-                data.get("accuracyMeters"),
-                data.get("obfuscationKilometers"),
-                data.get("obfuscationBoxCorners"),
-                data.get("geocodedLocationCountry"),
-                data.get("postTitle"),
-            ),
-        ]
-
-        for error_response in errors:
-            if error_response is not None:
-                return error_response
-
-        kwargs = {
-            "geoprivacy": data.get("privacySetting"),
-            "encounter_datetime": parser.parse(data.get("encounterDatetime")),
-            "accuracy_ring_radius_meters": data.get("accuracyMeters"),
-            "geocoded_location_country": data.get("geocodedLocationCountry"),
-            "title": data.get("postTitle"),
-        }
-
-        # Process media
-        media_obj = PostViewValidation.process_media(data, request)
-        if media_obj:
-            kwargs["media"] = media_obj
-
-        # Set geoprivacy-specific keyword arguments
-        PostViewValidation.set_geoprivacy_kwargs(data, data.get("privacySetting"), kwargs)
-
-        # Set optional keyword arguments
-        PostViewValidation.set_optional_kwargs(data, kwargs)
+        error_response, kwargs = PostViewValidation.validate_and_extract_data(data, request)
+        if error_response:
+            return error_response
 
         # Update the post
         MediaPost.objects.filter(id=data.get("postId")).update(**kwargs)
