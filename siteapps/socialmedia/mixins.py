@@ -4,7 +4,7 @@ from rest_framework.response import Response
 
 
 class LatLngValidationMixin:
-    def validate_latitude_longitude(self, latitude, longitude):
+    def validate_latitude_longitude(latitude, longitude):
         # Check the values exist
         if not latitude and not longitude:
             return createResponse400("Latitude and longitude values were both not provided.")
@@ -30,7 +30,7 @@ class LatLngValidationMixin:
 
 
 class PrivacySettingValidationMixin:
-    def validate_privacy_setting(self, privacy_setting):
+    def validate_privacy_setting(privacy_setting):
         if privacy_setting is None:
             return createResponse400(
                 "No privacy setting provided. Please provide a setting ('public', 'obscured', or 'private')."
@@ -50,7 +50,6 @@ class PrivacySettingValidationMixin:
 # Check whether required combinations of arguments exists
 class PostInputsValidationMixin:
     def validate_arguments_exist(
-        self,
         privacy_setting,
         encounter_datetime,
         accuracy_meters,

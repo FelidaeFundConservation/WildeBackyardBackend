@@ -10,6 +10,7 @@ from siteapps.socialmedia.moderation import (
 from siteapps.socialmedia.views import (
     CreateCommentView,
     CreatePostView,
+    EditPostView,
     GetPostResponsesAuthenticatedView,
     GetPostResponsesNoAuthView,
     GetRecentPostsView,
@@ -19,6 +20,7 @@ from siteapps.socialmedia.views import (
 urlpatterns = [
     path("api/comments/create/", CreateCommentView.as_view(), name="create_comment"),
     path("api/posts/create/", CreatePostView.as_view(), name="create_post"),
+    path("api/posts/edit/", EditPostView.as_view(), name="edit_post"),
     path("api/posts/like/", LikePostView.as_view(), name="like_post"),
     re_path(r"^api/feed/get/$", GetRecentPostsView.as_view(), name="get_posts"),
     path("api/posts/responses/get/noauth", GetPostResponsesNoAuthView.as_view(), name="get_post_responses_noauth"),
