@@ -195,7 +195,7 @@ class SocialMediaPostAPITestCase(TestCase):
         self.assertEqual(post_obj.geocoded_location_country, edit_post_data.get("geocodedLocationCountry"))
 
         # Verify datetime update
-        # self.assertEqual(post_obj.encounter_datetime, parser.parse(edit_post_data.get("encounterDatetime")))
+        self.assertEqual(post_obj.encounter_datetime, parser.parse(edit_post_data.get("encounterDatetime")))
 
         # Test user ownership: Ensure post is edited by the correct user
         self.assertEqual(post_obj.created_by, self.user)
