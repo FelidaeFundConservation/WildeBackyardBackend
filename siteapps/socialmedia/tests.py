@@ -154,3 +154,48 @@ class SocialMediaPostAPITestCase(TestCase):
         InappropriateContentReport.objects.create(reported_post=MediaPost.objects.all().first())
 
         response = self.client.get("/socialmedia/api/posts/reports/review", format="json")
+    
+    def test_edit_post(self):
+        # Create a post
+        response = self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+        self.assertEqual(response.status_code, 201)
+        
+        post_obj = MediaPost.objects.filter(created_by=self.user).first()
+
+        # Verify that the post was created successfully
+        self.assertIsNotNone(post_obj)
+
+        # Prepare data for editing the post
+        edit_post_data = {
+            "postId": post_obj.id,
+            "postTitle": "Edited Post Title",
+            "latitude": 7.89,
+            "longitude": -4.32,
+            "privacySetting": "private",
+            "geocodedLocationCountry": "Canada",
+            "geocodedLocationZipCode": "67890",
+            "encounterDatetime": "April 15, 2024 10:00 AM",
+            "accuracyMeters": 100,
+            "species": "Acorn Woodpecker",
+        }
+
+        # Make a request to edit the post
+        response = self.client.post("/socialmedia/api/posts/edit/", edit_post_data, format="json")
+
+        # Check if the response is OK
+        self.assertEqual(response.status_code, 200)
+
+        # Fetch the updated post and check that the changes were saved correctly
+        post_obj.refresh_from_db()
+                
+        self.assertEqual(post_obj.title, edit_post_data.get("postTitle"))
+        self.assertEqual(post_obj.private_location_latitude, edit_post_data.get("latitude"))
+        self.assertEqual(post_obj.private_location_longitude, edit_post_data.get("longitude"))
+        self.assertEqual(post_obj.geoprivacy, edit_post_data.get("privacySetting"))
+        self.assertEqual(post_obj.geocoded_location_country, edit_post_data.get("geocodedLocationCountry"))
+
+        # Verify datetime update
+        self.assertEqual(post_obj.encounter_datetime, parser.parse(edit_post_data.get("encounterDatetime")))
+
+        # Test user ownership: Ensure post is edited by the correct user
+        self.assertEqual(post_obj.created_by, self.user)
