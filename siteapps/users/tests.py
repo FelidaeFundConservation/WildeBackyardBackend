@@ -85,3 +85,24 @@ class UsersAPITestCase(TestCase):
         # Assert that the user is now marked as staff
         self.assertEqual(self.user.is_staff, False)
 
+    def test_user_edit_staff(self):
+        # Authenticate as superuser
+        self.user.is_superuser = True
+        self.user.is_staff = True
+        self.user.save()
+        secondUser = User.objects.create(email='secondUser@gmail.com')
+        secondUser.set_password("Password@123")
+        secondUser.save()
+        self.assertEqual(secondUser.is_staff, False)
+        response = self.client.post(
+            "/users/edit_staff", {"accountEmail": secondUser.email, "setStaff": True}, format="json"
+        )
+        secondUser.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(secondUser.is_staff, True)
+        response = self.client.post(
+            "/users/edit_staff", {"accountEmail": secondUser.email, "setStaff": False}, format="json"
+        )
+        secondUser.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(secondUser.is_staff, False)
