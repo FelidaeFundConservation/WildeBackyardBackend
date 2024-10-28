@@ -97,6 +97,55 @@ class SocialMediaPostAPITestCase(TestCase):
             format="json",
         )
 
+    def test_get_comments_with_pagination(self):
+        # Create a post
+        self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
+        post_id = MediaPost.objects.all().first().id
+
+        # Create a large number of comments for the post
+        num_comments = 20
+        for i in range(num_comments):
+            self.client.post(
+                "/socialmedia/api/comments/create/",
+                {"parentPostId": post_id, "commentText": f"Test Comment {i + 1}"},
+                format="json",
+            )
+
+        # Define page size for testing pagination
+        page_size = 10
+
+        # Request the first page of comments
+        response_page_1 = self.client.post(
+            "/socialmedia/api/posts/responses/get/noauth",
+            {"mediaPostId": post_id, "page": 1, "page_size": page_size},
+            format="json",
+        )
+
+        # Request the second page of comments
+        response_page_2 = self.client.post(
+            "/socialmedia/api/posts/responses/get/noauth",
+            {"mediaPostId": post_id, "page": 2, "page_size": page_size},
+            format="json",
+        )
+
+        # Assertions to check that pagination works
+        self.assertEqual(response_page_1.status_code, 200)
+        self.assertEqual(response_page_2.status_code, 200)
+        
+        # Verify the number of comments on each page
+        self.assertEqual(len(response_page_1.data["comments"]), page_size)
+        self.assertEqual(len(response_page_2.data["comments"]), page_size)
+        
+        # Confirm that there are more pages after the first one
+        self.assertTrue(response_page_1.data["has_next"])
+        self.assertTrue(response_page_2.data["has_previous"])
+        
+        # Ensure the comments retrieved on the two pages are distinct
+        first_page_comments = set(comment["id"] for comment in response_page_1.data["comments"])
+        second_page_comments = set(comment["id"] for comment in response_page_2.data["comments"])
+        self.assertTrue(first_page_comments.isdisjoint(second_page_comments), "Comments should be unique across pages.")
+
+
     def test_report_posts(self):
         # Create a post
         self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
