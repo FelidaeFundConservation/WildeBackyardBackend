@@ -12,6 +12,8 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Func, Q
+from django.core.paginator import Paginator
+
 from PIL import Image
 from rest_framework import authentication, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -176,26 +178,51 @@ def get_post_responses(request):
     data = json.loads(request.body)
 
     media_post_id = data.get("mediaPostId")
+    page = data.get("page", 1)
+    page_size = data.get("page_size", 10)
 
     if media_post_id is None:
-        return createResponse400("The media post ID to retrieve data was not provided.")
+        return Response(
+            data={"error": "The media post ID to retrieve data was not provided."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     else:
         try:
             media_post_obj = MediaPost.objects.get(id=media_post_id)
+            
+            # Query all comments related to the post and order by creation date
+            comments_query = media_post_obj.replies.order_by("-created").values(
+                "created_by__name", "text_content", "created", "id"
+            )
+            
+            # Set up pagination for comments
+            paginator = Paginator(comments_query, page_size)
+            comments_page = paginator.get_page(page)
 
+            # Serialize the paginated comments data
+            comments_data = list(comments_page)
+            
             return Response(
                 status=status.HTTP_200_OK,
                 data={
                     "like_count": media_post_obj.upvoted_by.all().count(),
                     "liked_by_current_user": check_post_is_liked_by(media_post_obj=media_post_obj, user=request.user),
-                    "comments": media_post_obj.replies.order_by("-created").values_list(
-                        "created_by__name", "text_content", "created", "id"
-                    ),
+                    "comments": comments_data,
+                    "total_pages": paginator.num_pages,
+                    "current_page": comments_page.number,
+                    "has_next": comments_page.has_next(),
+                    "has_previous": comments_page.has_previous(),
                 },
             )
-        except Exception:
+        except MediaPost.DoesNotExist:
             return Response(
+                data={"error": "Media post not found."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            return Response(
+                data={"error": "An error occurred: " + str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
