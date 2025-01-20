@@ -112,9 +112,6 @@ class MediaPost(TextComment):
 
     habitat_type = models.CharField(max_length=64, null=True)
 
-    # If we're allowed to use the post's data
-    research_use_allowed = models.BooleanField(default=False)
-
     ##############################
     # (!!!) Private Information
     ##############################
