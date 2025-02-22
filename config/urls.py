@@ -16,8 +16,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from siteapps.users.views import AccountVerifiedView
+
 urlpatterns = [
     # path("", include(("home.urls", "home"), namespace="home")),
+    path("", AccountVerifiedView.as_view(), name="home"),
     path("account/", include("allauth.urls")),
     path("account/password_reset/", include("django_rest_passwordreset.urls", namespace="password_reset")),
     path("admin/", admin.site.urls),
