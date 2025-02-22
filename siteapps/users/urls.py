@@ -3,7 +3,7 @@ from dj_rest_auth.registration.views import RegisterView, ResendEmailVerificatio
 from dj_rest_auth.views import LoginView, LogoutView, UserDetailsView
 from django.urls import path
 
-from .views import ChangeUsernameView, DeleteAccountView, EditStaffRoleView, UserProfileView
+from .views import AccountVerifiedView, ChangeUsernameView, DeleteAccountView, EditStaffRoleView, UserProfileView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="rest_register"),
