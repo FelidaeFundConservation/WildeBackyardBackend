@@ -3,6 +3,7 @@ import json
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render
+from django.views.generic import TemplateView
 from rest_framework import authentication, permissions, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -112,3 +113,7 @@ class EditStaffRoleView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
                 data={"error": message},
             )
+
+
+class AccountVerifiedView(TemplateView):
+    template_name = "account/email_confirm.html"
