@@ -131,20 +131,19 @@ class SocialMediaPostAPITestCase(TestCase):
         # Assertions to check that pagination works
         self.assertEqual(response_page_1.status_code, 200)
         self.assertEqual(response_page_2.status_code, 200)
-        
+
         # Verify the number of comments on each page
         self.assertEqual(len(response_page_1.data["comments"]), page_size)
         self.assertEqual(len(response_page_2.data["comments"]), page_size)
-        
+
         # Confirm that there are more pages after the first one
         self.assertTrue(response_page_1.data["has_next"])
         self.assertTrue(response_page_2.data["has_previous"])
-        
+        print(response_page_1.data["comments"])
         # Ensure the comments retrieved on the two pages are distinct
         first_page_comments = set(comment["id"] for comment in response_page_1.data["comments"])
         second_page_comments = set(comment["id"] for comment in response_page_2.data["comments"])
         self.assertTrue(first_page_comments.isdisjoint(second_page_comments), "Comments should be unique across pages.")
-
 
     def test_report_posts(self):
         # Create a post
@@ -203,12 +202,12 @@ class SocialMediaPostAPITestCase(TestCase):
         InappropriateContentReport.objects.create(reported_post=MediaPost.objects.all().first())
 
         response = self.client.get("/socialmedia/api/posts/reports/review", format="json")
-    
+
     def test_edit_post(self):
         # Create a post
         response = self.client.post("/socialmedia/api/posts/create/", self.create_post_data, format="json")
         self.assertEqual(response.status_code, 201)
-        
+
         post_obj = MediaPost.objects.filter(created_by=self.user).first()
 
         # Verify that the post was created successfully
@@ -236,7 +235,7 @@ class SocialMediaPostAPITestCase(TestCase):
 
         # Fetch the updated post and check that the changes were saved correctly
         post_obj.refresh_from_db()
-                
+
         self.assertEqual(post_obj.title, edit_post_data.get("postTitle"))
         self.assertEqual(post_obj.private_location_latitude, edit_post_data.get("latitude"))
         self.assertEqual(post_obj.private_location_longitude, edit_post_data.get("longitude"))
