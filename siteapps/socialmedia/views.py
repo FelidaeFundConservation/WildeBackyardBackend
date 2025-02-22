@@ -10,10 +10,9 @@ from azure.storage.blob import BlobServiceClient
 from dateutil import parser
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Func, Q
-from django.core.paginator import Paginator
-
 from PIL import Image
 from rest_framework import authentication, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -183,25 +182,24 @@ def get_post_responses(request):
 
     if media_post_id is None:
         return Response(
-            data={"error": "The media post ID to retrieve data was not provided."},
-            status=status.HTTP_400_BAD_REQUEST
+            data={"error": "The media post ID to retrieve data was not provided."}, status=status.HTTP_400_BAD_REQUEST
         )
     else:
         try:
             media_post_obj = MediaPost.objects.get(id=media_post_id)
-            
+
             # Query all comments related to the post and order by creation date
             comments_query = media_post_obj.replies.order_by("-created").values(
                 "created_by__name", "text_content", "created", "id"
             )
-            
+
             # Set up pagination for comments
             paginator = Paginator(comments_query, page_size)
             comments_page = paginator.get_page(page)
 
             # Serialize the paginated comments data
             comments_data = list(comments_page)
-            
+
             return Response(
                 status=status.HTTP_200_OK,
                 data={
@@ -303,17 +301,24 @@ class CreateCommentView(APIView):
 
         return Response(status=status.HTTP_201_CREATED)
 
+
 class PostViewValidation:
     @staticmethod
     def validate_data_and_permissions(data, request):
         # Check if data is a list and extract first element if necessary
         if isinstance(data, list):
             data = data[0]
-        
+
         # Check if the user is banned from posting
         if BannedEmail.objects.filter(email=request.user.email).exists():
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED, data={"error": "This account is not allowed to make posts."}), None
-        
+            return (
+                Response(
+                    status=status.HTTP_405_METHOD_NOT_ALLOWED,
+                    data={"error": "This account is not allowed to make posts."},
+                ),
+                None,
+            )
+
         return None, data
 
     @staticmethod
@@ -322,7 +327,7 @@ class PostViewValidation:
         media_bytes = data.get("mediaBytes")
         # Check if the media is a video
         is_video = data.get("isVideo")
-    
+
         # TODO: Handle creating the media object
         media_obj = None
 
@@ -337,7 +342,7 @@ class PostViewValidation:
             else:
                 media_obj = Media.objects.get(content_hash=content_hash)
         return media_obj
-    
+
     @staticmethod
     def set_geoprivacy_kwargs(data, privacy_setting, kwargs):
         # Exact location of the encounter
@@ -372,7 +377,7 @@ class PostViewValidation:
         elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
             kwargs["private_location_latitude"] = latitude
             kwargs["private_location_longitude"] = longitude
-    
+
     @staticmethod
     def set_optional_kwargs(data, kwargs):
         body = data.get("postBody")
@@ -426,7 +431,9 @@ class PostViewValidation:
 
         # Validate arguments
         errors = [
-            LatLngValidationMixin.validate_latitude_longitude(latitude=data.get("latitude"), longitude=data.get("longitude")),
+            LatLngValidationMixin.validate_latitude_longitude(
+                latitude=data.get("latitude"), longitude=data.get("longitude")
+            ),
             PrivacySettingValidationMixin.validate_privacy_setting(privacy_setting),
             PostInputsValidationMixin.validate_arguments_exist(
                 privacy_setting,
@@ -462,6 +469,7 @@ class PostViewValidation:
 
         return None, kwargs
 
+
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -479,8 +487,8 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         if error_response:
             return error_response
 
-        # Finally, create the post object with given args
-        MediaPost.objects.create(**kwargs, created_by=request.user)
+        # Finally, create the post object with given args, ignoring is a duplicate exists
+        MediaPost.objects.get_or_create(**kwargs, created_by=request.user)
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -524,6 +532,7 @@ def create_media(media_bytes, content_hash, request, is_video=False):
         file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
     )
 
+
 class EditPostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -540,16 +549,12 @@ class EditPostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin
         try:
             post = MediaPost.objects.get(id=data.get("postId"))
         except MediaPost.DoesNotExist:
-            return Response(
-                status=status.HTTP_404_NOT_FOUND,
-                data={"error": "Post not found."}
-            )
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Post not found."})
 
         # Ensure the authenticated user is the one who created the post
         if post.created_by != request.user:
             return Response(
-                status=status.HTTP_403_FORBIDDEN,
-                data={"error": "You do not have permission to edit this post."}
+                status=status.HTTP_403_FORBIDDEN, data={"error": "You do not have permission to edit this post."}
             )
 
         error_response, kwargs = PostViewValidation.validate_and_extract_data(data, request)
