@@ -3,7 +3,8 @@ import json
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from rest_framework import authentication, permissions, status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import authentication, permissions, serializers, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,6 +15,19 @@ from .mixins import createResponse400
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 
+@extend_schema(
+    summary="Report inappropriate content",
+    description="Create a report for inappropriate post or comment",
+    request=inline_serializer(
+        name="ReportContentRequest",
+        fields={
+            "contentId": serializers.IntegerField(),
+            "contentType": serializers.ChoiceField(choices=["TextComment", "MediaPost"]),
+        },
+    ),
+    responses={201: None, 400: None, 404: None},
+    tags=["Moderation"],
+)
 class CreateInappropriateContentReportView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -58,6 +72,25 @@ class CreateInappropriateContentReportView(APIView):
 
 
 # Get info for a reported media/comment for admin to view
+@extend_schema(
+    summary="Get next reported content",
+    description="Retrieve the next unresolved content report for moderation review (admin only)",
+    responses={
+        200: inline_serializer(
+            name="ReportedContentResponse",
+            fields={
+                "report_id": serializers.IntegerField(),
+                "content_id": serializers.IntegerField(),
+                "user_name": serializers.CharField(),
+                "text_content": serializers.CharField(required=False),
+                "media": serializers.CharField(required=False),
+                "title": serializers.CharField(required=False),
+            },
+        ),
+        404: None,
+    },
+    tags=["Moderation"],
+)
 class GetNextReportedContentView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -107,6 +140,13 @@ class GetNextReportedContentView(APIView):
 
 
 # Resolve reported content by clearing (i.e. nothing wrong with content)
+@extend_schema(
+    summary="Clear a report",
+    description="Mark a content report as resolved without taking action (admin only)",
+    request=inline_serializer(name="ClearReportRequest", fields={"reportId": serializers.IntegerField()}),
+    responses={200: None, 400: None, 404: None},
+    tags=["Moderation"],
+)
 class ClearReportView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -134,6 +174,19 @@ class ClearReportView(APIView):
 
 
 # For minor conduct (ex: rudeness), remove only the offending post and issue a warning
+@extend_schema(
+    summary="Issue warning to user",
+    description="Remove reported content and issue a warning to the user (admin only)",
+    request=inline_serializer(
+        name="IssueWarningRequest",
+        fields={
+            "reportId": serializers.IntegerField(),
+            "warningNotes": serializers.CharField(),
+        },
+    ),
+    responses={200: None, 400: None, 404: None},
+    tags=["Moderation"],
+)
 class IssueWarningView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -182,6 +235,19 @@ class IssueWarningView(APIView):
 
 
 # For major conduct (ex: bad profanity, explicit, etc) or multiple warnings, ban user from posting and remove all content related to them
+@extend_schema(
+    summary="Ban user",
+    description="Permanently ban a user and remove all their content (admin only)",
+    request=inline_serializer(
+        name="BanUserRequest",
+        fields={
+            "reportId": serializers.IntegerField(),
+            "banReason": serializers.CharField(),
+        },
+    ),
+    responses={200: None, 400: None, 404: None},
+    tags=["Moderation"],
+)
 class BanUserView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]

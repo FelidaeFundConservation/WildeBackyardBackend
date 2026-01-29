@@ -1,0 +1,8 @@
+dispatch:
+  # Route all requests to wildepod.org (and its paths) to the default service
+  - url: "wildepod.org/*"
+    service: default
+
+  # Route all requests to the subdomain bhutan.wildepod.org to the bhutan service
+  - url: "bhutan.wildepod.org/*"
+    service: bhutan
