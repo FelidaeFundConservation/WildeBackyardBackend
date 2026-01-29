@@ -1,5 +1,6 @@
 """Local env to do something quick, dirty and destructive. Uses a sqlite db to play around
 """
+
 from .base import *  # noqa
 
 # HOSTS CONFIG
@@ -25,8 +26,12 @@ WSGI_APPLICATION = "config.wsgi.local.application"
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": str(ROOT_DIR / "db.sqlite3"),
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env.str("DB_NAME", "wildebackyard"),
+        "USER": env.str("DB_USER", "jnovak"),
+        "PASSWORD": env.str("DB_PASSWORD", "Nashorn9450!"),
+        "HOST": env.str("DB_HOST", "localhost"),
+        "PORT": env.str("DB_PORT", "5432"),
     }
 }
 
@@ -34,7 +39,7 @@ DATABASES = {
 # MEDIA
 # ------------------------------------------------------------------------------
 DEFAULT_FILE_STORAGE = ("storages.backends.azure_storage.AzureStorage",)
-MEDIA_URL = f""
+MEDIA_URL = ""
 
 
 # EMAIL
@@ -44,6 +49,15 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
 
+# CORS
+# ------------------------------------------------------------------------------
+# Allow Web frontend to connect to Backend API
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5005",
+    "http://127.0.0.1:5005",
+    "http://0.0.0.0:5005",
+]
+CORS_ALLOW_CREDENTIALS = True
 
 # LOGGING
 # ------------------------------------------------------------------------------
