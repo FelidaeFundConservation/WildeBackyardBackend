@@ -28,20 +28,20 @@ class MapboxAPITestCase(TestCase):
 
         # Get the auth token from the test account
         login_response = self.client.post(
-            "/users/login/", {"email": test_email, "password": test_password}, format="json"
+            "/v1/users/login/", {"email": test_email, "password": test_password}, format="json"
         )
 
         token = json.loads(login_response.content)["key"]
-        headers = self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
+        self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
     def test_search_suggestions(self):
-        response = self.client.post("/mapbox/api/search_suggestions/", {"searchText": "Felidae"}, format="json")
+        response = self.client.post("/v1/mapbox/api/search_suggestions/", {"searchText": "Felidae"}, format="json")
         print(response.content)
         self.assertEqual(response.status_code, 200)
 
     def test_geocode(self):
         response = self.client.post(
-            "/mapbox/api/geocode/",
+            "/v1/mapbox/api/geocode/",
             {"address": "Franklin Canyon Rd @ Alhambra Ave, Martinez, California 94553, United States"},
             format="json",
         )

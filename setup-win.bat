@@ -1,15 +1,31 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Create a Python virtual environment and activate it
-python -m venv venv
-call venv\Scripts\activate.bat
+echo Setting up Wilde Backyard Backend with uv...
+echo.
 
-:: Install requirements
-pip install -r requirements.txt
+:: Install uv if not already installed
+where uv >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
+    echo Installing uv...
+    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+)
+
+:: Create virtual environment using uv
+echo Creating virtual environment...
+uv venv
+
+:: Activate virtual environment
+echo Activating virtual environment...
+call .venv\Scripts\activate.bat
+
+:: Install dependencies
+echo Installing dependencies...
+uv pip install -e .
 
 :: Change to the Django migrations directory and delete old migration files
-cd venv\Lib\site-packages\django_rest_passwordreset\migrations
+echo Fixing django-rest-passwordreset migrations...
+cd .venv\Lib\site-packages\django_rest_passwordreset\migrations
 del 000*.py
 
 :: Define the output file
@@ -50,12 +66,30 @@ set "output_file=0001_initial.py"
     echo         ^),
     echo     ]
 ) > "%output_file%"
+
+cd %~dp0
+
 :: Confirm the file creation
-if exist "%output_file%" (
-    echo %output_file% has been created with the specified content.
+if exist ".venv\Lib\site-packages\django_rest_passwordreset\migrations\%output_file%" (
+    echo %output_file% has been created successfully.
 ) else (
     echo Failed to create %output_file%.
+    pause
+    exit /b 1
 )
+
+echo.
+echo Setup complete!
+echo.
+echo To activate the environment in the future, run:
+echo   .venv\Scripts\activate.bat
+echo.
+echo To run migrations:
+echo   python manage.py migrate --settings=config.settings.local
+echo.
+echo To start the development server:
+echo   python manage.py runserver --settings=config.settings.local
+echo.
 
 :: Pause to keep the command window open
 pause

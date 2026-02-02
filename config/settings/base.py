@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework.authtoken",
+    "drf_spectacular",
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "allauth",
@@ -161,7 +162,20 @@ DATABASES = {
 }
 
 
-REST_FRAMEWORK = {"DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination", "PAGE_SIZE": 10}
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Wilde Backyard API",
+    "DESCRIPTION": "REST API for Wilde Backyard wildlife social media platform",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+}
 
 # Limit data upload size to 20 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520

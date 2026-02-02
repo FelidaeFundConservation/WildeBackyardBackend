@@ -13,19 +13,26 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 from siteapps.users.views import AccountVerifiedView
 
 urlpatterns = [
+    # API Documentation
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     # path("", include(("home.urls", "home"), namespace="home")),
     path("", AccountVerifiedView.as_view(), name="home"),
-    path("account/", include("allauth.urls")),
-    path("account/password_reset/", include("django_rest_passwordreset.urls", namespace="password_reset")),
     path("admin/", admin.site.urls),
-    path("users/", include(("users.urls", "users"), namespace="app_users")),
-    path("socialmedia/", include(("socialmedia.urls", "socialmedia"), namespace="socialmedia")),
-    path("species/", include(("species.urls", "species"), namespace="species")),
-    path("mapbox/", include(("mapbox.urls", "mapbox"), namespace="mapbox")),
+    # v1 API endpoints
+    path("v1/account/", include("allauth.urls")),
+    path("v1/account/password_reset/", include("django_rest_passwordreset.urls", namespace="password_reset")),
+    path("v1/users/", include(("users.urls", "users"), namespace="app_users")),
+    path("v1/socialmedia/", include(("socialmedia.urls", "socialmedia"), namespace="socialmedia")),
+    path("v1/species/", include(("species.urls", "species"), namespace="species")),
+    path("v1/mapbox/", include(("mapbox.urls", "mapbox"), namespace="mapbox")),
 ]
