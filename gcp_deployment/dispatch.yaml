@@ -1,0 +1,19 @@
+dispatch:
+  # WildePod routes
+  - url: "wildepod.org/*"
+    service: default
+  - url: "bhutan.wildepod.org/*"
+    service: bhutan
+
+  # WildeBackyard routes (add custom domains when configured)
+  # API routes
+  - url: "*/api/wildebackyard/*"
+    service: wildebackyard-api
+  - url: "api.wildebackyard.org/*"
+    service: wildebackyard-api
+  
+  # Web routes
+  - url: "wildebackyard.org/*"
+    service: wildebackyard-web
+  - url: "www.wildebackyard.org/*"
+    service: wildebackyard-web

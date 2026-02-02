@@ -4,7 +4,9 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render
 from django.views.generic import TemplateView
-from rest_framework import authentication, permissions, status
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
+from rest_framework import authentication, permissions, serializers, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,7 +16,41 @@ from siteapps.socialmedia.models import MediaPost
 from siteapps.users.models import User
 
 
+# Serializers for API documentation
+class UserProfileSerializer(serializers.Serializer):
+    joined_date = serializers.CharField()
+    display_name = serializers.CharField()
+    sightings_count = serializers.IntegerField()
+    is_staff = serializers.BooleanField()
+    is_superuser = serializers.BooleanField()
+
+
+class ChangeUsernameSerializer(serializers.Serializer):
+    newUsername = serializers.CharField(min_length=3, help_text="New username (minimum 3 characters)")
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    confirmationString = serializers.CharField(help_text="User's current username for confirmation")
+
+
+class EditStaffRoleSerializer(serializers.Serializer):
+    accountEmail = serializers.EmailField(help_text="Email of the account to modify")
+    setStaff = serializers.BooleanField(help_text="True to grant staff role, False to revoke")
+
+
+class ApiErrorSerializer(serializers.Serializer):
+    error = serializers.CharField()
+
+
 # Create your views here.
+@extend_schema(
+    summary="Get user profile",
+    description="Retrieve the authenticated user's profile information including join date, display name, and sightings count",
+    responses={
+        200: UserProfileSerializer,
+    },
+    tags=["Users"],
+)
 class UserProfileView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -31,6 +67,16 @@ class UserProfileView(APIView):
         return Response(status=status.HTTP_200_OK, data=data)
 
 
+@extend_schema(
+    summary="Change username",
+    description="Update the authenticated user's display name",
+    request=ChangeUsernameSerializer,
+    responses={
+        200: None,
+        400: ApiErrorSerializer,
+    },
+    tags=["Users"],
+)
 class ChangeUsernameView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -54,6 +100,16 @@ class ChangeUsernameView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    summary="Delete account",
+    description="Permanently delete the authenticated user's account. Requires username confirmation.",
+    request=DeleteAccountSerializer,
+    responses={
+        200: None,
+        400: ApiErrorSerializer,
+    },
+    tags=["Users"],
+)
 class DeleteAccountView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -76,6 +132,18 @@ class DeleteAccountView(APIView):
 
 
 # Give an account access to moderation tools. This is only callable from superuser accounts.
+@extend_schema(
+    summary="Edit staff role",
+    description="Grant or revoke staff permissions for a user account. Only accessible by superusers.",
+    request=EditStaffRoleSerializer,
+    responses={
+        200: None,
+        400: ApiErrorSerializer,
+        403: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+    tags=["Admin"],
+)
 class EditStaffRoleView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
