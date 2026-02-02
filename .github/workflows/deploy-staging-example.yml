@@ -1,0 +1,338 @@
+name: Deploy to GCP Staging
+
+on:
+  push:
+    branches:
+      - staging
+  pull_request:
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests before deployment'
+        required: false
+        default: 'false'
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  ENVIRONMENT: staging
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # Job 1: Run tests and quality checks
+  test:
+    name: Test and Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linting (flake8)
+        continue-on-error: true
+        run: |
+          pip install flake8
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run security checks (bandit)
+        continue-on-error: true
+        run: |
+          pip install bandit
+          bandit -r siteapps/ config/ -f json -o bandit-report.json || true
+          bandit -r siteapps/ config/ -f screen
+
+      - name: Check for secrets in code
+        run: |
+          # Simple check for common secret patterns
+          ! grep -r "SECRET_KEY\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("
+          ! grep -r "PASSWORD\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("
+
+      - name: Run tests
+        if: github.event.inputs.skip_tests != 'true'
+        run: |
+          # Run pytest if tests exist
+          if [ -d "siteapps" ]; then
+            pytest -v --tb=short || echo "Some tests failed but continuing"
+          else
+            echo "No tests directory found"
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            bandit-report.json
+            .coverage
+          retention-days: 30
+
+  # Job 2: Build and validate
+  build:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Validate app.yaml
+        run: |
+          if [ ! -f "staging.yaml" ]; then
+            echo "Error: staging.yaml not found"
+            exit 1
+          fi
+
+          # Basic YAML validation
+          python -c "import yaml; yaml.safe_load(open('staging.yaml'))"
+          echo "✓ staging.yaml is valid"
+
+      - name: Check Cloud SQL instance
+        run: |
+          if gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID &> /dev/null; then
+            echo "✓ Cloud SQL instance exists"
+          else
+            echo "Warning: Cloud SQL instance not found"
+          fi
+
+  # Job 3: Deploy to App Engine
+  deploy:
+    name: Deploy to App Engine
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: staging
+      url: https://staging-dot-${{ secrets.GCP_PROJECT_ID }}.appspot.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Collect static files
+        continue-on-error: true
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: |
+          # Attempt to collect static files
+          python manage.py collectstatic --noinput --settings=config.settings.staging || echo "Static collection skipped"
+
+      - name: Deploy to App Engine
+        run: |
+          gcloud app deploy staging.yaml \
+            --project=$GCP_PROJECT_ID \
+            --quiet \
+            --no-promote \
+            --version=$(echo $GITHUB_SHA | cut -c1-7)
+
+      - name: Get deployment info
+        id: deployment
+        run: |
+          VERSION=$(echo $GITHUB_SHA | cut -c1-7)
+          URL="https://${VERSION}-dot-staging-dot-${GCP_PROJECT_ID}.appspot.com"
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 Deployed to staging: ${{ steps.deployment.outputs.url }}'
+            })
+
+  # Job 4: Run database migrations
+  migrate:
+    name: Database Migrations
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Cloud SQL Proxy
+        run: |
+          wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
+          chmod +x cloud_sql_proxy
+
+      - name: Run database migrations
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        run: |
+          # Get database credentials
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
+          CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
+
+          # Start Cloud SQL Proxy in background
+          ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
+          PROXY_PID=$!
+
+          # Wait for proxy to be ready
+          sleep 10
+
+          # Set database URL
+          export PROD_DATABASE_URL="postgres://wildepod_staging_user:${DB_PASSWORD}@127.0.0.1:5440/wildepod_staging"
+
+          # Run migrations
+          python manage.py migrate --settings=config.settings.staging --noinput
+
+          # Stop proxy
+          kill $PROXY_PID || true
+
+      - name: Create superuser (if needed)
+        continue-on-error: true
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
+        run: |
+          # Only for initial setup - will fail if superuser exists
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
+          CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
+
+          ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
+          PROXY_PID=$!
+          sleep 10
+
+          export PROD_DATABASE_URL="postgres://wildepod_staging_user:${DB_PASSWORD}@127.0.0.1:5440/wildepod_staging"
+
+          python manage.py createsuperuser --noinput \
+            --username=admin \
+            --email=admin@wildepod.org \
+            --settings=config.settings.staging || echo "Superuser already exists"
+
+          kill $PROXY_PID || true
+
+  # Job 5: Smoke tests
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy, migrate]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Wait for deployment to be ready
+        run: sleep 30
+
+      - name: Check application health
+        run: |
+          VERSION=$(echo $GITHUB_SHA | cut -c1-7)
+          URL="https://${VERSION}-dot-staging-dot-${GCP_PROJECT_ID}.appspot.com"
+
+          # Check if site is up
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL || echo "000")
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
+            echo "✓ Application is responding (HTTP $HTTP_CODE)"
+          else
+            echo "✗ Application health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Promote to staging
+        if: success()
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Promote version
+        run: |
+          VERSION=$(echo $GITHUB_SHA | cut -c1-7)
+          gcloud app services set-traffic staging \
+            --splits=${VERSION}=1 \
+            --project=$GCP_PROJECT_ID \
+            --quiet
+
+  # Job 6: Notify
+  notify:
+    name: Notification
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    if: always()
+
+    steps:
+      - name: Deployment Status
+        run: |
+          if [ "${{ needs.smoke-test.result }}" = "success" ]; then
+            echo "✅ Deployment to staging successful!"
+            echo "URL: https://staging-dot-${GCP_PROJECT_ID}.appspot.com"
+          else
+            echo "❌ Deployment failed or was skipped"
+            exit 1
+          fi

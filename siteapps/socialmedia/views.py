@@ -13,8 +13,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Func, Q
+from drf_spectacular.utils import extend_schema, inline_serializer
 from PIL import Image
-from rest_framework import authentication, permissions, status
+from rest_framework import authentication, permissions, serializers, status
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -33,6 +34,23 @@ class Haversine(Func):
     output_field = models.FloatField()
 
 
+@extend_schema(
+    summary="Get recent posts",
+    description="Retrieve recent wildlife sighting posts with optional filtering by location, distance, or species",
+    request=inline_serializer(
+        name="GetRecentPostsRequest",
+        fields={
+            "userLatitude": serializers.FloatField(required=False),
+            "userLongitude": serializers.FloatField(required=False),
+            "distanceRadius": serializers.FloatField(required=False),
+            "zipCode": serializers.CharField(required=False),
+            "species": serializers.CharField(required=False),
+            "userId": serializers.IntegerField(required=False),
+        },
+    ),
+    responses={200: inline_serializer(name="PostListResponse", fields={"results": serializers.ListField()})},
+    tags=["Social Media"],
+)
 class GetRecentPostsView(APIView, LatLngValidationMixin):
     def post(self, request):
         data = json.loads(request.body)
@@ -48,6 +66,12 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         # A species to filter by
         species = data.get("species")
+        
+        # A user ID to filter by (for "my sightings")
+        user_id = data.get("userId")
+
+        # A specific user ID to filter by
+        user_id = data.get("userId")
 
         post_data = []
 
@@ -88,9 +112,17 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         else:
             media_posts = MediaPost.objects.all().order_by("-created")
 
+        # If a user ID was provided, filter by that user
+        if user_id is not None:
+            media_posts = media_posts.filter(created_by__id=user_id)
+
         # If a species was selected, only get posts of that species
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
+        
+        # If a user ID was provided, only get posts by that user
+        if user_id is not None:
+            media_posts = media_posts.filter(created_by__id=user_id)
 
         # Apply pagination
         paginator = LimitOffsetPagination()
@@ -224,18 +256,70 @@ def get_post_responses(request):
             )
 
 
+@extend_schema(
+    summary="Get post responses (no auth)",
+    description="Get comments and likes for a post without authentication",
+    request=inline_serializer(
+        name="GetPostResponsesRequest",
+        fields={
+            "mediaPostId": serializers.IntegerField(),
+            "page": serializers.IntegerField(required=False),
+            "page_size": serializers.IntegerField(required=False),
+        },
+    ),
+    responses={
+        200: inline_serializer(
+            name="PostResponsesData",
+            fields={
+                "like_count": serializers.IntegerField(),
+                "comments": serializers.ListField(),
+            },
+        )
+    },
+    tags=["Social Media"],
+)
 class GetPostResponsesNoAuthView(APIView):
     # For getting post data that may update frequently (i.e. likes and comments)
     def post(self, request):
         return get_post_responses(request)
 
 
+@extend_schema(
+    summary="Get post responses (authenticated)",
+    description="Get comments and likes for a post with authentication to show if current user liked it",
+    request=inline_serializer(
+        name="GetPostResponsesAuthRequest",
+        fields={
+            "mediaPostId": serializers.IntegerField(),
+            "page": serializers.IntegerField(required=False),
+            "page_size": serializers.IntegerField(required=False),
+        },
+    ),
+    responses={
+        200: inline_serializer(
+            name="PostResponsesAuthData",
+            fields={
+                "like_count": serializers.IntegerField(),
+                "liked_by_current_user": serializers.BooleanField(),
+                "comments": serializers.ListField(),
+            },
+        )
+    },
+    tags=["Social Media"],
+)
 class GetPostResponsesAuthenticatedView(APIView):
     # Authenticated endpoint tracks the user, so can check if user liked the post
     def post(self, request):
         return get_post_responses(request)
 
 
+@extend_schema(
+    summary="Like/unlike a post",
+    description="Toggle like status on a media post",
+    request=inline_serializer(name="LikePostRequest", fields={"mediaPostId": serializers.IntegerField()}),
+    responses={200: None, 404: None},
+    tags=["Social Media"],
+)
 class LikePostView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -267,6 +351,19 @@ class LikePostView(APIView):
                 )
 
 
+@extend_schema(
+    summary="Create a comment",
+    description="Add a comment to a media post",
+    request=inline_serializer(
+        name="CreateCommentRequest",
+        fields={
+            "parentPostId": serializers.IntegerField(),
+            "commentText": serializers.CharField(),
+        },
+    ),
+    responses={201: None, 400: None, 404: None, 405: None},
+    tags=["Social Media"],
+)
 class CreateCommentView(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -388,7 +485,8 @@ class PostViewValidation:
         # The saved locality, country, and zip code string of the location
         geocoded_location_locality = data.get("geocodedLocationLocality")
         geocoded_location_state = data.get("geocodedLocationState")
-        geocoded_location_country = data.get("geocodedLocationCountry")
+        # geocoded_location_country variable is retrieved but not currently used
+        # geocoded_location_country = data.get("geocodedLocationCountry")
         geocoded_location_zip_code = data.get("geocodedLocationZipCode")
 
         # The brand and type of camera used to take the media (if any)
@@ -470,6 +568,28 @@ class PostViewValidation:
         return None, kwargs
 
 
+@extend_schema(
+    summary="Create a new post",
+    description="Create a new wildlife sighting post with optional media, location, and species information",
+    request=inline_serializer(
+        name="CreatePostRequest",
+        fields={
+            "postTitle": serializers.CharField(),
+            "privacySetting": serializers.CharField(),
+            "latitude": serializers.FloatField(),
+            "longitude": serializers.FloatField(),
+            "accuracyMeters": serializers.FloatField(),
+            "encounterDatetime": serializers.DateTimeField(),
+            "geocodedLocationCountry": serializers.CharField(),
+            "species": serializers.CharField(required=False),
+            "postBody": serializers.CharField(required=False),
+            "mediaBytes": serializers.CharField(required=False),
+            "isVideo": serializers.BooleanField(required=False),
+        },
+    ),
+    responses={201: None, 400: None, 405: None},
+    tags=["Social Media"],
+)
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -533,6 +653,25 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     )
 
 
+@extend_schema(
+    summary="Edit an existing post",
+    description="Update a wildlife sighting post (only by the post creator)",
+    request=inline_serializer(
+        name="EditPostRequest",
+        fields={
+            "postId": serializers.IntegerField(),
+            "postTitle": serializers.CharField(),
+            "privacySetting": serializers.CharField(),
+            "latitude": serializers.FloatField(),
+            "longitude": serializers.FloatField(),
+            "accuracyMeters": serializers.FloatField(),
+            "encounterDatetime": serializers.DateTimeField(),
+            "geocodedLocationCountry": serializers.CharField(),
+        },
+    ),
+    responses={200: None, 400: None, 403: None, 404: None},
+    tags=["Social Media"],
+)
 class EditPostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]

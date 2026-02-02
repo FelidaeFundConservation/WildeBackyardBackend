@@ -1,0 +1,14 @@
+runtime: python310
+instance_class: F2
+entrypoint: gunicorn -t 2400 -b :$PORT prod:app
+
+env_variables:
+  DJANGO_SETTINGS_MODULE: "config.settings.prod"
+  PYTHON_ENV: "production"
+
+automatic_scaling:
+  min_idle_instances: 1
+  max_idle_instances: 5
+  min_pending_latency: 500ms
+  max_pending_latency: 2000ms
+  max_concurrent_requests: 80
