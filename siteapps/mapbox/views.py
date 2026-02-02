@@ -3,7 +3,8 @@ import json
 import requests
 from django.conf import settings
 from django.shortcuts import render
-from rest_framework import authentication, permissions, status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import authentication, permissions, serializers, status
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,6 +19,13 @@ from .throttles import (
 
 
 # Create your views here.
+@extend_schema(
+    summary="Get location search suggestions",
+    description="Search for location suggestions using Mapbox API",
+    request=inline_serializer(name="LocationSearchRequest", fields={"searchText": serializers.CharField()}),
+    responses={200: inline_serializer(name="LocationSearchResponse", fields={"suggestions": serializers.ListField()})},
+    tags=["Mapbox"],
+)
 class GetMapboxLocationSearchSuggestions(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -47,6 +55,13 @@ class GetMapboxLocationSearchSuggestions(APIView):
             )
 
 
+@extend_schema(
+    summary="Get geocode coordinates",
+    description="Convert an address to coordinates using Mapbox API",
+    request=inline_serializer(name="GeocodeRequest", fields={"address": serializers.CharField()}),
+    responses={200: inline_serializer(name="GeocodeResponse", fields={"coordinates": serializers.ListField()})},
+    tags=["Mapbox"],
+)
 class GetMapboxGeocode(APIView):
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated]
