@@ -7,6 +7,7 @@ This project uses [uv](https://github.com/astral-sh/uv) for fast and reliable Py
 - **[Quick Reference](QUICK_REFERENCE.md)** - Common commands and patterns
 - **[Pydantic Guide](PYDANTIC_GUIDE.md)** - Data validation and serialization
 - **[Migration Summary](MIGRATION_SUMMARY.md)** - Recent project changes
+- **[Version API Documentation](VERSION_API_DOCUMENTATION.md)** - Version information endpoint and release workflow
 
 ## Features
 
