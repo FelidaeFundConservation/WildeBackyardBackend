@@ -14,6 +14,7 @@ from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Func, Q
 from drf_spectacular.utils import extend_schema, inline_serializer
+from google.cloud import storage as gcs_storage
 from PIL import Image
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -45,6 +46,7 @@ class Haversine(Func):
             "distanceRadius": serializers.FloatField(required=False),
             "zipCode": serializers.CharField(required=False),
             "species": serializers.CharField(required=False),
+            "userId": serializers.IntegerField(required=False),
         },
     ),
     responses={200: inline_serializer(name="PostListResponse", fields={"results": serializers.ListField()})},
@@ -65,6 +67,12 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         # A species to filter by
         species = data.get("species")
+
+        # A user ID to filter by (for "my sightings")
+        user_id = data.get("userId")
+
+        # A specific user ID to filter by
+        user_id = data.get("userId")
 
         post_data = []
 
@@ -105,9 +113,17 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         else:
             media_posts = MediaPost.objects.all().order_by("-created")
 
+        # If a user ID was provided, filter by that user
+        if user_id is not None:
+            media_posts = media_posts.filter(created_by__id=user_id)
+
         # If a species was selected, only get posts of that species
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
+
+        # If a user ID was provided, only get posts by that user
+        if user_id is not None:
+            media_posts = media_posts.filter(created_by__id=user_id)
 
         # Apply pagination
         paginator = LimitOffsetPagination()
@@ -621,20 +637,52 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 
 def create_media(media_bytes, content_hash, request, is_video=False):
     file_extension = "MP4" if is_video else "JPEG"
+    media_url = None
 
-    blob_service_client = BlobServiceClient(
-        account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
-        credential=DefaultAzureCredential(),
-    )
+    # Upload to Azure Blob Storage (optional, existing functionality)
+    if hasattr(settings, 'AZURE_STORAGE_ACCOUNT_NAME') and settings.AZURE_STORAGE_ACCOUNT_NAME and \
+       hasattr(settings, 'AZURE_STORAGE_CONTAINER_NAME') and settings.AZURE_STORAGE_CONTAINER_NAME:
+        try:
+            blob_service_client = BlobServiceClient(
+                account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
+                credential=DefaultAzureCredential(),
+            )
 
-    blob_client = blob_service_client.get_blob_client(
-        container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.{file_extension}"
-    )
+            blob_client = blob_service_client.get_blob_client(
+                container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.{file_extension}"
+            )
 
-    blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+            blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+            media_url = blob_client.url
+            logging.info(f"Successfully uploaded media to Azure: {media_url}")
+        except Exception as e:
+            logging.error(f"Failed to upload media to Azure: {str(e)}")
+    else:
+        logging.info("Azure Storage not configured, skipping Azure upload")
+
+    # Upload to Google Cloud Storage (new functionality)
+    gcs_url = None
+    try:
+        gcs_client = gcs_storage.Client()
+        gcs_bucket = gcs_client.bucket(settings.GCS_BUCKET_NAME)
+        
+        # Determine the path based on media type
+        gcs_path = getattr(settings, 'GCS_VIDEOS_PATH', 'media/movies') if is_video else getattr(settings, 'GCS_IMAGES_PATH', 'media/images')
+        blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
+        
+        gcs_blob = gcs_bucket.blob(blob_name)
+        gcs_blob.upload_from_string(media_bytes, content_type="video/mp4" if is_video else "image/jpeg")
+        gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
+        
+        logging.info(f"Successfully uploaded media to GCS: {blob_name}")
+    except Exception as e:
+        logging.error(f"Failed to upload media to GCS: {str(e)}")
+
+    # Use GCS URL if available, otherwise fall back to Azure URL
+    final_url = gcs_url or media_url or f"local://{content_hash}.{file_extension}"
 
     return Media.objects.create(
-        file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
+        file_cloud_path=final_url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
     )
 
 

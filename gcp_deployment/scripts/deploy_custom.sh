@@ -70,6 +70,7 @@ Options:
   --setup-db          Create new Cloud SQL instance for this deployment
   --use-existing-db   Use existing Cloud SQL instance (specify with --db-instance)
   --db-instance NAME  Name of existing Cloud SQL instance to use
+  --db-name NAME      Custom database name (default: wildepod_<prefix>)
   --migrate-db        Run database migrations only
   --deploy-only       Deploy application without database operations
   --full              Complete setup including database and deployment
@@ -121,6 +122,7 @@ ZONE="us-west2-a"
 DB_TIER="db-f1-micro"
 DB_VERSION="POSTGRES_14"
 EXISTING_DB_INSTANCE=""
+CUSTOM_DB_NAME=""
 
 # Parse options
 SETUP_DB=false
@@ -144,6 +146,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --db-instance)
             EXISTING_DB_INSTANCE="$2"
+            shift 2
+            ;;
+        --db-name)
+            CUSTOM_DB_NAME="$2"
             shift 2
             ;;
         --migrate-db)
@@ -201,7 +207,7 @@ fi
 
 # Generate resource names based on prefix
 SQL_INSTANCE_NAME="${EXISTING_DB_INSTANCE:-wildepod-${NAME_PREFIX}-db}"
-DB_NAME="wildepod_${NAME_PREFIX//-/_}"  # Replace hyphens with underscores for DB name
+DB_NAME="${CUSTOM_DB_NAME:-wildepod_${NAME_PREFIX//-/_}}"  # Use custom name or default
 DB_USER="wildepod_${NAME_PREFIX//-/_}_user"
 SERVICE_NAME="$NAME_PREFIX"
 APP_YAML="${NAME_PREFIX}.yaml"

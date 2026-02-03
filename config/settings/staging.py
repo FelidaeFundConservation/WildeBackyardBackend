@@ -38,7 +38,7 @@ DATABASES = {
 # ------------------------------------------------------------------------------
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
 AZURE_STORAGE_CONTAINER_NAME = env.str(
-    "AZURE_STORAGE_CONTAINER_NAME_STAGING", SECRETS.get("AZURE-STORAGE-CONTAINER-NAME-STAGING")
+    "AZURE_STORAGE_CONTAINER_NAME_STAGING", default=SECRETS.get("AZURE-STORAGE-CONTAINER-NAME-STAGING", None)
 )
 
 
