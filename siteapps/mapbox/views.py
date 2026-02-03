@@ -47,7 +47,8 @@ class GetMapboxLocationSearchSuggestions(APIView):
 
         try:
             response = requests.get(
-                url=f"{api_url}q={search_text}&limit=4&access_token={settings.MAPBOX_SECRET_TOKEN}&session_token={request.user.id}&types=poi,address"
+                url=f"{api_url}q={search_text}&limit=4&access_token={settings.MAPBOX_SECRET_TOKEN}&session_token={request.user.id}&types=poi,address",
+                timeout=10
             )
 
             if response.status_code == 200:
@@ -106,7 +107,7 @@ class GetMapboxGeocode(APIView):
         api_url = "https://api.mapbox.com/search/geocode/v6/forward?"
 
         try:
-            response = requests.get(url=f"{api_url}q={address}&limit=1&access_token={settings.MAPBOX_SECRET_TOKEN}")
+            response = requests.get(url=f"{api_url}q={address}&limit=1&access_token={settings.MAPBOX_SECRET_TOKEN}", timeout=10)
 
             if response.status_code == 200:
                 data = json.loads(response.content)

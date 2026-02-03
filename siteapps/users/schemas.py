@@ -26,7 +26,7 @@ class UserCreate(UserBase):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"email": "user@example.com", "name": "John Doe", "password": "securepassword123"}
+            "example": {"email": "user@example.com", "name": "John Doe", "password": "********"}
         }
     )
 
