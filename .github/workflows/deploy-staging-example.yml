@@ -23,6 +23,8 @@ env:
   GCP_REGION: us-central1
   ENVIRONMENT: staging
   PYTHON_VERSION: '3.10'
+  DJANGO_SETTINGS_MODULE: config.settings.staging
+  WEBSITE_HOSTNAME: ${{ secrets.WEBSITE_HOSTNAME }}
 
 jobs:
   # Job 1: Run tests and quality checks
