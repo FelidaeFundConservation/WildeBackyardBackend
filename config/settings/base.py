@@ -38,23 +38,30 @@ SECRETS = {}
 if env_file.is_file():
     env.read_env(env_file)
 else:
-    VAULT_URL = env.str("AZURE_KEY_VAULT_URL")
+    # Make Azure Key Vault optional
+    VAULT_URL = env.str("AZURE_KEY_VAULT_URL", default=None)
+    
+    if VAULT_URL:
+        try:
+            credential = DefaultAzureCredential()
+            secret_client = SecretClient(vault_url=VAULT_URL, credential=credential)
 
-    credential = DefaultAzureCredential()
-    secret_client = SecretClient(vault_url=VAULT_URL, credential=credential)
+            secret_properties = secret_client.list_properties_of_secrets()
 
-    secret_properties = secret_client.list_properties_of_secrets()
-
-    for secret_property in secret_properties:
-        secret_name = secret_property.name
-        secret_value = secret_client.get_secret(secret_name).value
-        SECRETS[secret_name] = secret_value
+            for secret_property in secret_properties:
+                secret_name = secret_property.name
+                secret_value = secret_client.get_secret(secret_name).value
+                SECRETS[secret_name] = secret_value
+        except Exception as e:
+            # Log error but continue without Azure Key Vault
+            import logging
+            logging.warning(f"Failed to load secrets from Azure Key Vault: {e}")
 
 
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env.str("DJANGO_SECRET_KEY", SECRETS.get("DJANGO-SECRET-KEY"))
+SECRET_KEY = env.str("DJANGO_SECRET_KEY", default=SECRETS.get("DJANGO-SECRET-KEY", "test-secret-key-change-in-production"))
 # DEBUG MODE
 DEBUG = False
 # Local time zone. Choices are
@@ -180,7 +187,8 @@ SPECTACULAR_SETTINGS = {
 # Limit data upload size to 20 MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520
 
-AZURE_STORAGE_ACCOUNT_NAME = env.str("AZURE_STORAGE_ACCOUNT_NAME", SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME"))
+# Azure Storage settings (optional)
+AZURE_STORAGE_ACCOUNT_NAME = env.str("AZURE_STORAGE_ACCOUNT_NAME", default=SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME", None))
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -282,16 +290,16 @@ SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 EMAIL_SUBJECT_PREFIX = "[Wilde Backyard]"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 
-# Sendgrid email settings
-SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", SECRETS.get("SENDGRID-API-KEY"))
+# Sendgrid email settings (optional)
+SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", default=SECRETS.get("SENDGRID-API-KEY", None))
 EMAIL_HOST = "smtp.sendgrid.net"
 EMAIL_HOST_USER = "apikey"
 EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-# Mapbox
-MAPBOX_SECRET_TOKEN = env.str("MAPBOX_SECRET_TOKEN", SECRETS.get("MAPBOX-SECRET-TOKEN"))
+# Mapbox (optional)
+MAPBOX_SECRET_TOKEN = env.str("MAPBOX_SECRET_TOKEN", default=SECRETS.get("MAPBOX-SECRET-TOKEN", None))
 
 
 # CUSTOM VARIABLES
@@ -304,3 +312,10 @@ PRIVACY_SETTING_PRIVATE = "private"
 PHOTO_MAX_SIZE = (2048, 2048)
 
 READABLE_DATE_FORMAT = "%B %d, %Y %I:%M %p"
+
+# Google Cloud Storage settings
+GCS_BUCKET_NAME = env.str("GCS_BUCKET_NAME", SECRETS.get("GCS-BUCKET-NAME", "wildepod_backyard"))
+# Path within GCS bucket for storing images
+GCS_IMAGES_PATH = "media/images"
+# Path within GCS bucket for storing videos (movies is used for consistency with existing naming)
+GCS_VIDEOS_PATH = "media/movies"
