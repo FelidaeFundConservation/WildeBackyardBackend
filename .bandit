@@ -1,20 +1,13 @@
-[bandit]
-# Exclude test files and migration files from security checks
-exclude_dirs = 
-    /test_*.py,
-    /*_test.py,
-    /tests.py,
-    /tests/,
-    /migrations/,
-    /venv/,
-    /staticfiles/,
-    /.venv/
+# Bandit configuration file to exclude test files from security checks
+exclude_dirs:
+  - '*/test_*.py'
+  - '*/*_test.py'
+  - '*/tests.py'
+  - '*/tests/'
+  - '*/migrations/'
+  - 'venv/'
+  - 'staticfiles/'
+  - '.venv/'
 
-# Skip these test IDs for test files
-skips = B101,B601,B602,B603,B605,B607
-
-# Test directories are excluded by pattern
-tests = siteapps,config
-
-# Aggregate output by filename
-aggregate = file
+# Skip these test IDs that commonly appear in test code
+skips: ['B101', 'B601', 'B602', 'B603', 'B605', 'B607']
