@@ -656,7 +656,7 @@ def create_media(media_bytes, content_hash, request, is_video=False):
         gcs_bucket = gcs_client.bucket(settings.GCS_BUCKET_NAME)
         
         # Determine the path based on media type
-        gcs_path = settings.GCS_VIDEOS_PATH if is_video else settings.GCS_IMAGES_PATH
+        gcs_path = getattr(settings, 'GCS_VIDEOS_PATH', 'media/movies') if is_video else getattr(settings, 'GCS_IMAGES_PATH', 'media/images')
         blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
         
         gcs_blob = gcs_bucket.blob(blob_name)

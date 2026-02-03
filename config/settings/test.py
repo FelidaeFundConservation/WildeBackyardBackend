@@ -22,5 +22,5 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 AZURE_STORAGE_ACCOUNT_NAME = "test-account"
 AZURE_STORAGE_CONTAINER_NAME = "test-container"
 
-# Default GCS bucket name for tests
-GCS_BUCKET_NAME = "wildepod_backyard"
+# GCS bucket name for tests (tests use mocks, so this won't access real GCS)
+GCS_BUCKET_NAME = "test-wildepod-backyard"

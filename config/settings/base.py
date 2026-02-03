@@ -307,5 +307,7 @@ READABLE_DATE_FORMAT = "%B %d, %Y %I:%M %p"
 
 # Google Cloud Storage settings
 GCS_BUCKET_NAME = env.str("GCS_BUCKET_NAME", SECRETS.get("GCS-BUCKET-NAME", "wildepod_backyard"))
+# Path within GCS bucket for storing images
 GCS_IMAGES_PATH = "media/images"
+# Path within GCS bucket for storing videos (movies is used for consistency with existing naming)
 GCS_VIDEOS_PATH = "media/movies"
