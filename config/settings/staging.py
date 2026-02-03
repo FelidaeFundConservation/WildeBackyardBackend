@@ -27,7 +27,7 @@ DATABASES = {
         "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST", "localhost")),
         "USER": env.str("DB_USER", SECRETS.get("DB-USER", "wildepod_staging_user")),
         "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD", "")),
-        "PORT": env.str("DB_PORT", "5432"),
+        "PORT": env.int("DB_PORT", 5432),
     }
 }
 
