@@ -246,3 +246,4 @@ auth
 bin/
 auth.json
 update-check.json
+actionlint
