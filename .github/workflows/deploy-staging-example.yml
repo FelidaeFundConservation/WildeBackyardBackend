@@ -180,7 +180,12 @@ jobs:
         run: |
           if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "Error: GCP_SA_KEY secret is not set or is empty"
-            echo "Please configure the GCP_SA_KEY secret in your repository settings"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings:"
+            echo "1. Go to Settings → Secrets and variables → Actions"
+            echo "2. Add a new secret named 'GCP_SA_KEY'"
+            echo "3. Paste the contents of your service account JSON key"
+            echo ""
+            echo "To create a service account key, follow the guide in gcp_deployment/DEPLOYMENT_GUIDE.md"
             exit 1
           fi
 
@@ -243,7 +248,12 @@ jobs:
         run: |
           if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "Error: GCP_SA_KEY secret is not set or is empty"
-            echo "Please configure the GCP_SA_KEY secret in your repository settings"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings:"
+            echo "1. Go to Settings → Secrets and variables → Actions"
+            echo "2. Add a new secret named 'GCP_SA_KEY'"
+            echo "3. Paste the contents of your service account JSON key"
+            echo ""
+            echo "To create a service account key, follow the guide in gcp_deployment/DEPLOYMENT_GUIDE.md"
             exit 1
           fi
 
@@ -343,7 +353,12 @@ jobs:
         run: |
           if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
             echo "Error: GCP_SA_KEY secret is not set or is empty"
-            echo "Please configure the GCP_SA_KEY secret in your repository settings"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings:"
+            echo "1. Go to Settings → Secrets and variables → Actions"
+            echo "2. Add a new secret named 'GCP_SA_KEY'"
+            echo "3. Paste the contents of your service account JSON key"
+            echo ""
+            echo "To create a service account key, follow the guide in gcp_deployment/DEPLOYMENT_GUIDE.md"
             exit 1
           fi
 
