@@ -9,6 +9,10 @@ on:
       - staging
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Branch or commit SHA to deploy'
+        required: false
+        default: 'staging'
       skip_tests:
         description: 'Skip tests before deployment'
         required: false
@@ -29,6 +33,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,8 +67,8 @@ jobs:
       - name: Check for secrets in code
         run: |
           # Simple check for common secret patterns
-          ! grep -r "SECRET_KEY\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("
-          ! grep -r "PASSWORD\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("
+          grep -r "SECRET_KEY\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env(" && exit 1 || true
+          grep -r "PASSWORD\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env(" && exit 1 || true
 
       - name: Run tests
         if: github.event.inputs.skip_tests != 'true'
@@ -94,6 +100,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -135,11 +143,12 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     environment:
       name: staging
-      url: https://staging-dot-${{ secrets.GCP_PROJECT_ID }}.appspot.com
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -183,18 +192,6 @@ jobs:
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '🚀 Deployed to staging: ${{ steps.deployment.outputs.url }}'
-            })
-
   # Job 4: Run database migrations
   migrate:
     name: Database Migrations
@@ -205,6 +202,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
