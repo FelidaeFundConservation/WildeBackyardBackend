@@ -39,10 +39,23 @@ jobs:
           fi
           echo "✓ Tag $VERSION_TAG does not exist yet"
 
-      - name: Get short commit hash
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          git tag -a "$VERSION_TAG" -m "Release $VERSION_TAG"
+          git push origin "$VERSION_TAG"
+          echo "✓ Created and pushed tag: $VERSION_TAG"
+
+      - name: Get short commit hash of tagged commit
         id: commit
         run: |
-          SHORT_HASH=$(git rev-parse --short HEAD)
+          VERSION_TAG="${{ inputs.version_tag }}"
+          SHORT_HASH=$(git rev-parse --short "$VERSION_TAG")
           echo "short_hash=$SHORT_HASH" >> $GITHUB_OUTPUT
           echo "Short commit hash: $SHORT_HASH"
 
@@ -68,28 +81,12 @@ jobs:
           echo "  - release_tag: $VERSION_TAG"
           cat config/version.py
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Commit version update
+      - name: Commit and push version update
         run: |
           git add config/version.py
           git commit -m "Update version info for release ${{ inputs.version_tag }}"
-          echo "✓ Committed version.py update"
-
-      - name: Create and push tag
-        run: |
-          VERSION_TAG="${{ inputs.version_tag }}"
-          git tag -a "$VERSION_TAG" -m "Release $VERSION_TAG"
-          git push origin "$VERSION_TAG"
-          echo "✓ Created and pushed tag: $VERSION_TAG"
-
-      - name: Push version commit to branch
-        run: |
           git push origin HEAD:${GITHUB_REF#refs/heads/}
-          echo "✓ Pushed version commit to branch"
+          echo "✓ Committed and pushed version.py update"
 
       - name: Generate release notes
         id: release_notes
@@ -98,13 +95,13 @@ jobs:
           SHORT_HASH="${{ steps.commit.outputs.short_hash }}"
           
           # Get the previous tag
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 --tags "$VERSION_TAG^" 2>/dev/null || echo "")
           
           if [ -z "$PREVIOUS_TAG" ]; then
-            COMMIT_RANGE="HEAD"
-            RANGE_TEXT="All commits up to this release"
+            COMMIT_RANGE="$VERSION_TAG"
+            RANGE_TEXT="All commits in this release"
           else
-            COMMIT_RANGE="$PREVIOUS_TAG..HEAD"
+            COMMIT_RANGE="$PREVIOUS_TAG..$VERSION_TAG"
             RANGE_TEXT="Changes since $PREVIOUS_TAG"
           fi
           
