@@ -19,17 +19,15 @@ WSGI_APPLICATION = "config.wsgi.staging.application"
 # DATABASES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
+# Use PostgreSQL for GCP Cloud SQL deployment
 DATABASES = {
     "default": {
-        "ENGINE": "mssql",
-        "NAME": env.str("DB_NAME_STAGING", "staging"),
-        "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST")),
-        "USER": env.str("DB_USER", SECRETS.get("DB-USER")),
-        "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD")),
-        "PORT": "1433",
-        "OPTIONS": {
-            "driver": "ODBC Driver 17 for SQL Server",
-        },
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env.str("DB_NAME_STAGING", "wildepod_staging"),
+        "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST", "localhost")),
+        "USER": env.str("DB_USER", SECRETS.get("DB-USER", "wildepod_staging_user")),
+        "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD", "")),
+        "PORT": env.int("DB_PORT", 5432),
     }
 }
 
