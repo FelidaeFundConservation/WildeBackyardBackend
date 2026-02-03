@@ -1,4 +1,4 @@
-import random
+import secrets
 import string
 import uuid
 
@@ -10,7 +10,7 @@ from simple_history.models import HistoricalRecords
 
 
 def generate_random_name():
-    random_digits = "".join(random.choices(string.digits, k=6))
+    random_digits = "".join(secrets.choice(string.digits) for _ in range(6))
     return "Backyarder" + random_digits
 
 
