@@ -637,20 +637,31 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 
 def create_media(media_bytes, content_hash, request, is_video=False):
     file_extension = "MP4" if is_video else "JPEG"
+    media_url = None
 
-    # Upload to Azure Blob Storage (existing functionality)
-    blob_service_client = BlobServiceClient(
-        account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
-        credential=DefaultAzureCredential(),
-    )
+    # Upload to Azure Blob Storage (optional, existing functionality)
+    if hasattr(settings, 'AZURE_STORAGE_ACCOUNT_NAME') and settings.AZURE_STORAGE_ACCOUNT_NAME and \
+       hasattr(settings, 'AZURE_STORAGE_CONTAINER_NAME') and settings.AZURE_STORAGE_CONTAINER_NAME:
+        try:
+            blob_service_client = BlobServiceClient(
+                account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
+                credential=DefaultAzureCredential(),
+            )
 
-    blob_client = blob_service_client.get_blob_client(
-        container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.{file_extension}"
-    )
+            blob_client = blob_service_client.get_blob_client(
+                container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.{file_extension}"
+            )
 
-    blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+            blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+            media_url = blob_client.url
+            logging.info(f"Successfully uploaded media to Azure: {media_url}")
+        except Exception as e:
+            logging.error(f"Failed to upload media to Azure: {str(e)}")
+    else:
+        logging.info("Azure Storage not configured, skipping Azure upload")
 
     # Upload to Google Cloud Storage (new functionality)
+    gcs_url = None
     try:
         gcs_client = gcs_storage.Client()
         gcs_bucket = gcs_client.bucket(settings.GCS_BUCKET_NAME)
@@ -661,14 +672,17 @@ def create_media(media_bytes, content_hash, request, is_video=False):
         
         gcs_blob = gcs_bucket.blob(blob_name)
         gcs_blob.upload_from_string(media_bytes, content_type="video/mp4" if is_video else "image/jpeg")
+        gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
         
         logging.info(f"Successfully uploaded media to GCS: {blob_name}")
     except Exception as e:
         logging.error(f"Failed to upload media to GCS: {str(e)}")
-        # Continue with Azure URL if GCS upload fails
+
+    # Use GCS URL if available, otherwise fall back to Azure URL
+    final_url = gcs_url or media_url or f"local://{content_hash}.{file_extension}"
 
     return Media.objects.create(
-        file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
+        file_cloud_path=final_url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
     )
 
 
