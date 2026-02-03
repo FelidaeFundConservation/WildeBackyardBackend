@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from PIL import Image
 
 from siteapps.socialmedia.views import create_media
@@ -37,6 +37,10 @@ class GCSUploadTestCase(TestCase):
         self.test_video_bytes = b"fake_video_content"
         self.test_video_hash = hashlib.sha256(self.test_video_bytes).hexdigest()
 
+    @override_settings(
+        AZURE_STORAGE_ACCOUNT_NAME='testaccount',
+        AZURE_STORAGE_CONTAINER_NAME='testcontainer'
+    )
     @patch("siteapps.socialmedia.views.gcs_storage.Client")
     @patch("siteapps.socialmedia.views.BlobServiceClient")
     def test_create_media_uploads_image_to_gcs(self, mock_azure_client, mock_gcs_client):
@@ -82,6 +86,10 @@ class GCSUploadTestCase(TestCase):
         self.assertFalse(media.is_video)
         self.assertEqual(media.uploaded_by, self.user)
 
+    @override_settings(
+        AZURE_STORAGE_ACCOUNT_NAME='testaccount',
+        AZURE_STORAGE_CONTAINER_NAME='testcontainer'
+    )
     @patch("siteapps.socialmedia.views.gcs_storage.Client")
     @patch("siteapps.socialmedia.views.BlobServiceClient")
     def test_create_media_uploads_video_to_gcs(self, mock_azure_client, mock_gcs_client):
@@ -125,6 +133,10 @@ class GCSUploadTestCase(TestCase):
         self.assertTrue(media.is_video)
         self.assertEqual(media.uploaded_by, self.user)
 
+    @override_settings(
+        AZURE_STORAGE_ACCOUNT_NAME='testaccount',
+        AZURE_STORAGE_CONTAINER_NAME='testcontainer'
+    )
     @patch("siteapps.socialmedia.views.gcs_storage.Client")
     @patch("siteapps.socialmedia.views.BlobServiceClient")
     @patch("siteapps.socialmedia.views.logging")
