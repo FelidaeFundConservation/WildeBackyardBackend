@@ -14,6 +14,7 @@ from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Func, Q
 from drf_spectacular.utils import extend_schema, inline_serializer
+from google.cloud import storage as gcs_storage
 from PIL import Image
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -637,6 +638,7 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 def create_media(media_bytes, content_hash, request, is_video=False):
     file_extension = "MP4" if is_video else "JPEG"
 
+    # Upload to Azure Blob Storage (existing functionality)
     blob_service_client = BlobServiceClient(
         account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
         credential=DefaultAzureCredential(),
@@ -647,6 +649,23 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     )
 
     blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
+
+    # Upload to Google Cloud Storage (new functionality)
+    try:
+        gcs_client = gcs_storage.Client()
+        gcs_bucket = gcs_client.bucket(settings.GCS_BUCKET_NAME)
+        
+        # Determine the path based on media type
+        gcs_path = settings.GCS_VIDEOS_PATH if is_video else settings.GCS_IMAGES_PATH
+        blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
+        
+        gcs_blob = gcs_bucket.blob(blob_name)
+        gcs_blob.upload_from_string(media_bytes, content_type="video/mp4" if is_video else "image/jpeg")
+        
+        logging.info(f"Successfully uploaded media to GCS: {blob_name}")
+    except Exception as e:
+        logging.error(f"Failed to upload media to GCS: {str(e)}")
+        # Continue with Azure URL if GCS upload fails
 
     return Media.objects.create(
         file_cloud_path=blob_client.url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video

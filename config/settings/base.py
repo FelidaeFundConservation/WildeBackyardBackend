@@ -304,3 +304,8 @@ PRIVACY_SETTING_PRIVATE = "private"
 PHOTO_MAX_SIZE = (2048, 2048)
 
 READABLE_DATE_FORMAT = "%B %d, %Y %I:%M %p"
+
+# Google Cloud Storage settings
+GCS_BUCKET_NAME = env.str("GCS_BUCKET_NAME", SECRETS.get("GCS-BUCKET-NAME", "wildepod_backyard"))
+GCS_IMAGES_PATH = "media/images"
+GCS_VIDEOS_PATH = "media/movies"
