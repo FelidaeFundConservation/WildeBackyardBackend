@@ -63,8 +63,9 @@ jobs:
         continue-on-error: true
         run: |
           pip install bandit
-          bandit -r siteapps/ config/ -f json -o bandit-report.json || true
-          bandit -r siteapps/ config/ -f screen
+          # Use .bandit config file and exclude test files via command line
+          bandit -r siteapps/ config/ -x '*/test_*.py,*_test.py,*/tests.py,*/tests/*' -c .bandit -f json -o bandit-report.json || true
+          bandit -r siteapps/ config/ -x '*/test_*.py,*_test.py,*/tests.py,*/tests/*' -c .bandit -f screen
 
       - name: Check for secrets in code
         run: |
