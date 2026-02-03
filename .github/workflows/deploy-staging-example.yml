@@ -67,8 +67,16 @@ jobs:
       - name: Check for secrets in code
         run: |
           # Simple check for common secret patterns
-          grep -r "SECRET_KEY\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env(" && exit 1 || true
-          grep -r "PASSWORD\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env(" && exit 1 || true
+          set -e
+          if grep -r "SECRET_KEY\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("; then
+            echo "Error: Found hardcoded SECRET_KEY in code!"
+            exit 1
+          fi
+          if grep -r "PASSWORD\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("; then
+            echo "Error: Found hardcoded PASSWORD in code!"
+            exit 1
+          fi
+          echo "✓ No hardcoded secrets found"
 
       - name: Run tests
         if: github.event.inputs.skip_tests != 'true'
