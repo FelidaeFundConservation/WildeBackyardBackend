@@ -36,15 +36,13 @@ class MapboxAPITestCase(TestCase):
         response = self.client.post("/v1/mapbox/api/search_suggestions/", {"searchText": "Los Angeles"}, format="json")
 
         # May succeed or fail depending on Mapbox API availability
-        # 503 if Mapbox token is not configured
         self.assertIn(response.status_code, [200, 400, 401, 500, 503])
 
     def test_search_suggestions_empty_query(self):
         """Test search with empty query"""
         response = self.client.post("/v1/mapbox/api/search_suggestions/", {"searchText": ""}, format="json")
 
-        # 503 if Mapbox is not configured, 400 for empty query, 200 if configured
-        self.assertIn(response.status_code, [200, 400, 503])
+        self.assertIn(response.status_code, [200, 400])
 
     def test_search_suggestions_unauthenticated(self):
         """Test that unauthenticated users cannot search"""
@@ -58,8 +56,8 @@ class MapboxAPITestCase(TestCase):
         long_query = "A" * 200
         response = self.client.post("/v1/mapbox/api/search_suggestions/", {"searchText": long_query}, format="json")
 
-        # Should handle gracefully, 503 if Mapbox not configured
-        self.assertIn(response.status_code, [200, 400, 500, 503])
+        # Should handle gracefully
+        self.assertIn(response.status_code, [200, 400, 500])
 
     def test_search_suggestions_special_characters(self):
         """Test search with special characters"""
@@ -67,8 +65,7 @@ class MapboxAPITestCase(TestCase):
             "/v1/mapbox/api/search_suggestions/", {"searchText": "São Paulo, Brazil"}, format="json"
         )
 
-        # 503 if Mapbox not configured
-        self.assertIn(response.status_code, [200, 400, 500, 503])
+        self.assertIn(response.status_code, [200, 400, 500])
 
     def test_geocode_location(self):
         """Test geocoding a location"""
@@ -76,7 +73,7 @@ class MapboxAPITestCase(TestCase):
 
         response = self.client.post("/v1/mapbox/api/geocode/", geocode_data, format="json")
 
-        # May succeed or fail depending on Mapbox API availability, 503 if not configured
+        # May succeed or fail depending on Mapbox API availability
         self.assertIn(response.status_code, [200, 400, 401, 500, 503])
 
     def test_geocode_invalid_coordinates(self):
@@ -85,8 +82,8 @@ class MapboxAPITestCase(TestCase):
 
         response = self.client.post("/v1/mapbox/api/geocode/", invalid_data, format="json")
 
-        # Should return error (either 400, 500, or 503 if not configured)
-        self.assertIn(response.status_code, [400, 500, 503])
+        # Should return error (either 400 or 500)
+        self.assertIn(response.status_code, [400, 500])
 
     def test_geocode_missing_latitude(self):
         """Test geocoding with missing latitude"""
@@ -109,14 +106,12 @@ class MapboxAPITestCase(TestCase):
         # Test maximum valid coordinates
         max_coords = {"latitude": 90, "longitude": 180}
         response = self.client.post("/v1/mapbox/api/geocode/", max_coords, format="json")
-        # 503 if Mapbox not configured
-        self.assertIn(response.status_code, [200, 400, 500, 503])
+        self.assertIn(response.status_code, [200, 400, 500])
 
         # Test minimum valid coordinates
         min_coords = {"latitude": -90, "longitude": -180}
         response = self.client.post("/v1/mapbox/api/geocode/", min_coords, format="json")
-        # 503 if Mapbox not configured
-        self.assertIn(response.status_code, [200, 400, 500, 503])
+        self.assertIn(response.status_code, [200, 400, 500])
 
     def test_geocode_equator_prime_meridian(self):
         """Test geocoding at equator and prime meridian"""
@@ -124,8 +119,7 @@ class MapboxAPITestCase(TestCase):
 
         response = self.client.post("/v1/mapbox/api/geocode/", coords, format="json")
 
-        # 503 if Mapbox not configured
-        self.assertIn(response.status_code, [200, 400, 500, 503])
+        self.assertIn(response.status_code, [200, 400, 500])
 
     def test_geocode_unauthenticated(self):
         """Test that unauthenticated users cannot geocode"""
@@ -140,8 +134,7 @@ class MapboxAPITestCase(TestCase):
         """Test search without searchText field"""
         response = self.client.post("/v1/mapbox/api/search_suggestions/", {}, format="json")
 
-        # 503 if Mapbox not configured, 400 for missing field, 500 for other errors
-        self.assertIn(response.status_code, [400, 500, 503])
+        self.assertEqual(response.status_code, 400)
 
     def test_geocode_string_coordinates(self):
         """Test geocoding with string coordinates (should fail)"""
@@ -149,15 +142,14 @@ class MapboxAPITestCase(TestCase):
 
         response = self.client.post("/v1/mapbox/api/geocode/", invalid_data, format="json")
 
-        # 503 if Mapbox not configured, 400 for invalid data, 500 for other errors
-        self.assertIn(response.status_code, [400, 500, 503])
+        self.assertEqual(response.status_code, 400)
 
     def test_search_suggestions_numeric_query(self):
         """Test search with numeric query"""
         response = self.client.post("/v1/mapbox/api/search_suggestions/", {"searchText": "90210"}, format="json")
 
-        # Should handle gracefully (zip code search), 503 if not configured
-        self.assertIn(response.status_code, [200, 400, 500, 503])
+        # Should handle gracefully (zip code search)
+        self.assertIn(response.status_code, [200, 400, 500])
 
     def test_multiple_geocode_requests(self):
         """Test multiple geocode requests in sequence"""
@@ -169,8 +161,8 @@ class MapboxAPITestCase(TestCase):
 
         for coords in coords_list:
             response = self.client.post("/v1/mapbox/api/geocode/", coords, format="json")
-            # Each request should be processed independently, 503 if not configured
-            self.assertIn(response.status_code, [200, 400, 500, 503])
+            # Each request should be processed independently
+            self.assertIn(response.status_code, [200, 400, 500])
 
     def test_search_suggestions_response_structure(self):
         """Test the structure of search suggestions response"""
