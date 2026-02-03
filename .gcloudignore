@@ -94,7 +94,6 @@ target/
 celerybeat-schedule
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -250,3 +249,5 @@ nohup.out
 .sass-cache/
 
 *.pt
+
+# Allow .env for GCP deployment (contains minimal config)
