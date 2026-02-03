@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
+from siteapps.info_views import VersionInfoView
 from siteapps.users.views import AccountVerifiedView
 
 urlpatterns = [
@@ -28,6 +29,8 @@ urlpatterns = [
     # path("", include(("home.urls", "home"), namespace="home")),
     path("", AccountVerifiedView.as_view(), name="home"),
     path("admin/", admin.site.urls),
+    # Version info endpoint
+    path("v1/info/version/", VersionInfoView.as_view(), name="version_info"),
     # v1 API endpoints
     path("v1/account/", include("allauth.urls")),
     path("v1/account/password_reset/", include("django_rest_passwordreset.urls", namespace="password_reset")),

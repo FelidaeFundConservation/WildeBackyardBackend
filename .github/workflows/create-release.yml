@@ -1,0 +1,179 @@
+name: Create Release with Version Info
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version tag format
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          if [[ ! $VERSION_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version tag format. Expected format: v1.0.0"
+            exit 1
+          fi
+          echo "✓ Version tag format is valid: $VERSION_TAG"
+
+      - name: Check if tag already exists
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          if git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $VERSION_TAG already exists"
+            exit 1
+          fi
+          echo "✓ Tag $VERSION_TAG does not exist yet"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          git tag -a "$VERSION_TAG" -m "Release $VERSION_TAG"
+          git push origin "$VERSION_TAG"
+          echo "✓ Created and pushed tag: $VERSION_TAG"
+
+      - name: Get short commit hash of tagged commit
+        id: commit
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          SHORT_HASH=$(git rev-parse --short "$VERSION_TAG")
+          echo "short_hash=$SHORT_HASH" >> $GITHUB_OUTPUT
+          echo "Short commit hash: $SHORT_HASH"
+
+      - name: Update version.py with release info
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          SHORT_HASH="${{ steps.commit.outputs.short_hash }}"
+          
+          cat > config/version.py << EOF
+          """
+          Version information for the application.
+          This file is automatically updated by the GitHub Actions workflow during deployment.
+          """
+
+          VERSION = {
+              "commit_hash": "$SHORT_HASH",
+              "release_tag": "$VERSION_TAG",
+          }
+          EOF
+          
+          echo "✓ Updated version.py with:"
+          echo "  - commit_hash: $SHORT_HASH"
+          echo "  - release_tag: $VERSION_TAG"
+          cat config/version.py
+
+      - name: Commit and push version update
+        run: |
+          git add config/version.py
+          git commit -m "Update version info for release ${{ inputs.version_tag }}"
+          git push origin HEAD:${GITHUB_REF#refs/heads/}
+          echo "✓ Committed and pushed version.py update"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          SHORT_HASH="${{ steps.commit.outputs.short_hash }}"
+          
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 --tags "$VERSION_TAG^" 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            COMMIT_RANGE="$VERSION_TAG"
+            RANGE_TEXT="All commits in this release"
+          else
+            COMMIT_RANGE="$PREVIOUS_TAG..$VERSION_TAG"
+            RANGE_TEXT="Changes since $PREVIOUS_TAG"
+          fi
+          
+          # Generate commit log
+          COMMITS=$(git log $COMMIT_RANGE --pretty=format:"- %s (%h)" --no-merges)
+          
+          # Create release notes
+          cat > release_notes.md << EOF
+          ## Release $VERSION_TAG
+          
+          **Commit Hash:** \`$SHORT_HASH\`
+          
+          ### $RANGE_TEXT
+          
+          $COMMITS
+          
+          ---
+          
+          ### Version Information
+          This release includes version information that can be retrieved via the API endpoint:
+          
+          \`\`\`
+          GET /v1/info/version/
+          \`\`\`
+          
+          Response:
+          \`\`\`json
+          {
+            "commit_hash": "$SHORT_HASH",
+            "release_tag": "$VERSION_TAG"
+          }
+          \`\`\`
+          EOF
+          
+          echo "✓ Generated release notes"
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          
+          gh release create "$VERSION_TAG" \
+            --title "Release $VERSION_TAG" \
+            --notes-file release_notes.md \
+            --target ${GITHUB_REF#refs/heads/}
+          
+          echo "✓ Created GitHub release: $VERSION_TAG"
+
+      - name: Release Summary
+        run: |
+          VERSION_TAG="${{ inputs.version_tag }}"
+          SHORT_HASH="${{ steps.commit.outputs.short_hash }}"
+          
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 🎉 Release Created Successfully
+          
+          **Version:** $VERSION_TAG  
+          **Commit:** $SHORT_HASH  
+          **Branch:** ${GITHUB_REF#refs/heads/}
+          
+          ### What was done:
+          1. ✅ Validated version tag format
+          2. ✅ Updated \`config/version.py\` with release information
+          3. ✅ Created git tag \`$VERSION_TAG\`
+          4. ✅ Pushed tag to repository
+          5. ✅ Created GitHub release with notes
+          
+          ### Next Steps:
+          - The version information is now available via the \`/v1/info/version/\` endpoint
+          - Deploy this release to your environments as needed
+          
+          [View Release](https://github.com/${{ github.repository }}/releases/tag/$VERSION_TAG)
+          EOF
