@@ -60,6 +60,7 @@ class GetMapboxLocationSearchSuggestions(APIView):
             else:
                 return Response(
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    data={"error": f"Mapbox API returned status code {response.status_code}"}
                 )
         except requests.exceptions.RequestException:
             # Handle connection errors (e.g., blocked API access)
@@ -115,6 +116,7 @@ class GetMapboxGeocode(APIView):
             else:
                 return Response(
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    data={"error": f"Mapbox API returned status code {response.status_code}"}
                 )
         except requests.exceptions.RequestException:
             # Handle connection errors (e.g., blocked API access)
