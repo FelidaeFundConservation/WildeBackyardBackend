@@ -4,6 +4,6 @@ This file is automatically updated by the GitHub Actions workflow during deploym
 """
 
 VERSION = {
-    "commit_hash": "unknown",
-    "release_tag": "unknown",
+    "commit_hash": "6049c9a",
+    "release_tag": "v0.0.1",
 }
