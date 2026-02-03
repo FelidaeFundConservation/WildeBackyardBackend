@@ -36,6 +36,13 @@ class GetMapboxLocationSearchSuggestions(APIView):
 
         search_text = data.get("searchText")
 
+        # Check if Mapbox token is configured
+        if not settings.MAPBOX_SECRET_TOKEN:
+            return Response(
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                data={"error": "Mapbox service is not configured"}
+            )
+
         api_url = "https://api.mapbox.com/search/searchbox/v1/suggest?"
 
         response = requests.get(
@@ -71,6 +78,22 @@ class GetMapboxGeocode(APIView):
         data = json.loads(request.body)
 
         address = data.get("address")
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+
+        # Validate input - need either address OR both lat/lng
+        if not address and (latitude is None or longitude is None):
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"error": "Either 'address' or both 'latitude' and 'longitude' are required"}
+            )
+
+        # Check if Mapbox token is configured
+        if not settings.MAPBOX_SECRET_TOKEN:
+            return Response(
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                data={"error": "Mapbox service is not configured"}
+            )
 
         api_url = "https://api.mapbox.com/search/geocode/v6/forward?"
 
