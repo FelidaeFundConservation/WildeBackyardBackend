@@ -244,7 +244,7 @@ ACCOUNT_SESSION_REMEMBER = True
 # dj-rest-auth
 # ------------------------------------------------------------------------------
 REST_AUTH = {
-    'REGISTER_SERIALIZER': 'siteapps.users.serializers.RegisterSerializer',
+    "REGISTER_SERIALIZER": "siteapps.users.serializers.RegisterSerializer",
 }
 
 

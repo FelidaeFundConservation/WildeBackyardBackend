@@ -1,6 +1,7 @@
 """Django settings for wildebackyard-api environment"""
 
 import os
+
 import environ
 
 # Initialize environ first, before importing base
@@ -9,6 +10,7 @@ env = environ.Env(DEBUG=(bool, False))
 # Override to prevent Azure Key Vault lookup in base.py
 # Set a dummy file path to trigger env file read path instead of Azure
 from pathlib import Path
+
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 env_file = ROOT_DIR / ".env.gcp_dummy"
 # Create a minimal env dict to prevent Azure lookup
@@ -37,10 +39,7 @@ WSGI_APPLICATION = "config.wsgi.wildebackyard_api.application"
 DATABASES = {"default": env.db("WILDEBACKYARD_API_DATABASE_URL")}
 
 # Cloud SQL connection configuration
-DB_CONNECTION_NAME = env.str(
-    "CLOUD_SQL_CONNECTION_NAME",
-    default="wildepod-339517:us-west2:wildepoddb"
-)
+DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-339517:us-west2:wildepoddb")
 
 # Enable Cloud SQL connection
 if os.getenv("GAE_APPLICATION", None):
@@ -103,9 +102,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {
-            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
-        },
+        "verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"},
     },
     "handlers": {
         "console": {
