@@ -11,7 +11,7 @@ dispatch:
     service: wildebackyard-api
   - url: "api.wildebackyard.org/*"
     service: wildebackyard-api
-  
+
   # Web routes
   - url: "wildebackyard.org/*"
     service: wildebackyard-web

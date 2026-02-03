@@ -66,7 +66,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         # A species to filter by
         species = data.get("species")
-        
+
         # A user ID to filter by (for "my sightings")
         user_id = data.get("userId")
 
@@ -119,7 +119,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         # If a species was selected, only get posts of that species
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
-        
+
         # If a user ID was provided, only get posts by that user
         if user_id is not None:
             media_posts = media_posts.filter(created_by__id=user_id)
