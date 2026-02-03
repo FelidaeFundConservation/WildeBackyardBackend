@@ -116,6 +116,19 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Validate GCP credentials
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "Error: GCP_SA_KEY secret is not set or is empty"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings:"
+            echo "1. Go to Settings → Secrets and variables → Actions"
+            echo "2. Add a new secret named 'GCP_SA_KEY'"
+            echo "3. Paste the contents of your service account JSON key"
+            echo ""
+            echo "To create a service account key, follow the guide in gcp_deployment/DEPLOYMENT_GUIDE.md"
+            exit 1
+          fi
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -162,6 +175,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate GCP credentials
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "Error: GCP_SA_KEY secret is not set or is empty"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings"
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -217,6 +238,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate GCP credentials
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "Error: GCP_SA_KEY secret is not set or is empty"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings"
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -306,6 +335,15 @@ jobs:
             echo "✓ Application is responding (HTTP $HTTP_CODE)"
           else
             echo "✗ Application health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Validate GCP credentials
+        if: success()
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "Error: GCP_SA_KEY secret is not set or is empty"
+            echo "Please configure the GCP_SA_KEY secret in your repository settings"
             exit 1
           fi
 
