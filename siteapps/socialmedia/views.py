@@ -222,16 +222,25 @@ def get_post_responses(request):
             media_post_obj = MediaPost.objects.get(id=media_post_id)
 
             # Query all comments related to the post and order by creation date
-            comments_query = media_post_obj.replies.order_by("-created").values(
-                "created_by__name", "text_content", "created", "id"
-            )
+            comments_query = media_post_obj.replies.order_by("-created")
 
             # Set up pagination for comments
             paginator = Paginator(comments_query, page_size)
             comments_page = paginator.get_page(page)
 
-            # Serialize the paginated comments data
-            comments_data = list(comments_page)
+            # Serialize the paginated comments data with like information
+            comments_data = []
+            for comment in comments_page:
+                comments_data.append(
+                    {
+                        "id": str(comment.id),
+                        "created_by__name": comment.created_by.name if comment.created_by else "Anonymous",
+                        "text_content": comment.text_content,
+                        "created": comment.created.isoformat() if comment.created else None,
+                        "like_count": comment.upvoted_by.count(),
+                        "liked_by_current_user": comment.upvoted_by.filter(id=request.user.id).exists(),
+                    }
+                )
 
             return Response(
                 status=status.HTTP_200_OK,
@@ -640,8 +649,12 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     media_url = None
 
     # Upload to Azure Blob Storage (optional, existing functionality)
-    if hasattr(settings, 'AZURE_STORAGE_ACCOUNT_NAME') and settings.AZURE_STORAGE_ACCOUNT_NAME and \
-       hasattr(settings, 'AZURE_STORAGE_CONTAINER_NAME') and settings.AZURE_STORAGE_CONTAINER_NAME:
+    if (
+        hasattr(settings, "AZURE_STORAGE_ACCOUNT_NAME")
+        and settings.AZURE_STORAGE_ACCOUNT_NAME
+        and hasattr(settings, "AZURE_STORAGE_CONTAINER_NAME")
+        and settings.AZURE_STORAGE_CONTAINER_NAME
+    ):
         try:
             blob_service_client = BlobServiceClient(
                 account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
@@ -665,15 +678,19 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     try:
         gcs_client = gcs_storage.Client()
         gcs_bucket = gcs_client.bucket(settings.GCS_BUCKET_NAME)
-        
+
         # Determine the path based on media type
-        gcs_path = getattr(settings, 'GCS_VIDEOS_PATH', 'media/movies') if is_video else getattr(settings, 'GCS_IMAGES_PATH', 'media/images')
+        gcs_path = (
+            getattr(settings, "GCS_VIDEOS_PATH", "media/movies")
+            if is_video
+            else getattr(settings, "GCS_IMAGES_PATH", "media/images")
+        )
         blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
-        
+
         gcs_blob = gcs_bucket.blob(blob_name)
         gcs_blob.upload_from_string(media_bytes, content_type="video/mp4" if is_video else "image/jpeg")
         gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
-        
+
         logging.info(f"Successfully uploaded media to GCS: {blob_name}")
     except Exception as e:
         logging.error(f"Failed to upload media to GCS: {str(e)}")
