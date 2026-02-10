@@ -362,6 +362,56 @@ class LikePostView(APIView):
 
 
 @extend_schema(
+    summary="Like/unlike a comment",
+    description="Toggle like status on a comment",
+    request=inline_serializer(name="LikeCommentRequest", fields={"commentId": serializers.CharField()}),
+    responses={200: None, 404: None},
+    tags=["Social Media"],
+)
+class LikeCommentView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        comment_id = data.get("commentId")
+
+        if comment_id is None:
+            return createResponse400("The comment ID to like/unlike was not provided.")
+        else:
+            try:
+                comment_obj = TextComment.objects.get(id=comment_id)
+
+                # Toggle the like status
+                if comment_obj.upvoted_by.filter(id=request.user.id).exists():
+                    comment_obj.upvoted_by.remove(request.user)
+                    is_liked = False
+                else:
+                    comment_obj.upvoted_by.add(request.user)
+                    is_liked = True
+
+                return Response(
+                    status=status.HTTP_200_OK,
+                    data={
+                        "status": "success",
+                        "is_liked": is_liked,
+                        "like_count": comment_obj.upvoted_by.count(),
+                    },
+                )
+
+            except TextComment.DoesNotExist:
+                return Response(
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            except Exception as e:
+                return Response(
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    data={"error": str(e)},
+                )
+
+
+@extend_schema(
     summary="Create a comment",
     description="Add a comment to a media post",
     request=inline_serializer(
