@@ -14,11 +14,13 @@ from siteapps.socialmedia.views import (
     GetPostResponsesAuthenticatedView,
     GetPostResponsesNoAuthView,
     GetRecentPostsView,
+    LikeCommentView,
     LikePostView,
 )
 
 urlpatterns = [
     path("api/comments/create/", CreateCommentView.as_view(), name="create_comment"),
+    path("api/comments/like/", LikeCommentView.as_view(), name="like_comment"),
     path("api/posts/create/", CreatePostView.as_view(), name="create_post"),
     path("api/posts/edit/", EditPostView.as_view(), name="edit_post"),
     path("api/posts/like/", LikePostView.as_view(), name="like_post"),
