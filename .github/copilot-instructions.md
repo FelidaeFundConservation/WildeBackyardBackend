@@ -2,11 +2,13 @@
 
 ## Repository Overview
 
-This is a Django 5.0.2 REST API backend for the Wilde Backyard wildlife conservation platform. The project uses PostgreSQL for the database, Pydantic for data validation, Django REST Framework for API endpoints, and Azure for cloud services (storage, key vault). The codebase is approximately medium-sized with 4 main Django apps.
+This is a Django 5.0.2 REST API backend for the Wilde Backyard wildlife conservation platform. The project uses PostgreSQL for the database, Pydantic for data validation, Django REST Framework for API endpoints, and Google Cloud Platform for deployment.
 
-**Stack:** Python 3.10+, Django 5.0.2, PostgreSQL, Pydantic 2.9.2, Django REST Framework, Azure Cloud
+**Stack:** Python 3.10+, Django 5.0.2, PostgreSQL (Cloud SQL), Pydantic 2.9.2, Django REST Framework, GCP (App Engine, Cloud SQL, Cloud Storage)
 **Package Manager:** uv (fast Python package manager)
-**Deployment:** Azure App Service with CI/CD via GitHub Actions
+**Deployment:** Google Cloud App Engine
+
+**⚠️ CRITICAL: For GCP deployment, ALWAYS reference [GCP_DEPLOYMENT_REFERENCE.md](../GCP_DEPLOYMENT_REFERENCE.md) for correct configuration and procedure.**
 
 ## Project Layout
 
@@ -45,6 +47,19 @@ This is a Django 5.0.2 REST API backend for the Wilde Backyard wildlife conserva
 - **README.md** - Main project documentation
 - **QUICK_REFERENCE.md** - Common commands and patterns reference
 - **TEST_COVERAGE_REPORT.md** - Test coverage status
+- **GCP_DEPLOYMENT_REFERENCE.md** - ⚠️ CRITICAL: Authoritative GCP deployment configuration and procedures
+- **app.yaml** - App Engine deployment configuration (project root)
+
+## Deployment
+
+**⚠️ CRITICAL: Before any GCP deployment operations, read [GCP_DEPLOYMENT_REFERENCE.md](../GCP_DEPLOYMENT_REFERENCE.md)**
+
+Key points:
+- Deploy from PROJECT ROOT `/home/jnovak/Projects/WildeBackyardBackend`, NOT `gcp_deployment/` subdirectory
+- Use `app.yaml` in project root
+- Settings module: `config.settings.wildebackyard_api` (NOT staging.py)
+- Database password is in `WILDEBACKYARD_API_DATABASE_URL` environment variable
+- Always check working version config first: `gcloud app versions describe <version> --service=wildebackyard-api`
 
 ## Build and Validation Instructions
 
@@ -267,9 +282,17 @@ The repository has Azure CI/CD configured via `.github/workflows/main_wildebacky
 
 ## Deployment
 
-Pushes or merges to `staging` or `prod` branches automatically deploy to the respective Azure App Service environment via CI/CD.
+**⚠️ CRITICAL: Always reference [GCP_DEPLOYMENT_REFERENCE.md](../GCP_DEPLOYMENT_REFERENCE.md) for actual deployment procedures.**
 
-**CAUTION:** Production branch contains live user data. Be very careful when working with prod environment.
+Deployment is done via Google Cloud App Engine. See GCP_DEPLOYMENT_REFERENCE.md for complete details.
+
+**Quick deployment:**
+```bash
+cd /home/jnovak/Projects/WildeBackyardBackend  # PROJECT ROOT
+gcloud app deploy app.yaml --quiet
+```
+
+**CAUTION:** Always verify with working version first: `gcloud app versions describe <version> --service=wildebackyard-api`
 
 ## Common Issues and Workarounds
 
