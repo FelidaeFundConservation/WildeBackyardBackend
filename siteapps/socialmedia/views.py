@@ -59,10 +59,7 @@ def generate_signed_url(gcs_path, expiration=3600):
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
 
-        # Make the blob publicly readable (this works even with PAP enabled)
-        blob.make_public()
-
-        # Return the public URL
+        # Return the public URL (bucket has uniform access control)
         return blob.public_url
 
     except Exception as e:
