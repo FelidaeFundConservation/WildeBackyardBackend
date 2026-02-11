@@ -187,8 +187,10 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
-# Limit data upload size to 20 MB
-DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520
+# Limit data upload size to 700 MB to accommodate base64-encoded videos
+# (500MB video * 1.33 base64 overhead = ~665MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700 MB
 
 # Azure Storage settings (optional)
 AZURE_STORAGE_ACCOUNT_NAME = env.str(
