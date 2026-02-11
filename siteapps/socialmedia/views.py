@@ -59,10 +59,7 @@ def generate_signed_url(gcs_path, expiration=3600):
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
 
-        # Make the blob publicly readable (this works even with PAP enabled)
-        blob.make_public()
-
-        # Return the public URL
+        # Return the public URL (bucket has uniform access control)
         return blob.public_url
 
     except Exception as e:
@@ -528,20 +525,32 @@ class PostViewValidation:
         media_bytes = data.get("mediaBytes")
         # Check if the media is a video
         is_video = data.get("isVideo")
+        logging.info(f"[VIDEO DEBUG] process_media: is_video={is_video}, has_media={media_bytes is not None}")
 
         # TODO: Handle creating the media object
         media_obj = None
 
         if media_bytes is not None:
-            media_bytes = convert_base64_bytes(media_bytes, is_video=is_video)
-            content_hash = hashlib.sha256(media_bytes).hexdigest()
-            # Check if the file already exists
-            if not Media.objects.filter(content_hash=content_hash).exists():
-                media_obj = create_media(
-                    media_bytes=media_bytes, content_hash=content_hash, request=request, is_video=is_video
-                )
-            else:
-                media_obj = Media.objects.get(content_hash=content_hash)
+            logging.info(f"[VIDEO DEBUG] Processing media, base64 length: {len(media_bytes)}")
+            try:
+                media_bytes = convert_base64_bytes(media_bytes, is_video=is_video)
+                logging.info(f"[VIDEO DEBUG] Converted base64, bytes size: {len(media_bytes)}")
+                content_hash = hashlib.sha256(media_bytes).hexdigest()
+                logging.info(f"[VIDEO DEBUG] Content hash: {content_hash}")
+                # Check if the file already exists
+                if not Media.objects.filter(content_hash=content_hash).exists():
+                    logging.info("[VIDEO DEBUG] No existing media, creating new...")
+                    media_obj = create_media(
+                        media_bytes=media_bytes, content_hash=content_hash, request=request, is_video=is_video
+                    )
+                else:
+                    media_obj = Media.objects.get(content_hash=content_hash)
+            except ValueError as e:
+                # Re-raise validation errors (e.g., file too large)
+                raise e
+            except Exception as e:
+                logging.error(f"Error processing media: {str(e)}")
+                raise ValueError(f"Failed to process media file: {str(e)}")
         return media_obj
 
     @staticmethod
@@ -661,9 +670,15 @@ class PostViewValidation:
         }
 
         # Process media if available
-        media_obj = PostViewValidation.process_media(data, request)
-        if media_obj is not None:
-            kwargs["media"] = media_obj
+        try:
+            media_obj = PostViewValidation.process_media(data, request)
+            if media_obj is not None:
+                kwargs["media"] = media_obj
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST), None
+        except Exception as e:
+            logging.error(f"Unexpected error processing media: {str(e)}")
+            return Response({"error": "Failed to process media file"}, status=status.HTTP_400_BAD_REQUEST), None
 
         # Set geoprivacy and optional keyword arguments
         PostViewValidation.set_geoprivacy_kwargs(data, privacy_setting, kwargs)
@@ -718,9 +733,17 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
 
 
 def convert_base64_bytes(media_bytes_base64, is_video=False):
+    logging.info(f"[VIDEO DEBUG] convert_base64_bytes called with is_video={is_video}")
     media_bytes_base64 = bytearray(base64.b64decode(media_bytes_base64))
+    logging.info(f"[VIDEO DEBUG] Decoded base64, size: {len(media_bytes_base64)} bytes")
 
     if is_video:
+        # Basic video size validation - max 500MB
+        max_video_size = getattr(settings, "MAX_VIDEO_SIZE_MB", 500) * 1024 * 1024
+        logging.info(f"[VIDEO DEBUG] Video validation: size={len(media_bytes_base64)}, max={max_video_size}")
+        if len(media_bytes_base64) > max_video_size:
+            raise ValueError(f"Video file too large. Maximum size is {max_video_size / (1024*1024)}MB")
+        logging.info("[VIDEO DEBUG] Video validated, returning bytearray")
         return media_bytes_base64
     else:
         image = Image.open(BytesIO(media_bytes_base64))
@@ -739,7 +762,39 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 
 
 def create_media(media_bytes, content_hash, request, is_video=False):
-    file_extension = "MP4" if is_video else "JPEG"
+    logging.info(f"[VIDEO DEBUG] create_media: is_video={is_video}, hash={content_hash}")
+    logging.info(f"[VIDEO DEBUG] media_bytes type={type(media_bytes)}, size={len(media_bytes)}")
+    # Detect video format from file signature (magic bytes)
+    file_extension = "JPEG"
+    content_type = "image/jpeg"
+
+    if is_video:
+        logging.info(f"[VIDEO DEBUG] Detecting video format, first 12 bytes: {media_bytes[:12].hex()}")
+        # Check video format from magic bytes
+        if (
+            media_bytes[:4] == b"\x00\x00\x00\x18"
+            or media_bytes[:4] == b"\x00\x00\x00\x1c"
+            or media_bytes[:4] == b"\x00\x00\x00\x20"
+        ):
+            # MP4/M4V format (ftyp box)
+            file_extension = "MP4"
+            content_type = "video/mp4"
+        elif media_bytes[:4] == b"\x1a\x45\xdf\xa3":
+            # WebM/MKV format
+            file_extension = "WEBM"
+            content_type = "video/webm"
+        elif media_bytes[:4] == b"RIFF" and media_bytes[8:12] == b"AVI ":
+            # AVI format
+            file_extension = "AVI"
+            content_type = "video/x-msvideo"
+        else:
+            # Default to MP4 if format not recognized
+            file_extension = "MP4"
+            content_type = "video/mp4"
+            logging.warning("Unknown video format, defaulting to MP4")
+
+        logging.info(f"[VIDEO DEBUG] Format detected: {file_extension}, content_type: {content_type}")
+
     media_url = None
 
     # Upload to Azure Blob Storage (optional, existing functionality)
@@ -770,8 +825,10 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     # Upload to Google Cloud Storage (new functionality)
     gcs_url = None
     try:
+        logging.info(f"[VIDEO DEBUG] Starting GCS upload for is_video={is_video}")
         gcs_client = gcs_storage.Client()
         gcs_bucket = gcs_client.bucket(settings.GCS_BUCKET_NAME)
+        logging.info(f"[VIDEO DEBUG] GCS bucket: {settings.GCS_BUCKET_NAME}")
 
         # Determine the path based on media type
         gcs_path = (
@@ -780,17 +837,25 @@ def create_media(media_bytes, content_hash, request, is_video=False):
             else getattr(settings, "GCS_IMAGES_PATH", "media/images")
         )
         blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
+        logging.info(f"[VIDEO DEBUG] Blob name: {blob_name}")
 
         gcs_blob = gcs_bucket.blob(blob_name)
-        gcs_blob.upload_from_string(media_bytes, content_type="video/mp4" if is_video else "image/jpeg")
+        # Convert bytearray to bytes if needed
+        upload_data = bytes(media_bytes) if isinstance(media_bytes, bytearray) else media_bytes
+        logging.info(
+            f"[VIDEO DEBUG] Uploading: data_type={type(upload_data)}, size={len(upload_data)}, content_type={content_type}"
+        )
+        gcs_blob.upload_from_string(upload_data, content_type=content_type)
         gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
 
         logging.info(f"Successfully uploaded media to GCS: {blob_name}")
+        logging.info(f"[VIDEO DEBUG] GCS URL: {gcs_url}")
     except Exception as e:
         logging.error(f"Failed to upload media to GCS: {str(e)}")
 
     # Use GCS URL if available, otherwise fall back to Azure URL
     final_url = gcs_url or media_url or f"local://{content_hash}.{file_extension}"
+    logging.info(f"[VIDEO DEBUG] Final URL: {final_url}")
 
     return Media.objects.create(
         file_cloud_path=final_url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
