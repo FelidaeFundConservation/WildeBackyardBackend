@@ -533,15 +533,22 @@ class PostViewValidation:
         media_obj = None
 
         if media_bytes is not None:
-            media_bytes = convert_base64_bytes(media_bytes, is_video=is_video)
-            content_hash = hashlib.sha256(media_bytes).hexdigest()
-            # Check if the file already exists
-            if not Media.objects.filter(content_hash=content_hash).exists():
-                media_obj = create_media(
-                    media_bytes=media_bytes, content_hash=content_hash, request=request, is_video=is_video
-                )
-            else:
-                media_obj = Media.objects.get(content_hash=content_hash)
+            try:
+                media_bytes = convert_base64_bytes(media_bytes, is_video=is_video)
+                content_hash = hashlib.sha256(media_bytes).hexdigest()
+                # Check if the file already exists
+                if not Media.objects.filter(content_hash=content_hash).exists():
+                    media_obj = create_media(
+                        media_bytes=media_bytes, content_hash=content_hash, request=request, is_video=is_video
+                    )
+                else:
+                    media_obj = Media.objects.get(content_hash=content_hash)
+            except ValueError as e:
+                # Re-raise validation errors (e.g., file too large)
+                raise e
+            except Exception as e:
+                logging.error(f"Error processing media: {str(e)}")
+                raise ValueError(f"Failed to process media file: {str(e)}")
         return media_obj
 
     @staticmethod
@@ -661,9 +668,15 @@ class PostViewValidation:
         }
 
         # Process media if available
-        media_obj = PostViewValidation.process_media(data, request)
-        if media_obj is not None:
-            kwargs["media"] = media_obj
+        try:
+            media_obj = PostViewValidation.process_media(data, request)
+            if media_obj is not None:
+                kwargs["media"] = media_obj
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST), None
+        except Exception as e:
+            logging.error(f"Unexpected error processing media: {str(e)}")
+            return Response({"error": "Failed to process media file"}, status=status.HTTP_400_BAD_REQUEST), None
 
         # Set geoprivacy and optional keyword arguments
         PostViewValidation.set_geoprivacy_kwargs(data, privacy_setting, kwargs)
@@ -721,6 +734,10 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
     media_bytes_base64 = bytearray(base64.b64decode(media_bytes_base64))
 
     if is_video:
+        # Basic video size validation - max 500MB
+        max_video_size = getattr(settings, "MAX_VIDEO_SIZE_MB", 500) * 1024 * 1024
+        if len(media_bytes_base64) > max_video_size:
+            raise ValueError(f"Video file too large. Maximum size is {max_video_size / (1024*1024)}MB")
         return media_bytes_base64
     else:
         image = Image.open(BytesIO(media_bytes_base64))
@@ -739,7 +756,34 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 
 
 def create_media(media_bytes, content_hash, request, is_video=False):
-    file_extension = "MP4" if is_video else "JPEG"
+    # Detect video format from file signature (magic bytes)
+    file_extension = "JPEG"
+    content_type = "image/jpeg"
+
+    if is_video:
+        # Check video format from magic bytes
+        if (
+            media_bytes[:4] == b"\x00\x00\x00\x18"
+            or media_bytes[:4] == b"\x00\x00\x00\x1c"
+            or media_bytes[:4] == b"\x00\x00\x00\x20"
+        ):
+            # MP4/M4V format (ftyp box)
+            file_extension = "MP4"
+            content_type = "video/mp4"
+        elif media_bytes[:4] == b"\x1a\x45\xdf\xa3":
+            # WebM/MKV format
+            file_extension = "WEBM"
+            content_type = "video/webm"
+        elif media_bytes[:4] == b"RIFF" and media_bytes[8:12] == b"AVI ":
+            # AVI format
+            file_extension = "AVI"
+            content_type = "video/x-msvideo"
+        else:
+            # Default to MP4 if format not recognized
+            file_extension = "MP4"
+            content_type = "video/mp4"
+            logging.warning("Unknown video format, defaulting to MP4")
+
     media_url = None
 
     # Upload to Azure Blob Storage (optional, existing functionality)
@@ -782,7 +826,7 @@ def create_media(media_bytes, content_hash, request, is_video=False):
         blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
 
         gcs_blob = gcs_bucket.blob(blob_name)
-        gcs_blob.upload_from_string(media_bytes, content_type="video/mp4" if is_video else "image/jpeg")
+        gcs_blob.upload_from_string(media_bytes, content_type=content_type)
         gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
 
         logging.info(f"Successfully uploaded media to GCS: {blob_name}")

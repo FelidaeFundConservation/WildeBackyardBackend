@@ -40,7 +40,7 @@ if env_file.is_file():
 else:
     # Make Azure Key Vault optional
     VAULT_URL = env.str("AZURE_KEY_VAULT_URL", default=None)
-    
+
     if VAULT_URL:
         try:
             credential = DefaultAzureCredential()
@@ -55,13 +55,16 @@ else:
         except Exception as e:
             # Log error but continue without Azure Key Vault
             import logging
+
             logging.warning(f"Failed to load secrets from Azure Key Vault: {e}")
 
 
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env.str("DJANGO_SECRET_KEY", default=SECRETS.get("DJANGO-SECRET-KEY", "test-secret-key-change-in-production"))
+SECRET_KEY = env.str(
+    "DJANGO_SECRET_KEY", default=SECRETS.get("DJANGO-SECRET-KEY", "test-secret-key-change-in-production")
+)
 # DEBUG MODE
 DEBUG = False
 # Local time zone. Choices are
@@ -188,7 +191,9 @@ SPECTACULAR_SETTINGS = {
 DATA_UPLOAD_MAX_MEMORY_SIZE = 20971520
 
 # Azure Storage settings (optional)
-AZURE_STORAGE_ACCOUNT_NAME = env.str("AZURE_STORAGE_ACCOUNT_NAME", default=SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME", None))
+AZURE_STORAGE_ACCOUNT_NAME = env.str(
+    "AZURE_STORAGE_ACCOUNT_NAME", default=SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME", None)
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -310,6 +315,8 @@ PRIVACY_SETTING_OBSCURED = "obscured"
 PRIVACY_SETTING_PRIVATE = "private"
 
 PHOTO_MAX_SIZE = (2048, 2048)
+# Maximum video file size in megabytes
+MAX_VIDEO_SIZE_MB = 500
 
 READABLE_DATE_FORMAT = "%B %d, %Y %I:%M %p"
 
