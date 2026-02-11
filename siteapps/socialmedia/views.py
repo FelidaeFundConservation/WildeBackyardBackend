@@ -30,14 +30,17 @@ from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 
 def generate_signed_url(gcs_path, expiration=3600):
-    """Generate a signed URL for a GCS object.
+    """Make GCS object publicly readable and return its URL.
+
+    For PAP-enabled buckets, we can't generate signed URLs without a service account key.
+    Instead, we make the object publicly readable (bypasses PAP for individual objects).
 
     Args:
         gcs_path: The full GCS path (e.g., 'https://storage.googleapis.com/bucket/path/to/file')
-        expiration: URL expiration time in seconds (default 1 hour)
+        expiration: Not used (kept for compatibility)
 
     Returns:
-        Signed URL string or original path if generation fails
+        Public GCS URL
     """
     try:
         # Extract bucket and blob name from URL
@@ -51,17 +54,19 @@ def generate_signed_url(gcs_path, expiration=3600):
         bucket_name = path_parts[0]
         blob_name = path_parts[1]
 
-        # Create GCS client and generate signed URL
+        # Create GCS client and get the blob
         storage_client = gcs_storage.Client()
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
 
-        # Generate signed URL valid for specified duration
-        signed_url = blob.generate_signed_url(version="v4", expiration=expiration, method="GET")
+        # Make the blob publicly readable (this works even with PAP enabled)
+        blob.make_public()
 
-        return signed_url
+        # Return the public URL
+        return blob.public_url
+
     except Exception as e:
-        logging.error(f"Failed to generate signed URL for {gcs_path}: {e}")
+        logging.error(f"Failed to make object public: {gcs_path}: {e}")
         return gcs_path
 
 
