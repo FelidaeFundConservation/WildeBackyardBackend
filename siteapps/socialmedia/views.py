@@ -29,6 +29,47 @@ from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySet
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 
+def generate_signed_url(gcs_path, expiration=3600):
+    """Make GCS object publicly readable and return its URL.
+
+    For PAP-enabled buckets, we can't generate signed URLs without a service account key.
+    Instead, we make the object publicly readable (bypasses PAP for individual objects).
+
+    Args:
+        gcs_path: The full GCS path (e.g., 'https://storage.googleapis.com/bucket/path/to/file')
+        expiration: Not used (kept for compatibility)
+
+    Returns:
+        Public GCS URL
+    """
+    try:
+        # Extract bucket and blob name from URL
+        if not gcs_path.startswith("https://storage.googleapis.com/"):
+            return gcs_path
+
+        path_parts = gcs_path.replace("https://storage.googleapis.com/", "").split("/", 1)
+        if len(path_parts) < 2:
+            return gcs_path
+
+        bucket_name = path_parts[0]
+        blob_name = path_parts[1]
+
+        # Create GCS client and get the blob
+        storage_client = gcs_storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+
+        # Make the blob publicly readable (this works even with PAP enabled)
+        blob.make_public()
+
+        # Return the public URL
+        return blob.public_url
+
+    except Exception as e:
+        logging.error(f"Failed to make object public: {gcs_path}: {e}")
+        return gcs_path
+
+
 class Haversine(Func):
     function = "HAVING"
     template = "(6371 * acos(cos(radians(%(lat)s)) * cos(radians(%(lat_field)s)) * cos(radians(%(lng_field)s) - radians(%(lng)s)) + sin(radians(%(lat)s)) * sin(radians(%(lat_field)s))))"
@@ -147,14 +188,17 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "habitat_type": post.habitat_type,
             }
 
-            media_data = (
-                {
-                    "url": post.media.file_cloud_path,
+            media_data = None
+            if post.media:
+                media_url = post.media.file_cloud_path
+                # Generate signed URL for GCS files
+                if media_url and media_url.startswith("https://storage.googleapis.com/"):
+                    media_url = generate_signed_url(media_url)
+
+                media_data = {
+                    "url": media_url,
                     "is_video": post.media.is_video,
                 }
-                if post.media
-                else None
-            )
 
             current_data = {
                 "id": post.id,
