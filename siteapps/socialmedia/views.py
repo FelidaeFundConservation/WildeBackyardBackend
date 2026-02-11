@@ -826,7 +826,9 @@ def create_media(media_bytes, content_hash, request, is_video=False):
         blob_name = f"{gcs_path}/{content_hash}.{file_extension}"
 
         gcs_blob = gcs_bucket.blob(blob_name)
-        gcs_blob.upload_from_string(media_bytes, content_type=content_type)
+        # Convert bytearray to bytes if needed
+        upload_data = bytes(media_bytes) if isinstance(media_bytes, bytearray) else media_bytes
+        gcs_blob.upload_from_string(upload_data, content_type=content_type)
         gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
 
         logging.info(f"Successfully uploaded media to GCS: {blob_name}")
