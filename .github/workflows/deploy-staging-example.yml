@@ -231,6 +231,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Update version.py with deployment commit hash
+        run: |
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "staging")
+          
+          cat > config/version.py << EOF
+          """
+          Version information for the application.
+          This file is automatically updated by the GitHub Actions workflow during deployment.
+          """
+
+          VERSION = {
+              "commit_hash": "$SHORT_HASH",
+              "release_tag": "$RELEASE_TAG",
+          }
+          EOF
+          
+          echo "✓ Updated version.py with commit hash: $SHORT_HASH and release tag: $RELEASE_TAG"
+
       - name: Collect static files
         continue-on-error: true
         env:
