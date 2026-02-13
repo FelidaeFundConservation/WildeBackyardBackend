@@ -1,18 +1,36 @@
+# Deploy to GCP Staging Workflow
+#
+# This workflow deploys the application to Google Cloud Platform App Engine (staging environment).
+#
+# IMPORTANT: Branch Configuration
+# - This workflow triggers on pushes to the 'main' branch
+# - Unlike the Azure deployment, there is no separate 'staging' branch
+# - The 'main' branch is used for both Azure and GCP staging deployments
+# - Production GCP deployments should use a separate workflow configured for production
+#
+# To enable this workflow:
+# 1. Ensure GCP_SA_KEY secret is configured with service account credentials
+# 2. Verify GCP_PROJECT_ID secret is set
+# 3. Ensure staging.yaml file exists and is properly configured
+# 4. Set up Cloud SQL instance and database secrets
+#
+# For manual deployment, see: GCP_DEPLOYMENT_REFERENCE.md
+
 name: Deploy to GCP Staging
 
 on:
   push:
     branches:
-      - staging
+      - main  # Changed from 'staging' to 'main' to match actual branch structure
   pull_request:
     branches:
-      - staging
+      - main  # Changed from 'staging' to 'main' to match actual branch structure
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch or commit SHA to deploy'
         required: false
-        default: 'staging'
+        default: 'main'  # Changed from 'staging' to 'main'
       skip_tests:
         description: 'Skip tests before deployment'
         required: false
@@ -212,6 +230,33 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Update version.py with deployment commit hash
+        shell: bash
+        run: |
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "staging")
+          
+          # Export variables for Python to access
+          export SHORT_HASH RELEASE_TAG
+          
+          python3 << 'PYTHON'
+          import os
+          short_hash = os.environ.get('SHORT_HASH', 'unknown')
+          release_tag = os.environ.get('RELEASE_TAG', 'unknown')
+
+          with open('config/version.py', 'w') as f:
+              f.write('"""\n')
+              f.write('Version information for the application.\n')
+              f.write('This file is automatically updated by the GitHub Actions workflow during deployment.\n')
+              f.write('"""\n')
+              f.write('\n')
+              f.write('VERSION = {\n')
+              f.write(f'    "commit_hash": "{short_hash}",\n')
+              f.write(f'    "release_tag": "{release_tag}",\n')
+              f.write('}\n')
+          print(f'✓ Updated version.py with commit hash: {short_hash} and release tag: {release_tag}')
+          PYTHON
 
       - name: Collect static files
         continue-on-error: true
