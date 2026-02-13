@@ -2,9 +2,13 @@ from .base import *  # noqa
 
 # HOSTS CONFIG
 # ------------------------------------------------------------------------------
-# Staging allows all hosts to support temporary deployments and testing
-# This is safe for staging as it's not production
-ALLOWED_HOSTS = ["*"]
+# Staging allows all hosts by default to support temporary deployments and versioned URLs
+# This is appropriate for staging as it's behind App Engine security and not user-facing
+# Can be restricted by setting DISABLE_ALLOWED_HOSTS_CHECK=false and providing WEBSITE_HOSTNAME
+if not env.bool("DISABLE_ALLOWED_HOSTS_CHECK", default=True):
+    ALLOWED_HOSTS = ["127.0.0.1", env.str("WEBSITE_HOSTNAME", SECRETS.get("HOST-NAME", "localhost"))]
+else:
+    ALLOWED_HOSTS = ["*"]
 
 
 # DEBUG MODE
