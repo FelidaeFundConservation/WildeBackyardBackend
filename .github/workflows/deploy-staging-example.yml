@@ -225,7 +225,7 @@ jobs:
         run: |
           gcloud app deploy staging.yaml \
             --project=$GCP_PROJECT_ID \
-            --quiet \
+            --verbosity=debug \
             --no-promote \
             --version=$(echo $GITHUB_SHA | cut -c1-7)
 
