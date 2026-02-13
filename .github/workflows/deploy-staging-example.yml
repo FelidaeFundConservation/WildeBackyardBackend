@@ -1,18 +1,36 @@
+# Deploy to GCP Staging Workflow
+#
+# This workflow deploys the application to Google Cloud Platform App Engine (staging environment).
+#
+# IMPORTANT: Branch Configuration
+# - This workflow triggers on pushes to the 'main' branch
+# - Unlike the Azure deployment, there is no separate 'staging' branch
+# - The 'main' branch is used for both Azure and GCP staging deployments
+# - Production GCP deployments should use a separate workflow configured for production
+#
+# To enable this workflow:
+# 1. Ensure GCP_SA_KEY secret is configured with service account credentials
+# 2. Verify GCP_PROJECT_ID secret is set
+# 3. Ensure staging.yaml file exists and is properly configured
+# 4. Set up Cloud SQL instance and database secrets
+#
+# For manual deployment, see: GCP_DEPLOYMENT_REFERENCE.md
+
 name: Deploy to GCP Staging
 
 on:
   push:
     branches:
-      - staging
+      - main  # Changed from 'staging' to 'main' to match actual branch structure
   pull_request:
     branches:
-      - staging
+      - main  # Changed from 'staging' to 'main' to match actual branch structure
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch or commit SHA to deploy'
         required: false
-        default: 'staging'
+        default: 'main'  # Changed from 'staging' to 'main'
       skip_tests:
         description: 'Skip tests before deployment'
         required: false
