@@ -33,21 +33,23 @@ jobs:
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Update version.py with deployment commit hash
+        shell: bash
         run: |
           SHORT_HASH=$(git rev-parse --short HEAD)
           RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "deployed")
           
-          cat > config/version.py << EOF
-          """
-          Version information for the application.
-          This file is automatically updated by the GitHub Actions workflow during deployment.
-          """
-
-          VERSION = {
-              "commit_hash": "$SHORT_HASH",
-              "release_tag": "$RELEASE_TAG",
-          }
-          EOF
+          python3 <<PYTHON
+          with open('config/version.py', 'w') as f:
+              f.write('"""\\n')
+              f.write('Version information for the application.\\n')
+              f.write('This file is automatically updated by the GitHub Actions workflow during deployment.\\n')
+              f.write('"""\\n')
+              f.write('\\n')
+              f.write('VERSION = {\\n')
+              f.write('    "commit_hash": "$SHORT_HASH",\\n')
+              f.write('    "release_tag": "$RELEASE_TAG",\\n')
+              f.write('}\\n')
+          PYTHON
           
           echo "✓ Updated version.py with commit hash: $SHORT_HASH and release tag: $RELEASE_TAG"
 
