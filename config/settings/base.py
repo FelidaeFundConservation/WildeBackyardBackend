@@ -67,6 +67,17 @@ SECRET_KEY = env.str(
 )
 # DEBUG MODE
 DEBUG = False
+
+# HOSTS CONFIG
+# ------------------------------------------------------------------------------
+# Allow disabling ALLOWED_HOSTS check for non-production deployments
+# Set DISABLE_ALLOWED_HOSTS_CHECK=true in environment to disable host validation
+# WARNING: Only use this in non-production environments
+DISABLE_ALLOWED_HOSTS_CHECK = env.bool("DISABLE_ALLOWED_HOSTS_CHECK", default=False)
+if DISABLE_ALLOWED_HOSTS_CHECK:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = []
 # Local time zone. Choices are
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # though not all of them may be available with every OS.

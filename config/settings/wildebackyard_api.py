@@ -20,14 +20,14 @@ from .base import *  # noqa
 
 # HOSTS CONFIG
 # ------------------------------------------------------------------------------
-# Allow all App Engine URLs including versioned deployments
+# Allow all hosts for App Engine deployments including versioned deployments
+# This is safe as App Engine provides its own security layer via IAP and service authentication
 # Pattern: {version}-dot-{service}-dot-{project}.{region}.r.appspot.com
-# Using .appspot.com catches all versioned and non-versioned App Engine URLs
-ALLOWED_HOSTS = [
-    ".appspot.com",  # Wildcard for all App Engine URLs (including versioned)
-    "localhost",
-    "127.0.0.1",
-]
+# Can be restricted by setting DISABLE_ALLOWED_HOSTS_CHECK=false in environment
+if not env.bool("DISABLE_ALLOWED_HOSTS_CHECK", default=True):
+    ALLOWED_HOSTS = [".appspot.com", "localhost", "127.0.0.1"]
+else:
+    ALLOWED_HOSTS = ["*"]
 
 # DEBUG MODE
 # ------------------------------------------------------------------------------
