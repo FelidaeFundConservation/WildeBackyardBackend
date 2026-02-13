@@ -79,6 +79,42 @@ class UserAdminAccessTestCase(TestCase):
         # Should return 200 OK
         self.assertEqual(response.status_code, 200)
 
+    def test_admin_user_detail_shows_staff_and_superuser_fields(self):
+        """Test that the user detail page shows is_staff and is_superuser fields"""
+        self.client.login(email="admin@example.com", password="adminpass123")
+        url = reverse("admin:users_user_change", args=[self.regular_user.id])
+        response = self.client.get(url)
+        # Should return 200 OK
+        self.assertEqual(response.status_code, 200)
+        # Should contain the is_staff field
+        self.assertContains(response, "is_staff")
+        # Should contain the is_superuser field
+        self.assertContains(response, "is_superuser")
+        # Should contain the Permissions section
+        self.assertContains(response, "Permissions")
+
+    def test_admin_user_add_shows_staff_and_superuser_fields(self):
+        """Test that the add user page shows is_staff and is_superuser fields"""
+        self.client.login(email="admin@example.com", password="adminpass123")
+        url = reverse("admin:users_user_add")
+        response = self.client.get(url)
+        # Should return 200 OK
+        self.assertEqual(response.status_code, 200)
+        # Should contain the is_staff field
+        self.assertContains(response, "is_staff")
+        # Should contain the is_superuser field
+        self.assertContains(response, "is_superuser")
+
+    def test_admin_user_list_shows_superuser_column(self):
+        """Test that the user list shows the is_superuser column"""
+        self.client.login(email="admin@example.com", password="adminpass123")
+        url = reverse("admin:users_user_changelist")
+        response = self.client.get(url)
+        # Should return 200 OK
+        self.assertEqual(response.status_code, 200)
+        # Should contain column header for is_superuser
+        self.assertContains(response, "superuser status")
+
 
 class BannedEmailAdminTestCase(TestCase):
     """Test BannedEmail admin interface"""

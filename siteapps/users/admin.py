@@ -10,7 +10,15 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     """Admin interface for User model"""
 
     # Fields to display in the user list
-    list_display = ("email", "name", "is_staff", "is_active", "warnings", "created")
+    list_display = (
+        "email",
+        "name",
+        "is_staff",
+        "is_superuser",
+        "is_active",
+        "warnings",
+        "created",
+    )
     list_filter = ("is_staff", "is_superuser", "is_active", "warnings")
     search_fields = ("email", "name")
     ordering = ("email",)
@@ -47,6 +55,7 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
                     "password1",
                     "password2",
                     "is_staff",
+                    "is_superuser",
                     "is_active",
                 ),
             },
@@ -54,6 +63,7 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     )
 
     readonly_fields = ("created", "modified", "last_login")
+    filter_horizontal = ("groups", "user_permissions")
 
 
 @admin.register(BannedEmail)
