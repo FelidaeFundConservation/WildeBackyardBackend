@@ -19,7 +19,18 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Personal info", {"fields": ("name", "bio")}),
-        ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
+        ),
         ("Moderation", {"fields": ("warnings",)}),
         ("Important dates", {"fields": ("last_login", "created", "modified")}),
     )
@@ -30,7 +41,14 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
             None,
             {
                 "classes": ("wide",),
-                "fields": ("email", "name", "password1", "password2", "is_staff", "is_active"),
+                "fields": (
+                    "email",
+                    "name",
+                    "password1",
+                    "password2",
+                    "is_staff",
+                    "is_active",
+                ),
             },
         ),
     )
