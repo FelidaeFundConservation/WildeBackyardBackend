@@ -190,4 +190,11 @@ git push origin <BRANCH_NAME>
 
 ---
 ## Deployment Info
-This repository is connected to Azure CI/CD. Any pushes/merges into the "staging" or "prod" branches will deploy the code to App Service automatically to the respective environment.
+
+### Azure Deployment
+This repository is connected to Azure CI/CD via the `main_wildebackyard.yml` workflow. Pushes or merges into the `main` branch will automatically deploy the code to Azure App Service.
+
+### GCP Deployment
+The repository includes a GCP staging deployment workflow (`deploy-staging-example.yml`) that can be enabled for Google Cloud Platform deployments. When enabled, this workflow triggers on pushes to the `main` branch and deploys to Google App Engine.
+
+**Note:** See `GCP_DEPLOYMENT_REFERENCE.md` for detailed GCP deployment configuration and manual deployment procedures.
