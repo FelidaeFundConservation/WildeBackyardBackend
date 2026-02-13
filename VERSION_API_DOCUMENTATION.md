@@ -96,26 +96,52 @@ Version information is stored in `config/version.py`:
 ```python
 VERSION = {
     "commit_hash": "abc1234",  # Short commit hash (7 characters)
-    "release_tag": "v1.0.0",   # Semantic version tag
+    "release_tag": "v1.0.0",   # Semantic version tag or environment name
 }
 ```
+
+### Automatic Updates
+
+The `version.py` file is **automatically updated** during deployments:
+
+#### Azure Deployment (Production)
+- **Workflow:** `main_wildebackyard.yml`
+- **Trigger:** Push to `main` branch
+- **Updates:** commit_hash with current SHA, release_tag with git tag or "deployed"
+- **Timing:** Before building the deployment artifact
+
+#### GCP Staging Deployment
+- **Workflow:** `deploy-staging-example.yml`
+- **Trigger:** Push to `main` branch (when enabled)
+- **Updates:** commit_hash with current SHA, release_tag with git tag or "staging"
+- **Timing:** Before deploying to App Engine
+
+#### Manual Release Creation
+- **Workflow:** `create-release.yml`
+- **Trigger:** Manual workflow dispatch with version tag
+- **Updates:** commit_hash with tagged commit SHA, release_tag with provided version
+- **Timing:** When creating a formal release
+
+This ensures that the `/v1/info/version/` endpoint always reflects the **actual deployed commit**, not just the last manual release.
 
 ### Implementation
 
 - **View:** `siteapps/info_views.py` - VersionInfoView
 - **URL Pattern:** `v1/info/version/` defined in `config/urls.py`
 - **Tests:** `siteapps/test_info_views.py`
-- **Workflow:** `.github/workflows/create-release.yml`
+- **Workflows:** 
+  - `main_wildebackyard.yml` (Azure deployment - auto-updates)
+  - `deploy-staging-example.yml` (GCP staging - auto-updates)
+  - `create-release.yml` (Manual release creation)
 
-### Default Values
+### Version Information per Environment
 
-When no release has been created yet, the endpoint returns:
-```json
-{
-  "commit_hash": "unknown",
-  "release_tag": "unknown"
-}
-```
+The `release_tag` field indicates the deployment context:
+- **"deployed"** - Azure production deployment (no formal release tag)
+- **"staging"** - GCP staging environment deployment
+- **"vX.Y.Z"** - Formal release version (created via release workflow or git tag)
+
+This allows you to distinguish between regular deployments and formal versioned releases.
 
 ## Best Practices
 
