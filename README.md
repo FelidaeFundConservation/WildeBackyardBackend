@@ -130,6 +130,32 @@ python manage.py migrate --settings=config.settings.local
 
 The migrations should now be consistent with the database, and should work locally for development.
 
+---
+
+## ALLOWED_HOSTS Configuration
+
+Django's `ALLOWED_HOSTS` setting controls which host/domain names the application will accept requests from. This project is configured with different behaviors for different environments:
+
+### Non-Production Environments (Local, Staging, GCP Staging)
+- **Default behavior**: All hosts are allowed (`ALLOWED_HOSTS = ["*"]`)
+- This allows temporary deployments, versioned URLs, and testing without host validation errors
+- Safe for non-production as these environments are not publicly exposed or have other security layers
+
+### Production Environment
+- **Strict host checking**: Only specific, configured hostnames are allowed
+- Environment variable `WEBSITE_HOSTNAME` must be set to the production domain
+- This maintains security by preventing host header attacks
+
+### Manual Override (Advanced)
+You can manually control the ALLOWED_HOSTS behavior in any environment using the `DISABLE_ALLOWED_HOSTS_CHECK` environment variable:
+
+```bash
+# In your .env file or environment variables
+DISABLE_ALLOWED_HOSTS_CHECK=true  # Allows all hosts (use only in non-production)
+```
+
+**⚠️ Warning**: Only set `DISABLE_ALLOWED_HOSTS_CHECK=true` in non-production environments. Never use this in production as it disables an important security feature.
+
 ## Common uv Commands
 
 ```bash
