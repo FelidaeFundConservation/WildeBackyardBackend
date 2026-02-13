@@ -94,7 +94,7 @@ class BannedEmailAdminTestCase(TestCase):
         """Test that superusers can access the banned email list in admin"""
         # Create a banned email
         BannedEmail.objects.create(email="banned@example.com", ban_reason="Spam")
-        
+
         self.client.login(email="admin@example.com", password="adminpass123")
         url = reverse("admin:users_bannedemail_changelist")
         response = self.client.get(url)
@@ -105,8 +105,10 @@ class BannedEmailAdminTestCase(TestCase):
 
     def test_admin_bannedemail_detail_accessible(self):
         """Test that superusers can access banned email detail pages"""
-        banned_email = BannedEmail.objects.create(email="banned@example.com", ban_reason="Spam")
-        
+        banned_email = BannedEmail.objects.create(
+            email="banned@example.com", ban_reason="Spam"
+        )
+
         self.client.login(email="admin@example.com", password="adminpass123")
         url = reverse("admin:users_bannedemail_change", args=[banned_email.id])
         response = self.client.get(url)
