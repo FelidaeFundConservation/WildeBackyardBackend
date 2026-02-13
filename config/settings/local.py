@@ -6,8 +6,11 @@ from .base import *  # noqa
 # HOSTS CONFIG
 # ------------------------------------------------------------------------------
 # Local development allows all hosts by default for convenience
-# Override with HOST_NAME environment variable if needed
-ALLOWED_HOSTS = ["*"]
+# Can be overridden by setting DISABLE_ALLOWED_HOSTS_CHECK=false and specifying HOST_NAME
+if not env.bool("DISABLE_ALLOWED_HOSTS_CHECK", default=True):
+    ALLOWED_HOSTS = ["127.0.0.1", env.str("HOST_NAME", "localhost")]
+else:
+    ALLOWED_HOSTS = ["*"]
 
 # DEBUG MODE
 # ------------------------------------------------------------------------------
