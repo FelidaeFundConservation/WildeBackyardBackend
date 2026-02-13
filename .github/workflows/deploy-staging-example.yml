@@ -237,20 +237,26 @@ jobs:
           SHORT_HASH=$(git rev-parse --short HEAD)
           RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "staging")
           
-          python3 <<PYTHON
-          with open('config/version.py', 'w') as f:
-              f.write('"""\\n')
-              f.write('Version information for the application.\\n')
-              f.write('This file is automatically updated by the GitHub Actions workflow during deployment.\\n')
-              f.write('"""\\n')
-              f.write('\\n')
-              f.write('VERSION = {\\n')
-              f.write('    "commit_hash": "$SHORT_HASH",\\n')
-              f.write('    "release_tag": "$RELEASE_TAG",\\n')
-              f.write('}\\n')
-          PYTHON
+          # Export variables for Python to access
+          export SHORT_HASH RELEASE_TAG
           
-          echo "✓ Updated version.py with commit hash: $SHORT_HASH and release tag: $RELEASE_TAG"
+          python3 << 'PYTHON'
+          import os
+          short_hash = os.environ.get('SHORT_HASH', 'unknown')
+          release_tag = os.environ.get('RELEASE_TAG', 'unknown')
+
+          with open('config/version.py', 'w') as f:
+              f.write('"""\n')
+              f.write('Version information for the application.\n')
+              f.write('This file is automatically updated by the GitHub Actions workflow during deployment.\n')
+              f.write('"""\n')
+              f.write('\n')
+              f.write('VERSION = {\n')
+              f.write(f'    "commit_hash": "{short_hash}",\n')
+              f.write(f'    "release_tag": "{release_tag}",\n')
+              f.write('}\n')
+          print(f'✓ Updated version.py with commit hash: {short_hash} and release tag: {release_tag}')
+          PYTHON
 
       - name: Collect static files
         continue-on-error: true
