@@ -68,14 +68,13 @@ automatic_scaling:
 ## Common Mistakes to Avoid
 
 ❌ Deploying from `gcp_deployment/` directory
-❌ Using `config.settings.staging`
+❌ Using `config.settings.staging` without DB_PASSWORD
 ❌ Trying to add Cloud SQL config to staging.yaml
 ❌ Separating password into DB_PASSWORD env var
-❌ Assuming Azure services are still used
 ❌ Including `host` parameter in DATABASE_URL query string (causes psycopg2 conflicts)
 
 ✅ Deploy from project root
-✅ Use `config.settings.wildebackyard_api`
+✅ Use `config.settings.wildebackyard_api` or ensure DB_PASSWORD is set for staging
 ✅ Password in DATABASE_URL (URL-encoded)
 ✅ GCS for media storage (direct client, not Django storage)
 ✅ Let settings file handle host configuration dynamically
