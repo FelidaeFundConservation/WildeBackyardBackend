@@ -20,16 +20,32 @@ WSGI_APPLICATION = "config.wsgi.staging.application"
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 # Use PostgreSQL for GCP Cloud SQL deployment
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env.str("DB_NAME_STAGING", "wildepod_staging"),
-        "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST", "localhost")),
-        "USER": env.str("DB_USER", SECRETS.get("DB-USER", "wildepod_staging_user")),
-        "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD", "")),
-        "PORT": env.int("DB_PORT", 5432),
+# For GCP deployment, use CLOUD_SQL_DATABASE_URL_STAGING environment variable
+# For local development, use individual DB_* environment variables
+if env.str("CLOUD_SQL_DATABASE_URL_STAGING", default=""):
+    DATABASES = {"default": env.db("CLOUD_SQL_DATABASE_URL_STAGING")}
+
+    # Cloud SQL connection configuration
+    DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-339517:us-west2:wildepoddb")
+
+    # Enable Cloud SQL connection when deployed to App Engine
+    if os.getenv("GAE_APPLICATION", None):
+        DATABASES["default"]["HOST"] = f"/cloudsql/{DB_CONNECTION_NAME}"
+        # Remove any host setting from OPTIONS to avoid conflicts with HOST
+        # (django-environ may have parsed it from DATABASE_URL query string)
+        if "OPTIONS" in DATABASES["default"] and "host" in DATABASES["default"]["OPTIONS"]:
+            del DATABASES["default"]["OPTIONS"]["host"]
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env.str("DB_NAME_STAGING", "wildepod_staging"),
+            "HOST": env.str("DB_HOST", "localhost"),
+            "USER": env.str("DB_USER", "wildepod_staging_user"),
+            "PASSWORD": env.str("DB_PASSWORD", ""),
+            "PORT": env.int("DB_PORT", 5432),
+        }
     }
-}
 
 
 # MEDIA
