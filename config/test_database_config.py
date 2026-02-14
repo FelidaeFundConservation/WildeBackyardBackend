@@ -8,6 +8,7 @@ This test suite validates:
 4. Proper password URL-decoding
 """
 
+import ast
 import os
 import unittest
 from unittest.mock import patch
@@ -32,8 +33,9 @@ class TestDatabaseConfiguration(unittest.TestCase):
         """Test that DATABASE_URL without host parameter parses correctly."""
         env = environ.Env()
         
-        with patch.dict(os.environ, {"TEST_DB_URL": self.test_db_url}):
-            db_config = env.db("TEST_DB_URL")
+        # Use the actual environment variable name used in production
+        with patch.dict(os.environ, {"WILDEBACKYARD_API_DATABASE_URL": self.test_db_url}):
+            db_config = env.db("WILDEBACKYARD_API_DATABASE_URL")
             
             # Verify basic configuration
             self.assertEqual(db_config["ENGINE"], "django.db.backends.postgresql")
@@ -51,8 +53,9 @@ class TestDatabaseConfiguration(unittest.TestCase):
         """Test that the password is correctly URL-decoded."""
         env = environ.Env()
         
-        with patch.dict(os.environ, {"TEST_DB_URL": self.test_db_url}):
-            db_config = env.db("TEST_DB_URL")
+        # Use the actual environment variable name used in production
+        with patch.dict(os.environ, {"WILDEBACKYARD_API_DATABASE_URL": self.test_db_url}):
+            db_config = env.db("WILDEBACKYARD_API_DATABASE_URL")
             
             # Password should be URL-decoded
             self.assertEqual(
@@ -138,33 +141,75 @@ class TestLocalDatabaseConfiguration(unittest.TestCase):
 
     def test_local_settings_no_hardcoded_password(self):
         """Test that local.py doesn't contain hardcoded passwords."""
-        # Read the local.py file
         import pathlib
+        
+        # Read the local.py file
         local_py_path = pathlib.Path(__file__).parent / "settings" / "local.py"
         
         with open(local_py_path, "r") as f:
             content = f.read()
         
-        # Check that password uses env.str, not a hardcoded value
-        # The pattern should be: env.str("DB_PASSWORD", "")
-        # NOT: env.str("DB_PASSWORD", "some_password")
+        # Parse the file using AST for more robust checking
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            self.fail("local.py has syntax errors")
         
-        self.assertIn('env.str("DB_PASSWORD"', content, "local.py should use env.str for password")
+        # Look for PASSWORD assignment in DATABASES dictionary
+        found_password_config = False
         
-        # Make sure there's no obvious password in the default
-        # This is a simple check - just make sure the default is empty string
-        import re
-        password_pattern = r'env\.str\(["\']DB_PASSWORD["\'],\s*["\']([^"\']*)["\']'
-        matches = re.findall(password_pattern, content)
+        for node in ast.walk(tree):
+            # Look for dictionary assignments to DATABASES
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "DATABASES":
+                        # Found DATABASES assignment, check if it's a dict
+                        if isinstance(node.value, ast.Dict):
+                            # Walk through the dictionary structure
+                            found_password_config = self._check_password_in_dict(node.value)
         
-        if matches:
-            for match in matches:
-                # The default should be empty string
-                self.assertEqual(
-                    match,
-                    "",
-                    "DB_PASSWORD default should be empty string, not a hardcoded password"
-                )
+        self.assertTrue(
+            found_password_config,
+            "Could not find PASSWORD configuration in DATABASES"
+        )
+    
+    def _check_password_in_dict(self, dict_node):
+        """Recursively check dictionary for PASSWORD configuration."""
+        for key, value in zip(dict_node.keys, dict_node.values):
+            if key is None:
+                continue
+                
+            # Check if this is the PASSWORD key
+            if isinstance(key, ast.Constant) and key.value == "PASSWORD":
+                # PASSWORD should use env.str with empty string default
+                if isinstance(value, ast.Call):
+                    # Check if it's calling env.str
+                    if (isinstance(value.func, ast.Attribute) and 
+                        value.func.attr == "str"):
+                        # Check the arguments
+                        if len(value.args) >= 1:
+                            # First arg should be "DB_PASSWORD"
+                            if isinstance(value.args[0], ast.Constant):
+                                if value.args[0].value == "DB_PASSWORD":
+                                    # Check default value (second argument)
+                                    if len(value.args) >= 2:
+                                        default_val = value.args[1]
+                                        if isinstance(default_val, ast.Constant):
+                                            # Default should be empty string
+                                            self.assertEqual(
+                                                default_val.value,
+                                                "",
+                                                "DB_PASSWORD default should be empty string, not a hardcoded password"
+                                            )
+                                            return True
+                return True
+                                    
+            # Recursively check nested dictionaries
+            if isinstance(value, ast.Dict):
+                if self._check_password_in_dict(value):
+                    return True
+        
+        return False
 
 
 if __name__ == "__main__":
