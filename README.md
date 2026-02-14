@@ -140,21 +140,18 @@ Django's `ALLOWED_HOSTS` setting controls which host/domain names the applicatio
 - **Default behavior**: All hosts are allowed (`ALLOWED_HOSTS = ["*"]`)
 - This allows temporary deployments, versioned URLs, and testing without host validation errors
 - Safe for non-production as these environments are not publicly exposed or have other security layers
+- Configured in:
+  - `config/settings/local.py`
+  - `config/settings/staging.py`
+  - `config/settings/wildebackyard_api.py`
 
 ### Production Environment
 - **Strict host checking**: Only specific, configured hostnames are allowed
 - Environment variable `WEBSITE_HOSTNAME` must be set to the production domain
 - This maintains security by preventing host header attacks
+- Configured in: `config/settings/prod.py`
 
-### Manual Override (Advanced)
-You can manually control the ALLOWED_HOSTS behavior in any environment using the `DISABLE_ALLOWED_HOSTS_CHECK` environment variable:
-
-```bash
-# In your .env file or environment variables
-DISABLE_ALLOWED_HOSTS_CHECK=true  # Allows all hosts (use only in non-production)
-```
-
-**⚠️ Warning**: Only set `DISABLE_ALLOWED_HOSTS_CHECK=true` in non-production environments. Never use this in production as it disables an important security feature.
+**⚠️ Security Note**: Never use `ALLOWED_HOSTS = ["*"]` in production environments as it disables an important security feature that prevents host header attacks.
 
 ## Common uv Commands
 
