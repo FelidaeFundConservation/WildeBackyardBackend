@@ -1,17 +1,24 @@
 """
 Tests for GCP staging database connectivity.
 
-This test queries the GCP staging database for user jnovak@example.com
+⚠️ IMPORTANT: This test ONLY runs against the GCP staging database, not local!
+
+This test queries the ACTUAL GCP staging database for user jnovak@example.com
 to verify database connectivity and proper configuration.
+
+REQUIRED SETTINGS:
+    DJANGO_SETTINGS_MODULE=config.settings.wildebackyard_api
+    WILDEBACKYARD_API_DATABASE_URL=postgres://wildepod_wildebackyard_api_user:PASSWORD@127.0.0.1:5432/wildebackyard_api_staging
 
 Run with:
     python manage.py test siteapps.users.test_gcp_staging_connectivity --settings=config.settings.wildebackyard_api
     
 Or with pytest:
-    pytest siteapps/users/test_gcp_staging_connectivity.py
+    pytest siteapps/users/test_gcp_staging_connectivity.py --ds=config.settings.wildebackyard_api
     
-Environment Requirements:
-    WILDEBACKYARD_API_DATABASE_URL must be set to connect to staging database
+Prerequisites:
+    1. Cloud SQL Proxy running: cloud-sql-proxy wildepod-339517:us-west2:wildepoddb --port 5432
+    2. WILDEBACKYARD_API_DATABASE_URL environment variable set
 """
 
 import os
@@ -22,59 +29,107 @@ from siteapps.users.models import User
 
 
 class GCPStagingConnectivityTest(TestCase):
-    """Test GCP staging database connectivity by querying for a specific user"""
+    """
+    Test GCP staging database connectivity by querying for a specific user.
+    
+    ⚠️ WARNING: This test REQUIRES connection to GCP staging database.
+    It will FAIL if not properly configured to prevent accidental local database queries.
+    """
     
     @classmethod
     def setUpClass(cls):
-        """Set up test class"""
+        """Set up test class and verify we're connected to GCP staging"""
         super().setUpClass()
         
-        # Check if we're using the staging database
-        cls.is_staging = os.environ.get('DJANGO_SETTINGS_MODULE') == 'config.settings.wildebackyard_api'
+        # ENFORCE GCP staging database - fail if not configured correctly
+        cls.settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', settings.SETTINGS_MODULE)
         cls.db_url = os.environ.get('WILDEBACKYARD_API_DATABASE_URL')
         
+        # Verify we're using the correct settings module
+        if cls.settings_module != 'config.settings.wildebackyard_api':
+            raise RuntimeError(
+                f"❌ WRONG SETTINGS MODULE: {cls.settings_module}\n"
+                "This test MUST use config.settings.wildebackyard_api\n"
+                "Run with: --settings=config.settings.wildebackyard_api"
+            )
+        
+        # Verify database URL is set (required for GCP staging)
+        if not cls.db_url:
+            raise RuntimeError(
+                "❌ WILDEBACKYARD_API_DATABASE_URL not set!\n"
+                "This test requires connection to GCP staging database.\n"
+                "Set: export WILDEBACKYARD_API_DATABASE_URL='postgres://wildepod_wildebackyard_api_user:PASSWORD@127.0.0.1:5432/wildebackyard_api_staging'\n"
+                "Make sure Cloud SQL Proxy is running!"
+            )
+        
+        # Verify we're connecting to the staging database, not local
+        db_name = settings.DATABASES['default']['NAME']
+        if db_name != 'wildebackyard_api_staging':
+            raise RuntimeError(
+                f"❌ WRONG DATABASE: {db_name}\n"
+                "This test MUST connect to 'wildebackyard_api_staging'\n"
+                "Check your WILDEBACKYARD_API_DATABASE_URL"
+            )
+        
     def test_database_connection(self):
-        """Test that database connection is working"""
+        """Test that database connection is working to GCP staging"""
         print("\n" + "=" * 70)
         print("GCP STAGING DATABASE CONNECTION TEST")
         print("=" * 70)
         
         # Get database info
         db_config = settings.DATABASES['default']
-        print(f"\nDatabase Configuration:")
+        print(f"\n📊 Database Configuration:")
         print(f"  Engine:   {db_config['ENGINE']}")
         print(f"  Name:     {db_config['NAME']}")
         print(f"  Host:     {db_config.get('HOST', 'default')}")
         print(f"  User:     {db_config.get('USER', 'default')}")
+        
+        # VERIFY this is GCP staging database
+        self.assertEqual(db_config['NAME'], 'wildebackyard_api_staging',
+                        "Must be connected to wildebackyard_api_staging database!")
         
         # Test connection
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT version();")
                 version = cursor.fetchone()[0]
-                print(f"\n✓ Database Connected Successfully")
+                print(f"\n✅ Connected to GCP Staging Database")
                 print(f"  PostgreSQL: {version.split(',')[0]}")
+                
+                # Verify we can query the users table
+                cursor.execute("SELECT COUNT(*) FROM users_user;")
+                user_count = cursor.fetchone()[0]
+                print(f"  Total users: {user_count}")
+                
         except Exception as e:
-            self.fail(f"Database connection failed: {e}")
+            self.fail(f"❌ Database connection failed: {e}\n"
+                     f"Make sure Cloud SQL Proxy is running!")
             
     def test_query_target_user(self):
-        """Query for user jnovak@example.com in staging database"""
+        """Query for user jnovak@example.com in GCP staging database"""
         print("\n" + "=" * 70)
-        print("QUERY FOR USER: jnovak@example.com")
+        print("🔍 QUERY GCP STAGING FOR USER: jnovak@example.com")
         print("=" * 70)
+        
+        # VERIFY we're on staging database
+        db_name = settings.DATABASES['default']['NAME']
+        print(f"\n✓ Database: {db_name}")
+        self.assertEqual(db_name, 'wildebackyard_api_staging',
+                        "Must query GCP staging database, not local!")
         
         target_email = "jnovak@example.com"
         
         # Show what query will be executed
-        print(f"\nDjango ORM Query:")
+        print(f"\n📝 Django ORM Query:")
         print(f"  User.objects.get(email='{target_email}')")
         
-        print(f"\nEquivalent SQL:")
+        print(f"\n📝 Equivalent SQL:")
         print(f"  SELECT * FROM users_user WHERE email = '{target_email}';")
         
         # Get total user count first
         total_users = User.objects.count()
-        print(f"\nTotal users in database: {total_users}")
+        print(f"\n📊 Total users in GCP staging database: {total_users}")
         
         # Try to find the target user
         try:
@@ -168,26 +223,43 @@ class GCPStagingConnectivityTest(TestCase):
 class GCPStagingDatabaseInfoTest(TestCase):
     """Display information about the GCP staging database configuration"""
     
+    @classmethod
+    def setUpClass(cls):
+        """Verify we're connected to GCP staging"""
+        super().setUpClass()
+        
+        # ENFORCE GCP staging database
+        settings_module = os.environ.get('DJANGO_SETTINGS_MODULE', settings.SETTINGS_MODULE)
+        if settings_module != 'config.settings.wildebackyard_api':
+            raise RuntimeError(
+                f"❌ Wrong settings: {settings_module}\n"
+                "Must use: --settings=config.settings.wildebackyard_api"
+            )
+    
     def test_display_database_info(self):
-        """Display database configuration information"""
+        """Display GCP staging database configuration information"""
         print("\n" + "=" * 70)
-        print("GCP STAGING DATABASE CONFIGURATION")
+        print("🔧 GCP STAGING DATABASE CONFIGURATION")
         print("=" * 70)
         
         db_config = settings.DATABASES['default']
         
-        print(f"\nDjango Settings Module:")
+        print(f"\n📋 Django Settings Module:")
         print(f"  {settings.SETTINGS_MODULE}")
         
-        print(f"\nDatabase Configuration:")
+        print(f"\n🗄️  Database Configuration:")
         print(f"  Engine:       {db_config['ENGINE']}")
         print(f"  Database:     {db_config['NAME']}")
         print(f"  User:         {db_config.get('USER', 'N/A')}")
         print(f"  Host:         {db_config.get('HOST', 'N/A')}")
         print(f"  Port:         {db_config.get('PORT', 'N/A')}")
         
+        # VERIFY this is staging database
+        self.assertEqual(db_config['NAME'], 'wildebackyard_api_staging',
+                        "Must be wildebackyard_api_staging database!")
+        
         # Check environment variables
-        print(f"\nEnvironment Variables:")
+        print(f"\n🔐 Environment Variables:")
         db_url = os.environ.get('WILDEBACKYARD_API_DATABASE_URL')
         if db_url:
             # Mask password in URL
@@ -195,22 +267,29 @@ class GCPStagingDatabaseInfoTest(TestCase):
             masked_url = re.sub(r'://([^:]+):([^@]+)@', r'://\1:***@', db_url)
             print(f"  WILDEBACKYARD_API_DATABASE_URL: {masked_url}")
         else:
-            print(f"  WILDEBACKYARD_API_DATABASE_URL: Not set")
+            self.fail("WILDEBACKYARD_API_DATABASE_URL must be set for GCP staging!")
         
         gae_app = os.environ.get('GAE_APPLICATION')
         print(f"  GAE_APPLICATION: {gae_app if gae_app else 'Not set (local/proxy)'}")
         
-        # Check if running on GCP
+        # Check if running on GCP or via proxy
+        print(f"\n🌐 Connection Method:")
         if gae_app:
-            print(f"\n✓ Running on Google App Engine")
+            print(f"  ✓ Running on Google App Engine")
             print(f"  Instance: {db_config.get('HOST', 'N/A')}")
         else:
-            print(f"\n✓ Running locally (via Cloud SQL Proxy or local database)")
+            print(f"  ✓ Connected via Cloud SQL Proxy")
+            print(f"  Proxy endpoint: {db_config.get('HOST', 'N/A')}:{db_config.get('PORT', 'N/A')}")
+        
+        # Verify connection works
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT current_database(), current_user;")
+            db, user = cursor.fetchone()
+            print(f"\n✅ Successfully connected to GCP staging:")
+            print(f"  Database: {db}")
+            print(f"  User: {user}")
         
         print(f"\n{'=' * 70}\n")
-        
-        # No assertions - just informational
-        self.assertTrue(True)
 
 
 # Instructions for running this test

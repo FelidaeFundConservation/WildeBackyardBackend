@@ -1,16 +1,62 @@
 # GCP Staging Database Query Test
 
+## ⚠️ CRITICAL: This Test ONLY Runs Against GCP Staging Database
+
+This test is **specifically designed** to query the **actual GCP staging database**, NOT a local database.
+
 ## Overview
 
-This test file (`siteapps/users/test_gcp_staging_connectivity.py`) is integrated into the Django test suite and can be run to query the GCP staging database for user `jnovak@example.com`.
+Test file: `siteapps/users/test_gcp_staging_connectivity.py`
 
-## Location
+This test will **FAIL** if not properly connected to the GCP staging database to prevent accidental queries against local databases.
 
+## Required Configuration
+
+### 1. Settings Module (REQUIRED)
+```bash
+--settings=config.settings.wildebackyard_api
 ```
-siteapps/users/test_gcp_staging_connectivity.py
+
+### 2. Database URL (REQUIRED)
+```bash
+export WILDEBACKYARD_API_DATABASE_URL='postgres://wildepod_wildebackyard_api_user:PASSWORD@127.0.0.1:5432/wildebackyard_api_staging'
 ```
 
-This test is now part of the standard test suite in the `siteapps/users` module.
+### 3. Cloud SQL Proxy (REQUIRED)
+```bash
+cloud-sql-proxy wildepod-339517:us-west2:wildepoddb --port 5432
+```
+
+## Safety Features
+
+The test includes multiple checks to ensure it only runs against GCP staging:
+
+1. ✅ **Verifies settings module** is `config.settings.wildebackyard_api`
+2. ✅ **Verifies database URL** is set (WILDEBACKYARD_API_DATABASE_URL)
+3. ✅ **Verifies database name** is `wildebackyard_api_staging`
+4. ❌ **FAILS immediately** if any requirement is not met
+
+### Example Failure Messages
+
+If wrong settings:
+```
+❌ WRONG SETTINGS MODULE: config.settings.local
+This test MUST use config.settings.wildebackyard_api
+Run with: --settings=config.settings.wildebackyard_api
+```
+
+If database URL not set:
+```
+❌ WILDEBACKYARD_API_DATABASE_URL not set!
+This test requires connection to GCP staging database.
+Make sure Cloud SQL Proxy is running!
+```
+
+If wrong database:
+```
+❌ WRONG DATABASE: wildebackyard
+This test MUST connect to 'wildebackyard_api_staging'
+```
 
 ## Running the Test
 
