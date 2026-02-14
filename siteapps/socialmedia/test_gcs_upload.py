@@ -37,19 +37,9 @@ class GCSUploadTestCase(TestCase):
         self.test_video_bytes = b"fake_video_content"
         self.test_video_hash = hashlib.sha256(self.test_video_bytes).hexdigest()
 
-    @override_settings(
-        AZURE_STORAGE_ACCOUNT_NAME='testaccount',
-        AZURE_STORAGE_CONTAINER_NAME='testcontainer'
-    )
     @patch("siteapps.socialmedia.views.gcs_storage.Client")
-    @patch("siteapps.socialmedia.views.BlobServiceClient")
-    def test_create_media_uploads_image_to_gcs(self, mock_azure_client, mock_gcs_client):
+    def test_create_media_uploads_image_to_gcs(self, mock_gcs_client):
         """Test that create_media uploads images to correct GCS path"""
-        # Mock Azure Blob Storage
-        mock_azure_blob = MagicMock()
-        mock_azure_blob.url = "https://azure.example.com/test.JPEG"
-        mock_azure_client.return_value.get_blob_client.return_value = mock_azure_blob
-
         # Mock GCS
         mock_gcs_bucket = MagicMock()
         mock_gcs_blob = MagicMock()
@@ -86,19 +76,9 @@ class GCSUploadTestCase(TestCase):
         self.assertFalse(media.is_video)
         self.assertEqual(media.uploaded_by, self.user)
 
-    @override_settings(
-        AZURE_STORAGE_ACCOUNT_NAME='testaccount',
-        AZURE_STORAGE_CONTAINER_NAME='testcontainer'
-    )
     @patch("siteapps.socialmedia.views.gcs_storage.Client")
-    @patch("siteapps.socialmedia.views.BlobServiceClient")
-    def test_create_media_uploads_video_to_gcs(self, mock_azure_client, mock_gcs_client):
+    def test_create_media_uploads_video_to_gcs(self, mock_gcs_client):
         """Test that create_media uploads videos to correct GCS path"""
-        # Mock Azure Blob Storage
-        mock_azure_blob = MagicMock()
-        mock_azure_blob.url = "https://azure.example.com/test.MP4"
-        mock_azure_client.return_value.get_blob_client.return_value = mock_azure_blob
-
         # Mock GCS
         mock_gcs_bucket = MagicMock()
         mock_gcs_blob = MagicMock()
@@ -133,24 +113,14 @@ class GCSUploadTestCase(TestCase):
         self.assertTrue(media.is_video)
         self.assertEqual(media.uploaded_by, self.user)
 
-    @override_settings(
-        AZURE_STORAGE_ACCOUNT_NAME='testaccount',
-        AZURE_STORAGE_CONTAINER_NAME='testcontainer'
-    )
     @patch("siteapps.socialmedia.views.gcs_storage.Client")
-    @patch("siteapps.socialmedia.views.BlobServiceClient")
     @patch("siteapps.socialmedia.views.logging")
-    def test_create_media_handles_gcs_failure_gracefully(self, mock_logging, mock_azure_client, mock_gcs_client):
-        """Test that create_media continues if GCS upload fails"""
-        # Mock Azure Blob Storage (successful)
-        mock_azure_blob = MagicMock()
-        mock_azure_blob.url = "https://azure.example.com/test.JPEG"
-        mock_azure_client.return_value.get_blob_client.return_value = mock_azure_blob
-
+    def test_create_media_handles_gcs_failure_gracefully(self, mock_logging, mock_gcs_client):
+        """Test that create_media handles GCS upload failures gracefully"""
         # Mock GCS to raise an exception
         mock_gcs_client.return_value.bucket.side_effect = Exception("GCS connection failed")
 
-        # Create media should still succeed (falls back to Azure)
+        # Create media should still succeed (falls back to local path)
         request_mock = MagicMock()
         request_mock.user = self.user
 
@@ -161,9 +131,9 @@ class GCSUploadTestCase(TestCase):
             is_video=False,
         )
 
-        # Verify Media object was still created with Azure URL
+        # Verify Media object was still created with local path
         self.assertIsNotNone(media)
-        self.assertEqual(media.file_cloud_path, mock_azure_blob.url)
+        self.assertIn("local://", media.file_cloud_path)
 
         # Verify error was logged
         mock_logging.error.assert_called_once()

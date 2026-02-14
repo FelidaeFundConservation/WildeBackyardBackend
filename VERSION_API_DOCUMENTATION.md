@@ -104,16 +104,10 @@ VERSION = {
 
 The `version.py` file is **automatically updated** during deployments:
 
-#### Azure Deployment (Production)
-- **Workflow:** `main_wildebackyard.yml`
-- **Trigger:** Push to `main` branch
-- **Updates:** commit_hash with current SHA, release_tag with git tag or "deployed"
-- **Timing:** Before building the deployment artifact
-
-#### GCP Staging Deployment
-- **Workflow:** `deploy-staging-example.yml`
-- **Trigger:** Push to `main` branch (when enabled)
-- **Updates:** commit_hash with current SHA, release_tag with git tag or "staging"
+#### GCP Deployment
+- **Configuration:** `app.yaml` and `staging.yaml`
+- **Deployment:** Manual via `gcloud app deploy`
+- **Updates:** commit_hash with current SHA, release_tag with git tag or environment context
 - **Timing:** Before deploying to App Engine
 
 #### Manual Release Creation
@@ -130,15 +124,13 @@ This ensures that the `/v1/info/version/` endpoint always reflects the **actual 
 - **URL Pattern:** `v1/info/version/` defined in `config/urls.py`
 - **Tests:** `siteapps/test_info_views.py`
 - **Workflows:** 
-  - `main_wildebackyard.yml` (Azure deployment - auto-updates)
-  - `deploy-staging-example.yml` (GCP staging - auto-updates)
   - `create-release.yml` (Manual release creation)
 
 ### Version Information per Environment
 
 The `release_tag` field indicates the deployment context:
-- **"deployed"** - Azure production deployment (no formal release tag)
 - **"staging"** - GCP staging environment deployment
+- **"production"** - GCP production environment deployment
 - **"vX.Y.Z"** - Formal release version (created via release workflow or git tag)
 
 This allows you to distinguish between regular deployments and formal versioned releases.
