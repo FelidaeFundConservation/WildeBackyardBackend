@@ -151,3 +151,22 @@ class BannedEmailAdminTestCase(TestCase):
         # Should return 200 OK
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "banned@example.com")
+
+
+class AllauthAdminUnregistrationTestCase(TestCase):
+    """Test that allauth EmailAddress model is unregistered from admin"""
+
+    def test_emailaddress_not_registered_in_admin(self):
+        """Test that allauth's EmailAddress model is not in the admin"""
+        from django.contrib import admin
+        from allauth.account.models import EmailAddress
+
+        # EmailAddress should not be in the admin registry
+        self.assertNotIn(EmailAddress, admin.site._registry)
+
+    def test_user_model_still_registered(self):
+        """Test that our custom User model is still registered"""
+        from django.contrib import admin
+
+        # User should still be registered
+        self.assertIn(User, admin.site._registry)
