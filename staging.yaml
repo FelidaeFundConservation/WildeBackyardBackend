@@ -9,10 +9,8 @@ beta_settings:
 env_variables:
   DJANGO_SETTINGS_MODULE: "config.settings.staging"
   PYTHON_ENV: "production"
-  DB_HOST: "/cloudsql/wildepod-339517:us-west2:wildepoddb"
-  DB_NAME_STAGING: "wildebackyard_api_staging"
-  DB_USER: "wildepod_wildebackyard_api_user"
-  DB_PASSWORD: "%2FREDACTED%2BP%2BMU%3D"
+  CLOUD_SQL_DATABASE_URL_STAGING: "postgres://wildepod_wildebackyard_api_user:%2FREDACTED%2BP%2BMU%3D@/wildebackyard_api_staging"
+  CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
 
 automatic_scaling:
   min_idle_instances: 0
