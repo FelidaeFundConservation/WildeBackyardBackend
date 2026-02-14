@@ -37,10 +37,8 @@ DATABASES = {
 
 # MEDIA
 # ------------------------------------------------------------------------------
-DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-AZURE_STORAGE_CONTAINER_NAME = env.str(
-    "AZURE_STORAGE_CONTAINER_NAME_PROD", default=SECRETS.get("AZURE-STORAGE-CONTAINER-NAME-PROD", None)
-)
+# Media files are uploaded directly to GCS via google.cloud.storage client
+# See siteapps/socialmedia/views.py for GCS upload implementation
 
 
 # EMAIL
