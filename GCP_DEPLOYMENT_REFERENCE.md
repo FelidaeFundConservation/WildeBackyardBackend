@@ -11,18 +11,46 @@ gcloud app versions describe 20260203t104123 --service=wildebackyard-api --forma
 
 ## Correct Deployment Process
 
-### 1. Correct Directory
+### Recommended: Use Deployment Script (with Git SHA versioning)
+
 ```bash
-cd /home/jnovak/Projects/WildeBackyardBackend  # PROJECT ROOT, not gcp_deployment/
+cd /home/jnovak/Projects/WildeBackyardBackend
+
+# Deploy without routing traffic (for testing)
+./scripts/deploy_gcp.sh --config app.yaml
+
+# Deploy and route traffic immediately
+./scripts/deploy_gcp.sh --config app.yaml --promote
+
+# Deploy staging configuration
+./scripts/deploy_gcp.sh --config staging.yaml
 ```
 
-### 2. Correct File Location
-- Use: `app.yaml` in project root
-- NOT: `gcp_deployment/staging.yaml` (lacks access to requirements.txt)
+**Benefits:**
+- Automatically updates `config/version.py` with commit hash
+- Uses git short SHA as GCP version (e.g., `e7373b6` instead of `20260214t132536`)
+- Version is traceable to git commit
+- Warns about uncommitted changes
+- Provides deployment URLs and commands
 
-### 3. Deployment Command
+### Manual Deployment (legacy method)
+
 ```bash
-gcloud app deploy app.yaml --quiet
+cd /home/jnovak/Projects/WildeBackyardBackend  # PROJECT ROOT, not gcp_deployment/
+
+# 1. Update version.py (optional but recommended)
+./scripts/prepare_deployment.sh
+SHORT_HASH=$(git rev-parse --short HEAD)
+
+# 2. Collect static files
+WILDEBACKYARD_API_DATABASE_URL="postgres://dummy:dummy@localhost/dummy" \
+  uv run python manage.py collectstatic --settings=config.settings.wildebackyard_api --noinput
+
+# 3. Deploy with git SHA version
+gcloud app deploy app.yaml --version="$SHORT_HASH" --no-promote --quiet
+
+# 4. Route traffic once tested
+gcloud app services set-traffic wildebackyard-api --splits "$SHORT_HASH=1"
 ```
 
 ## Working Configuration (app.yaml)
