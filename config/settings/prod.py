@@ -37,10 +37,14 @@ DATABASES = {
 
 # MEDIA
 # ------------------------------------------------------------------------------
-DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-AZURE_STORAGE_CONTAINER_NAME = env.str(
-    "AZURE_STORAGE_CONTAINER_NAME_PROD", default=None
-)
+# Use GCS for media files
+DEFAULT_FILE_STORAGE = "siteapps.my_utils.storages.MediaStorage"
+
+# Google Cloud Storage settings
+GS_BUCKET_NAME = env.str("GS_BUCKET_NAME_PROD", default="wildepod-prod-media")
+GS_DEFAULT_ACL = "publicRead"
+GS_FILE_OVERWRITE = False
+GS_LOCATION = "media"
 
 
 # EMAIL

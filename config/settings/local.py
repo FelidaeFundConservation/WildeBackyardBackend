@@ -40,8 +40,10 @@ DATABASES = {
 
 # MEDIA
 # ------------------------------------------------------------------------------
-DEFAULT_FILE_STORAGE = ("storages.backends.azure_storage.AzureStorage",)
-MEDIA_URL = ""
+# Use local filesystem storage for development
+DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+MEDIA_ROOT = str(ROOT_DIR / "mediafiles")
+MEDIA_URL = "/media/"
 
 
 # EMAIL
