@@ -8,7 +8,7 @@ from .base import *  # noqa
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    os.environ["WEBSITE_HOSTNAME"] if "WEBSITE_HOSTNAME" in os.environ else SECRETS.get("HOST-NAME"),
+    os.environ.get("WEBSITE_HOSTNAME", ""),
 ]
 
 # DEBUG MODE
@@ -27,9 +27,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env.str("DB_NAME_PROD", "wildepod_prod"),
-        "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST", "localhost")),
-        "USER": env.str("DB_USER", SECRETS.get("DB-USER", "wildepod_prod_user")),
-        "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD", "")),
+        "HOST": env.str("DB_HOST", "localhost"),
+        "USER": env.str("DB_USER", "wildepod_prod_user"),
+        "PASSWORD": env.str("DB_PASSWORD", ""),
         "PORT": env.int("DB_PORT", 5432),
     }
 }
@@ -39,7 +39,7 @@ DATABASES = {
 # ------------------------------------------------------------------------------
 DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
 AZURE_STORAGE_CONTAINER_NAME = env.str(
-    "AZURE_STORAGE_CONTAINER_NAME_PROD", default=SECRETS.get("AZURE-STORAGE-CONTAINER-NAME-PROD", None)
+    "AZURE_STORAGE_CONTAINER_NAME_PROD", default=None
 )
 
 

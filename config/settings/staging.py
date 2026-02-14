@@ -24,9 +24,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env.str("DB_NAME_STAGING", "wildepod_staging"),
-        "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST", "localhost")),
-        "USER": env.str("DB_USER", SECRETS.get("DB-USER", "wildepod_staging_user")),
-        "PASSWORD": env.str("DB_PASSWORD", SECRETS.get("DB-PASSWORD", "")),
+        "HOST": env.str("DB_HOST", "localhost"),
+        "USER": env.str("DB_USER", "wildepod_staging_user"),
+        "PASSWORD": env.str("DB_PASSWORD", ""),
         "PORT": env.int("DB_PORT", 5432),
     }
 }
