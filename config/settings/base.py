@@ -14,8 +14,6 @@ import os
 from pathlib import Path
 
 import environ
-from azure.identity import DefaultAzureCredential
-from azure.keyvault.secrets import SecretClient
 
 # Repo root
 ROOT_URLCONF = "config.urls"
@@ -32,31 +30,11 @@ LOGIN_URL = "/users/login"
 
 # Secrets
 
-# To store read secrets from key vault
+# To store read secrets (for backward compatibility with existing code)
 SECRETS = {}
 
 if env_file.is_file():
     env.read_env(env_file)
-else:
-    # Make Azure Key Vault optional
-    VAULT_URL = env.str("AZURE_KEY_VAULT_URL", default=None)
-
-    if VAULT_URL:
-        try:
-            credential = DefaultAzureCredential()
-            secret_client = SecretClient(vault_url=VAULT_URL, credential=credential)
-
-            secret_properties = secret_client.list_properties_of_secrets()
-
-            for secret_property in secret_properties:
-                secret_name = secret_property.name
-                secret_value = secret_client.get_secret(secret_name).value
-                SECRETS[secret_name] = secret_value
-        except Exception as e:
-            # Log error but continue without Azure Key Vault
-            import logging
-
-            logging.warning(f"Failed to load secrets from Azure Key Vault: {e}")
 
 
 # GENERAL
@@ -202,11 +180,6 @@ SPECTACULAR_SETTINGS = {
 # (500MB video * 1.33 base64 overhead = ~665MB)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700 MB
-
-# Azure Storage settings (optional)
-AZURE_STORAGE_ACCOUNT_NAME = env.str(
-    "AZURE_STORAGE_ACCOUNT_NAME", default=SECRETS.get("AZURE-STORAGE-ACCOUNT-NAME", None)
-)
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
