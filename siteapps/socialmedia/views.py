@@ -5,8 +5,6 @@ import logging
 from io import BytesIO
 
 import requests
-from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
 from dateutil import parser
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -795,34 +793,7 @@ def create_media(media_bytes, content_hash, request, is_video=False):
 
         logging.info(f"[VIDEO DEBUG] Format detected: {file_extension}, content_type: {content_type}")
 
-    media_url = None
-
-    # Upload to Azure Blob Storage (optional, existing functionality)
-    if (
-        hasattr(settings, "AZURE_STORAGE_ACCOUNT_NAME")
-        and settings.AZURE_STORAGE_ACCOUNT_NAME
-        and hasattr(settings, "AZURE_STORAGE_CONTAINER_NAME")
-        and settings.AZURE_STORAGE_CONTAINER_NAME
-    ):
-        try:
-            blob_service_client = BlobServiceClient(
-                account_url=f"https://{settings.AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/",
-                credential=DefaultAzureCredential(),
-            )
-
-            blob_client = blob_service_client.get_blob_client(
-                container=settings.AZURE_STORAGE_CONTAINER_NAME, blob=f"{content_hash}.{file_extension}"
-            )
-
-            blob_client.upload_blob(media_bytes, blob_type="BlockBlob")
-            media_url = blob_client.url
-            logging.info(f"Successfully uploaded media to Azure: {media_url}")
-        except Exception as e:
-            logging.error(f"Failed to upload media to Azure: {str(e)}")
-    else:
-        logging.info("Azure Storage not configured, skipping Azure upload")
-
-    # Upload to Google Cloud Storage (new functionality)
+    # Upload to Google Cloud Storage
     gcs_url = None
     try:
         logging.info(f"[VIDEO DEBUG] Starting GCS upload for is_video={is_video}")
@@ -853,8 +824,10 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     except Exception as e:
         logging.error(f"Failed to upload media to GCS: {str(e)}")
 
-    # Use GCS URL if available, otherwise fall back to Azure URL
-    final_url = gcs_url or media_url or f"local://{content_hash}.{file_extension}"
+    # Use GCS URL if available, otherwise use local path
+    final_url = gcs_url or f"local://{content_hash}.{file_extension}"
+    if not gcs_url:
+        logging.warning(f"GCS upload failed, falling back to local path: {final_url}")
     logging.info(f"[VIDEO DEBUG] Final URL: {final_url}")
 
     return Media.objects.create(
