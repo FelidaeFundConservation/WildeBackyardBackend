@@ -4,6 +4,15 @@ from simple_history.admin import SimpleHistoryAdmin
 
 from .models import BannedEmail, User
 
+# Unregister allauth's EmailAddress model from admin to avoid duplication
+# since email management is already handled in the User admin
+try:
+    from allauth.account.models import EmailAddress
+    admin.site.unregister(EmailAddress)
+except (admin.sites.NotRegistered, ImportError):
+    # EmailAddress may not be registered or allauth may not be installed
+    pass
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
