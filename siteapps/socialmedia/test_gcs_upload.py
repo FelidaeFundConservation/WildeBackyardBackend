@@ -134,7 +134,13 @@ class GCSUploadTestCase(TestCase):
         # Verify Media object was still created with local path
         self.assertIsNotNone(media)
         self.assertIn("local://", media.file_cloud_path)
+        # Verify local path format includes content hash and file extension
+        expected_local_path = f"local://{self.test_image_hash}.JPEG"
+        self.assertEqual(media.file_cloud_path, expected_local_path)
 
         # Verify error was logged
         mock_logging.error.assert_called_once()
         self.assertIn("Failed to upload media to GCS", str(mock_logging.error.call_args))
+        # Verify warning was logged for fallback
+        mock_logging.warning.assert_called_once()
+        self.assertIn("falling back to local path", str(mock_logging.warning.call_args))
