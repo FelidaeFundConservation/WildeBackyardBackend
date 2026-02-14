@@ -37,7 +37,7 @@ env_variables:
   DJANGO_SETTINGS_MODULE: "config.settings.wildebackyard_api"
   PYTHON_ENV: "production"
   CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
-  WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:CLEANED_PASSWORD@/wildebackyard_api_staging?host=/cloudsql/wildepod-339517:us-west2:wildepoddb"
+  WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FREDACTED%2BP%2BMU%3D@/wildebackyard_api_staging"
 
 automatic_scaling:
   min_idle_instances: 0
@@ -46,6 +46,8 @@ automatic_scaling:
   max_pending_latency: 3000ms
   max_concurrent_requests: 50
 ```
+
+**IMPORTANT:** The DATABASE_URL should NOT include the `host` parameter in the query string. The host is set dynamically by `config/settings/wildebackyard_api.py` based on the `GAE_APPLICATION` environment variable.
 
 ## Key Points
 
@@ -70,11 +72,13 @@ automatic_scaling:
 ❌ Trying to add Cloud SQL config to staging.yaml
 ❌ Separating password into DB_PASSWORD env var
 ❌ Assuming Azure services are still used
+❌ Including `host` parameter in DATABASE_URL query string (causes psycopg2 conflicts)
 
 ✅ Deploy from project root
 ✅ Use `config.settings.wildebackyard_api`
-✅ Password in DATABASE_URL
+✅ Password in DATABASE_URL (URL-encoded)
 ✅ GCS for media storage (direct client, not Django storage)
+✅ Let settings file handle host configuration dynamically
 
 ## Verification After Deployment
 

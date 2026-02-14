@@ -31,7 +31,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env.str("DB_NAME", "wildebackyard"),
         "USER": env.str("DB_USER", "jnovak"),
-        "PASSWORD": env.str("DB_PASSWORD", "Nashorn9450!"),
+        "PASSWORD": env.str("DB_PASSWORD", ""),
         "HOST": env.str("DB_HOST", "localhost"),
         "PORT": env.str("DB_PORT", "5432"),
     }
