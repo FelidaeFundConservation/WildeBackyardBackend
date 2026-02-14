@@ -826,6 +826,8 @@ def create_media(media_bytes, content_hash, request, is_video=False):
 
     # Use GCS URL if available, otherwise use local path
     final_url = gcs_url or f"local://{content_hash}.{file_extension}"
+    if not gcs_url:
+        logging.warning(f"GCS upload failed, falling back to local path: {final_url}")
     logging.info(f"[VIDEO DEBUG] Final URL: {final_url}")
 
     return Media.objects.create(
