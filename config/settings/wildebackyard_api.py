@@ -48,6 +48,10 @@ DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-3395
 # Enable Cloud SQL connection
 if os.getenv("GAE_APPLICATION", None):
     DATABASES["default"]["HOST"] = f"/cloudsql/{DB_CONNECTION_NAME}"
+    # Remove any host setting from OPTIONS to avoid conflicts with HOST
+    # (django-environ may have parsed it from DATABASE_URL query string)
+    if "OPTIONS" in DATABASES["default"] and "host" in DATABASES["default"]["OPTIONS"]:
+        del DATABASES["default"]["OPTIONS"]["host"]
 
 # CACHES
 # ------------------------------------------------------------------------------
