@@ -40,7 +40,8 @@ DATABASES = {
 
 # MEDIA
 # ------------------------------------------------------------------------------
-DEFAULT_FILE_STORAGE = ("storages.backends.azure_storage.AzureStorage",)
+# Local development uses GCS for media files, same as production
+# See siteapps/socialmedia/views.py for GCS upload implementation
 MEDIA_URL = ""
 
 
