@@ -23,11 +23,8 @@ from .base import *  # noqa
 # Allow all hosts for App Engine deployments including versioned deployments
 # This is safe as App Engine provides its own security layer via IAP and service authentication
 # Pattern: {version}-dot-{service}-dot-{project}.{region}.r.appspot.com
-# Can be restricted by setting DISABLE_ALLOWED_HOSTS_CHECK=false in environment
-if not env.bool("DISABLE_ALLOWED_HOSTS_CHECK", default=True):
-    ALLOWED_HOSTS = [".appspot.com", "localhost", "127.0.0.1"]
-else:
-    ALLOWED_HOSTS = ["*"]
+# Always allow all hosts for staging to prevent "disallowed host" errors with versioned URLs
+ALLOWED_HOSTS = ["*"]
 
 # DEBUG MODE
 # ------------------------------------------------------------------------------
