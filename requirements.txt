@@ -1,7 +1,4 @@
 argon2-cffi==23.1.0
-azure-identity==1.15.0
-azure-keyvault==4.2.0
-azure-storage-blob==12.19.1
 google-cloud-storage==2.18.2
 dj-rest-auth==5.0.2
 
@@ -12,7 +9,6 @@ django-environ==0.11.2
 django-model-utils==4.4.0
 django-rest-passwordreset==1.4.1
 django-simple-history==3.5.0
-django-storages[azure]
 djangorestframework==3.14.0
 
 geopy==2.4.1

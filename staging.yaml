@@ -12,6 +12,7 @@ env_variables:
   DB_HOST: "/cloudsql/wildepod-339517:us-west2:wildepoddb"
   DB_NAME_STAGING: "wildebackyard_api_staging"
   DB_USER: "wildepod_wildebackyard_api_user"
+  DB_PASSWORD: "%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D"
 
 automatic_scaling:
   min_idle_instances: 0

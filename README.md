@@ -15,7 +15,7 @@ This project uses [uv](https://github.com/astral-sh/uv) for fast and reliable Py
 - **PostgreSQL** database with Django ORM
 - **Pydantic** for data validation and serialization
 - **Django REST Framework** for API endpoints
-- **Azure** integration for storage and key vault
+- **Google Cloud Platform** (GCP) for storage and deployment
 - **django-allauth** for authentication
 - **uv** for fast package management
 
@@ -214,10 +214,7 @@ git push origin <BRANCH_NAME>
 ---
 ## Deployment Info
 
-### Azure Deployment
-This repository is connected to Azure CI/CD via the `main_wildebackyard.yml` workflow. Pushes or merges into the `main` branch will automatically deploy the code to Azure App Service.
-
 ### GCP Deployment
-The repository includes a GCP staging deployment workflow (`deploy-staging-example.yml`) that can be enabled for Google Cloud Platform deployments. When enabled, this workflow triggers on pushes to the `main` branch and deploys to Google App Engine.
+This repository uses Google Cloud Platform (GCP) for deployment. The application is deployed to Google App Engine using the `app.yaml` and `staging.yaml` configuration files.
 
 **Note:** See `GCP_DEPLOYMENT_REFERENCE.md` for detailed GCP deployment configuration and manual deployment procedures.
