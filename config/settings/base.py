@@ -181,6 +181,106 @@ SPECTACULAR_SETTINGS = {
 DATA_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 734003200  # 700 MB
 
+# Password validation
+# https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+]
+
+
+# STATIC
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#static-url
+STATIC_URL = "/static/"
+# https://docs.djangoproject.com/en/dev/ref/settings/#static-root
+STATIC_ROOT = str(ROOT_DIR / "staticfiles")
+# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
+STATICFILES_DIRS = [str(APPS_DIR / "static")]
+# https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+]
+# WhiteNoise will handle all static files
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# django-allauth
+# ------------------------------------------------------------------------------
+ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", False)
+# https://django-allauth.readthedocs.io/en/latest/configuration.html
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_ADAPTER = "siteapps.users.adapters.AccountAdapter"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+ACCOUNT_MAX_EMAIL_ADDRESSES = 2
+ACCOUNT_LOGIN_ON_PASSWORD_RESET = True
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
+ACCOUNT_SESSION_REMEMBER = True
+# https://django-allauth.readthedocs.io/en/latest/forms.html
+
+
+# dj-rest-auth
+# ------------------------------------------------------------------------------
+REST_AUTH = {
+    "REGISTER_SERIALIZER": "siteapps.users.serializers.RegisterSerializer",
+}
+
+
+# PASSWORDS
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#password-hashers
+PASSWORD_HASHERS = [
+    # https://docs.djangoproject.com/en/dev/topics/auth/passwords/#using-argon2-with-django
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+]
+# https://docs.djangoproject.com/en/dev/ref/settings/#auth-password-validators
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+
+# EMAIL
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+DEFAULT_FROM_EMAIL = env(
+    "DJANGO_DEFAULT_FROM_EMAIL",
+    default="Admin <noreply@wildepod.org>",
+)
+# https://docs.djangoproject.com/en/dev/ref/settings/#server-email
+SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
+# https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
+EMAIL_SUBJECT_PREFIX = "[Wilde Backyard]"
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
+
 # Sendgrid email settings (optional)
 SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", default=SECRETS.get("SENDGRID-API-KEY", None))
 EMAIL_HOST = "smtp.sendgrid.net"
