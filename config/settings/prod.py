@@ -41,7 +41,8 @@ DATABASES = {
 DEFAULT_FILE_STORAGE = "siteapps.my_utils.storages.MediaStorage"
 
 # Google Cloud Storage settings
-GS_BUCKET_NAME = env.str("GS_BUCKET_NAME_PROD", default="wildepod-prod-media")
+# GS_BUCKET_NAME must be explicitly set via environment variable for production
+GS_BUCKET_NAME = env.str("GS_BUCKET_NAME_PROD")
 GS_DEFAULT_ACL = "publicRead"
 GS_FILE_OVERWRITE = False
 GS_LOCATION = "media"
