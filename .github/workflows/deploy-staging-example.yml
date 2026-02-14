@@ -41,7 +41,7 @@ env:
   GCP_REGION: us-central1
   ENVIRONMENT: staging
   PYTHON_VERSION: '3.10'
-  DJANGO_SETTINGS_MODULE: config.settings.staging
+  DJANGO_SETTINGS_MODULE: config.settings.wildebackyard_api
   WEBSITE_HOSTNAME: ${{ secrets.WEBSITE_HOSTNAME }}
 
 jobs:
@@ -168,14 +168,14 @@ jobs:
 
       - name: Validate app.yaml
         run: |
-          if [ ! -f "staging.yaml" ]; then
-            echo "Error: staging.yaml not found"
+          if [ ! -f "app.yaml" ]; then
+            echo "Error: app.yaml not found"
             exit 1
           fi
 
           # Basic YAML validation
-          python -c "import yaml; yaml.safe_load(open('staging.yaml'))"
-          echo "✓ staging.yaml is valid"
+          python -c "import yaml; yaml.safe_load(open('app.yaml'))"
+          echo "✓ app.yaml is valid"
 
       - name: Check Cloud SQL instance
         run: |
@@ -236,10 +236,10 @@ jobs:
         run: |
           SHORT_HASH=$(git rev-parse --short HEAD)
           RELEASE_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "staging")
-          
+
           # Export variables for Python to access
           export SHORT_HASH RELEASE_TAG
-          
+
           python3 << 'PYTHON'
           import os
           short_hash = os.environ.get('SHORT_HASH', 'unknown')
@@ -262,13 +262,14 @@ jobs:
         continue-on-error: true
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          WILDEBACKYARD_API_DATABASE_URL: "postgres://dummy:dummy@localhost/dummy"
         run: |
-          # Attempt to collect static files
-          python manage.py collectstatic --noinput --settings=config.settings.staging || echo "Static collection skipped"
+          # Attempt to collect static files (dummy DB URL not needed for collectstatic)
+          python manage.py collectstatic --noinput --settings=config.settings.wildebackyard_api || echo "Static collection skipped"
 
       - name: Deploy to App Engine
         run: |
-          gcloud app deploy staging.yaml \
+          gcloud app deploy app.yaml \
             --project=$GCP_PROJECT_ID \
             --verbosity=debug \
             --no-promote \
