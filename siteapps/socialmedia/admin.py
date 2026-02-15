@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.db import transaction
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 
 from siteapps.users.models import BannedEmail
@@ -124,11 +124,20 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
         """Display a preview of the reported content"""
         if obj.reported_post:
             title = obj.reported_post.title[:50]
+            # Add ellipsis if title was truncated
+            if len(obj.reported_post.title) > 50:
+                title += "..."
             text = obj.reported_post.text_content[:100] if obj.reported_post.text_content else ""
-            return f"{title} - {text}..." if text else title
+            # Add ellipsis if text was truncated
+            if text and len(obj.reported_post.text_content) > 100:
+                text += "..."
+            return f"{escape(title)} - {escape(text)}" if text else escape(title)
         elif obj.reported_comment:
-            text = obj.reported_comment.text_content
-            return text[:100] + "..." if text and len(text) > 100 else text
+            text = obj.reported_comment.text_content or ""
+            preview = text[:100]
+            if len(text) > 100:
+                preview += "..."
+            return escape(preview)
         return "Content deleted"
 
     get_content_preview.short_description = "Content Preview"
@@ -137,28 +146,44 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
         """Display full content details with formatting"""
         if obj.reported_post:
             post = obj.reported_post
+            # Escape all user-generated content
+            title = escape(post.title)
+            text_content = escape(post.text_content or 'No text content')
+            species = escape(str(post.species) if post.species else 'Not specified')
+            locality = escape(post.geocoded_location_locality or 'Unknown')
+            state = escape(post.geocoded_location_state or '')
+            encounter_date = escape(str(post.encounter_datetime))
+            privacy = escape(str(post.geoprivacy))
+            created = escape(str(post.created))
+            
             details = f"""
             <div style="padding: 10px; background: #f5f5f5; border-radius: 5px;">
-                <h3>Post: {post.title}</h3>
-                <p><strong>Text:</strong> {post.text_content or 'No text content'}</p>
-                <p><strong>Species:</strong> {post.species or 'Not specified'}</p>
-                <p><strong>Location:</strong> {post.geocoded_location_locality or 'Unknown'}, {post.geocoded_location_state or ''}</p>
-                <p><strong>Encounter Date:</strong> {post.encounter_datetime}</p>
-                <p><strong>Privacy:</strong> {post.geoprivacy}</p>
-                <p><strong>Created:</strong> {post.created}</p>
+                <h3>Post: {title}</h3>
+                <p><strong>Text:</strong> {text_content}</p>
+                <p><strong>Species:</strong> {species}</p>
+                <p><strong>Location:</strong> {locality}, {state}</p>
+                <p><strong>Encounter Date:</strong> {encounter_date}</p>
+                <p><strong>Privacy:</strong> {privacy}</p>
+                <p><strong>Created:</strong> {created}</p>
             """
             if post.media:
-                details += f'<p><strong>Media:</strong> {post.media.file_cloud_path}</p>'
+                media_path = escape(post.media.file_cloud_path)
+                details += f'<p><strong>Media:</strong> {media_path}</p>'
             details += "</div>"
             return mark_safe(details)
         elif obj.reported_comment:
             comment = obj.reported_comment
+            # Escape all user-generated content
+            text_content = escape(comment.text_content or 'No text content')
+            upvote_count = comment.upvoted_by.count()
+            created = escape(str(comment.created))
+            
             details = f"""
             <div style="padding: 10px; background: #f5f5f5; border-radius: 5px;">
                 <h3>Comment</h3>
-                <p><strong>Text:</strong> {comment.text_content or 'No text content'}</p>
-                <p><strong>Upvotes:</strong> {comment.upvoted_by.count()}</p>
-                <p><strong>Created:</strong> {comment.created}</p>
+                <p><strong>Text:</strong> {text_content}</p>
+                <p><strong>Upvotes:</strong> {upvote_count}</p>
+                <p><strong>Created:</strong> {created}</p>
             </div>
             """
             return mark_safe(details)
@@ -214,9 +239,12 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
             reported_user=user, resolved=True, warning_notes__isnull=False
         ).exclude(warning_notes="")
 
+        # Escape user-generated content
+        user_display = escape(user.name or user.email)
+        
         history = f"""
         <div style="padding: 10px; background: #fff3cd; border-radius: 5px;">
-            <h4>Moderation History for {user.name or user.email}</h4>
+            <h4>Moderation History for {user_display}</h4>
             <p><strong>Total Reports:</strong> {total_reports}</p>
             <p><strong>Pending Reports:</strong> {pending_reports}</p>
             <p><strong>Resolved Reports:</strong> {resolved_reports}</p>
@@ -226,7 +254,10 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
         if previous_warnings.exists():
             history += "<h5>Previous Warning Notes:</h5><ul>"
             for warning in previous_warnings[:5]:  # Show last 5 warnings
-                history += f"<li><em>{warning.created.strftime('%Y-%m-%d')}:</em> {warning.warning_notes}</li>"
+                # Escape warning notes (staff-created but still escape for safety)
+                safe_notes = escape(warning.warning_notes)
+                date_str = escape(warning.created.strftime('%Y-%m-%d'))
+                history += f"<li><em>{date_str}:</em> {safe_notes}</li>"
             history += "</ul>"
 
         history += "</div>"
