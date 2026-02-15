@@ -7,6 +7,7 @@ from io import BytesIO
 import requests
 from dateutil import parser
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
@@ -25,6 +26,8 @@ from siteapps.users.models import BannedEmail
 
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
+
+User = get_user_model()
 
 
 def generate_signed_url(gcs_path, expiration=3600):
@@ -505,8 +508,8 @@ class PostViewValidation:
         if isinstance(data, list):
             data = data[0]
 
-        # Check if the user is banned from posting
-        if BannedEmail.objects.filter(email=request.user.email).exists():
+        # Check if the user is banned from posting (only for authenticated users)
+        if request.user.is_authenticated and BannedEmail.objects.filter(email=request.user.email).exists():
             return (
                 Response(
                     status=status.HTTP_405_METHOD_NOT_ALLOWED,
@@ -687,7 +690,7 @@ class PostViewValidation:
 
 @extend_schema(
     summary="Create a new post",
-    description="Create a new wildlife sighting post with optional media, location, and species information",
+    description="Create a new wildlife sighting post with optional media, location, and species information. Authentication is optional - anonymous posts will have null creator.",
     request=inline_serializer(
         name="CreatePostRequest",
         fields={
@@ -702,14 +705,15 @@ class PostViewValidation:
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
+            "userId": serializers.IntegerField(required=False, help_text="Authenticated staff only: specify user ID to create post on behalf of. Returns 403 if unauthenticated or non-staff."),
         },
     ),
-    responses={201: None, 400: None, 405: None},
+    responses={201: None, 400: None, 403: None, 404: None, 405: None},
     tags=["Social Media"],
 )
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Allow unauthenticated access
 
     def post(self, request):
         data = json.loads(request.body)
@@ -724,8 +728,35 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         if error_response:
             return error_response
 
+        # Handle optional userId field
+        user_id = data.get("userId")
+        if user_id is not None:
+            # Only allow authenticated staff/admin users to create posts on behalf of others
+            if not request.user.is_authenticated:
+                return Response(
+                    status=status.HTTP_403_FORBIDDEN,
+                    data={"error": "The userId parameter requires authentication. Please log in or omit this parameter."}
+                )
+            if not request.user.is_staff:
+                return Response(
+                    status=status.HTTP_403_FORBIDDEN,
+                    data={"error": "You do not have permission to create posts on behalf of other users."}
+                )
+            
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(
+                    status=status.HTTP_404_NOT_FOUND,
+                    data={"error": "Invalid user specified."}
+                )
+            created_by_user = user
+        else:
+            # For non-userId requests: use authenticated user if available, otherwise None for anonymous posts
+            created_by_user = request.user if request.user.is_authenticated else None
+
         # Finally, create the post object with given args, ignoring is a duplicate exists
-        MediaPost.objects.get_or_create(**kwargs, created_by=request.user)
+        MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -831,7 +862,10 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     logging.info(f"[VIDEO DEBUG] Final URL: {final_url}")
 
     return Media.objects.create(
-        file_cloud_path=final_url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
+        file_cloud_path=final_url, 
+        content_hash=content_hash, 
+        uploaded_by=request.user if request.user.is_authenticated else None, 
+        is_video=is_video
     )
 
 
