@@ -752,7 +752,7 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
                 )
             created_by_user = user
         else:
-            # Use authenticated user if available, otherwise None for anonymous posts
+            # For non-userId requests: use authenticated user if available, otherwise None for anonymous posts
             created_by_user = request.user if request.user.is_authenticated else None
 
         # Finally, create the post object with given args, ignoring is a duplicate exists
