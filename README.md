@@ -8,6 +8,7 @@ This project uses [uv](https://github.com/astral-sh/uv) for fast and reliable Py
 - **[Pydantic Guide](PYDANTIC_GUIDE.md)** - Data validation and serialization
 - **[Migration Summary](MIGRATION_SUMMARY.md)** - Recent project changes
 - **[Version API Documentation](VERSION_API_DOCUMENTATION.md)** - Version information endpoint and release workflow
+- **[Moderation Guide](MODERATION_GUIDE.md)** - Content moderation interface and workflows
 
 ## Features
 
@@ -182,6 +183,49 @@ To connect to staging or even prod databases, replace "local" with "staging" or 
 It's recommended to use the staging environment for development to test with data in the actual Cloud DB.
 
 <i>(!) Please be very careful when working with data while connected to prod, as this is live data seen by users.</i>
+
+## Django Admin Interface
+
+The backend includes a comprehensive Django Admin interface for managing content and moderation.
+
+### Accessing the Admin Interface
+
+1. Create a superuser account (if not already created):
+```bash
+python manage.py createsuperuser --settings=config.settings.local
+```
+
+2. Start the development server:
+```bash
+python manage.py runserver --settings=config.settings.local
+```
+
+3. Navigate to: `http://127.0.0.1:8000/admin/`
+
+4. Log in with your superuser credentials
+
+### Admin Features
+
+- **User Management**: View and manage user accounts, warnings, and permissions
+- **Content Moderation**: Review and handle inappropriate content reports
+- **Social Media**: Manage posts, comments, and media
+- **Species Data**: Manage wildlife species information
+
+### Content Moderation
+
+For detailed instructions on using the moderation interface, see the **[Moderation Guide](MODERATION_GUIDE.md)**.
+
+Key moderation features:
+- View all reported content with previews
+- Filter by status, date, and user
+- Search by user email or warning notes
+- Bulk actions: clear reports, issue warnings, ban users
+- View user moderation history and warning counts
+- Track all moderation decisions for audit purposes
+
+To access the moderation queue:
+- Go to: `http://127.0.0.1:8000/admin/socialmedia/inappropriatecontentreport/`
+- Or navigate through Admin → Social media → Inappropriate content reports
 
 ---
 ## Developing A Feature
