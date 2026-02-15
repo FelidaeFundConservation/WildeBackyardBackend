@@ -494,6 +494,6 @@ class SocialMediaAPITestCase(TestCase):
         }
 
         response = client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 403)
         self.assertIn("error", response.json())
         self.assertIn("authentication", response.json()["error"].lower())
