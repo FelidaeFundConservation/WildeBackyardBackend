@@ -96,6 +96,7 @@ Click on any report ID to view full details including:
 
 **Effect**:
 - Reported content is permanently deleted
+- **Associated media files (images/videos) are also deleted**
 - User's warning count incremented by 1
 - Report marked as resolved
 - Warning notes saved (or default message added)
@@ -116,6 +117,7 @@ Click on any report ID to view full details including:
 
 **Effect**:
 - **ALL** posts and comments by the user are permanently deleted
+- **ALL media files (images/videos) uploaded by the user are permanently deleted**
 - User's email added to banned list
 - User cannot create new accounts with same email
 - All pending reports for this user are resolved

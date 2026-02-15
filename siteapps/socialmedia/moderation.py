@@ -217,6 +217,9 @@ class IssueWarningView(APIView):
             report_obj.reported_comment = None
         if report_obj.reported_post is not None:
             user_to_warn = report_obj.reported_post.created_by
+            # Delete associated media file if it exists
+            if report_obj.reported_post.media:
+                report_obj.reported_post.media.delete()
             report_obj.reported_post.delete()
             report_obj.reported_post = None
         # Increment the user's warn count
@@ -279,6 +282,12 @@ class BanUserView(APIView):
 
         # Delete all content related to user
         if user_to_ban:
+            # Delete ALL media files associated with user's posts
+            user_posts = MediaPost.objects.filter(created_by=user_to_ban).select_related('media')
+            for post in user_posts:
+                if post.media:
+                    post.media.delete()
+            
             MediaPost.objects.filter(created_by=user_to_ban).delete()
             TextComment.objects.filter(created_by=user_to_ban).delete()
             report_obj.reported_post = None
