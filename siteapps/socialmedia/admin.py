@@ -359,8 +359,11 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                 report.reported_post = None
                 report.resolved = True
                 if not report.warning_notes:
-                    # Use sanitized ban_reason (already truncated above)
-                    report.warning_notes = f"User permanently banned: {ban_reason}"[:self.MAX_BAN_REASON_LENGTH]
+                    # Ensure prefix + reason fits within MAX_BAN_REASON_LENGTH
+                    prefix = "User permanently banned: "
+                    max_reason_length = self.MAX_BAN_REASON_LENGTH - len(prefix)
+                    truncated_reason = ban_reason[:max_reason_length] if len(ban_reason) > max_reason_length else ban_reason
+                    report.warning_notes = f"{prefix}{truncated_reason}"
                 report.save()
                 count += 1
 
