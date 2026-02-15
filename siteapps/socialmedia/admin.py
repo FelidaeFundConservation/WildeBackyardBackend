@@ -302,6 +302,9 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                     report.reported_comment = None
                 elif report.reported_post:
                     user_to_warn = report.reported_post.created_by
+                    # Delete associated media file if it exists
+                    if report.reported_post.media:
+                        report.reported_post.media.delete()
                     report.reported_post.delete()
                     report.reported_post = None
 
@@ -343,6 +346,12 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                     user_to_ban = report.reported_post.created_by
 
                 if user_to_ban and user_to_ban.email not in banned_users:
+                    # Delete ALL media files associated with user's posts
+                    user_posts = MediaPost.objects.filter(created_by=user_to_ban).select_related('media')
+                    for post in user_posts:
+                        if post.media:
+                            post.media.delete()
+                    
                     # Delete ALL content by this user
                     MediaPost.objects.filter(created_by=user_to_ban).delete()
                     TextComment.objects.filter(created_by=user_to_ban).delete()
