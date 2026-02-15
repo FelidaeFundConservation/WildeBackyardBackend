@@ -705,7 +705,7 @@ class PostViewValidation:
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
-            "userId": serializers.IntegerField(required=False, help_text="Admin/staff only: specify user to create post on behalf of"),
+            "userId": serializers.IntegerField(required=False, help_text="Admin/staff only: specify user ID to create post on behalf of. Returns 403 if used by non-staff users."),
         },
     ),
     responses={201: None, 400: None, 403: None, 404: None, 405: None},
