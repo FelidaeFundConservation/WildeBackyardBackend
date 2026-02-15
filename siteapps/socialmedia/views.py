@@ -7,6 +7,7 @@ from io import BytesIO
 import requests
 from dateutil import parser
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
@@ -25,6 +26,8 @@ from siteapps.users.models import BannedEmail
 
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
+
+User = get_user_model()
 
 
 def generate_signed_url(gcs_path, expiration=3600):
@@ -702,9 +705,10 @@ class PostViewValidation:
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
+            "userId": serializers.IntegerField(required=False),
         },
     ),
-    responses={201: None, 400: None, 405: None},
+    responses={201: None, 400: None, 404: None, 405: None},
     tags=["Social Media"],
 )
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
@@ -724,8 +728,22 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         if error_response:
             return error_response
 
+        # Handle optional userId field
+        user_id = data.get("userId")
+        if user_id is not None:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(
+                    status=status.HTTP_404_NOT_FOUND,
+                    data={"error": f"User with id {user_id} not found."}
+                )
+            created_by_user = user
+        else:
+            created_by_user = request.user
+
         # Finally, create the post object with given args, ignoring is a duplicate exists
-        MediaPost.objects.get_or_create(**kwargs, created_by=request.user)
+        MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
 
         return Response(status=status.HTTP_201_CREATED)
 
