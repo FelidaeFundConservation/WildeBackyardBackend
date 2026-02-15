@@ -477,10 +477,10 @@ class SocialMediaAPITestCase(TestCase):
         """Test that unauthenticated users cannot use the userId parameter"""
         client = APIClient()
         
-        # Create another user
-        other_user = User.objects.create(email="other3@example.com")
-        other_user.set_password("otherpassword")
-        other_user.save()
+        # Create a target user
+        target_user = User.objects.create(email="target_user@example.com")
+        target_user.set_password("testpassword")
+        target_user.save()
         
         post_data = {
             "postTitle": "Test Sighting",
@@ -490,7 +490,7 @@ class SocialMediaAPITestCase(TestCase):
             "accuracyMeters": 100,
             "encounterDatetime": timezone.now().isoformat(),
             "geocodedLocationCountry": "USA",
-            "userId": other_user.id,
+            "userId": target_user.id,
         }
 
         response = client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
