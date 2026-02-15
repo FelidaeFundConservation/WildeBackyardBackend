@@ -200,7 +200,9 @@ class InappropriateContentReportAdminTest(TestCase):
 
     def test_has_delete_permission_staff(self):
         """Test regular staff cannot delete reports"""
-        staff_request = MockRequest(User.objects.create(email="staff2@example.com", is_staff=True, is_superuser=False))
+        # Create staff user (not superuser)
+        staff_user = User.objects.create(email="staff2@example.com", is_staff=True, is_superuser=False)
+        staff_request = MockRequest(staff_user)
         self.assertFalse(self.admin.has_delete_permission(staff_request, self.report))
 
     def test_search_fields(self):
