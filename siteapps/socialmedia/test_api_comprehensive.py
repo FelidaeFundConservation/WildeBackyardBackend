@@ -358,7 +358,7 @@ class SocialMediaAPITestCase(TestCase):
         response = client.post("/v1/socialmedia/api/posts/create/", self.create_post_data, format="json")
         self.assertEqual(response.status_code, 401)
 
-    def test_create_post_with_optional_userid(self):
+    def test_staff_can_create_post_with_userid(self):
         """Test creating a post with an optional userId field (staff only)"""
         # Make the test user a staff member
         self.user.is_staff = True
@@ -409,7 +409,7 @@ class SocialMediaAPITestCase(TestCase):
         posts = MediaPost.objects.filter(created_by=self.user, title="Another Test Sighting")
         self.assertEqual(posts.count(), 1)
 
-    def test_create_post_with_invalid_userid(self):
+    def test_staff_create_post_with_invalid_userid_returns_404(self):
         """Test creating a post with an invalid userId returns 404 (staff only)"""
         # Make the test user a staff member
         self.user.is_staff = True
