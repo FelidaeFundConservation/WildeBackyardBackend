@@ -127,11 +127,15 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
             # Add ellipsis if title was truncated
             if len(obj.reported_post.title) > 50:
                 title += "..."
+            # Escape title once
+            escaped_title = escape(title)
+            
             text = obj.reported_post.text_content[:100] if obj.reported_post.text_content else ""
             # Add ellipsis if text was truncated
             if text and len(obj.reported_post.text_content) > 100:
                 text += "..."
-            return f"{escape(title)} - {escape(text)}" if text else escape(title)
+            
+            return f"{escaped_title} - {escape(text)}" if text else escaped_title
         elif obj.reported_comment:
             text = obj.reported_comment.text_content or ""
             preview = text[:100]
@@ -195,9 +199,10 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
         """Create a clickable link to the reported user's admin page"""
         if obj.reported_user:
             url = reverse("admin:users_user_change", args=[obj.reported_user.pk])
-            return format_html(
-                '<a href="{}">{} ({})</a>', url, obj.reported_user.name or "No name", obj.reported_user.email
-            )
+            # Escape user-generated content for defense in depth
+            name = escape(obj.reported_user.name or "No name")
+            email = escape(obj.reported_user.email)
+            return format_html('<a href="{}">{} ({})</a>', url, name, email)
         return "User deleted"
 
     reported_user_link.short_description = "Reported User"
@@ -206,9 +211,10 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
         """Create a clickable link to the reporter's admin page"""
         if obj.reported_by:
             url = reverse("admin:users_user_change", args=[obj.reported_by.pk])
-            return format_html(
-                '<a href="{}">{} ({})</a>', url, obj.reported_by.name or "No name", obj.reported_by.email
-            )
+            # Escape user-generated content for defense in depth
+            name = escape(obj.reported_by.name or "No name")
+            email = escape(obj.reported_by.email)
+            return format_html('<a href="{}">{} ({})</a>', url, name, email)
         return "Reporter deleted"
 
     reported_by_link.short_description = "Reported By"
@@ -337,7 +343,8 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                     TextComment.objects.filter(created_by=user_to_ban).delete()
 
                     # Add to banned email list
-                    ban_reason = report.warning_notes or "Multiple policy violations - permanent ban"
+                    # Sanitize ban_reason to prevent any potential issues with special characters
+                    ban_reason = (report.warning_notes or "Multiple policy violations - permanent ban")[:800]
                     BannedEmail.objects.get_or_create(email=user_to_ban.email, defaults={"ban_reason": ban_reason})
 
                     banned_users.append(user_to_ban.email)
@@ -347,7 +354,8 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                 report.reported_post = None
                 report.resolved = True
                 if not report.warning_notes:
-                    report.warning_notes = f"User permanently banned: {ban_reason}"
+                    # Use sanitized ban_reason (already truncated above)
+                    report.warning_notes = f"User permanently banned: {ban_reason}"[:800]
                 report.save()
                 count += 1
 
