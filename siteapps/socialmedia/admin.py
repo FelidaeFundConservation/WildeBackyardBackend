@@ -16,6 +16,11 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
     Provides a comprehensive view of reports with custom actions for moderation workflow.
     """
 
+    # Constants for content truncation and limits
+    TITLE_PREVIEW_LENGTH = 50
+    TEXT_PREVIEW_LENGTH = 100
+    MAX_BAN_REASON_LENGTH = 800
+
     # Display columns in list view
     list_display = (
         "id",
@@ -123,23 +128,23 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
     def get_content_preview(self, obj):
         """Display a preview of the reported content"""
         if obj.reported_post:
-            title = obj.reported_post.title[:50]
+            title = obj.reported_post.title[:self.TITLE_PREVIEW_LENGTH]
             # Add ellipsis if title was truncated
-            if len(obj.reported_post.title) > 50:
+            if len(obj.reported_post.title) > self.TITLE_PREVIEW_LENGTH:
                 title += "..."
             # Escape title once
             escaped_title = escape(title)
             
-            text = obj.reported_post.text_content[:100] if obj.reported_post.text_content else ""
+            text = obj.reported_post.text_content[:self.TEXT_PREVIEW_LENGTH] if obj.reported_post.text_content else ""
             # Add ellipsis if text was truncated
-            if text and len(obj.reported_post.text_content) > 100:
+            if text and len(obj.reported_post.text_content) > self.TEXT_PREVIEW_LENGTH:
                 text += "..."
             
             return f"{escaped_title} - {escape(text)}" if text else escaped_title
         elif obj.reported_comment:
             text = obj.reported_comment.text_content or ""
-            preview = text[:100]
-            if len(text) > 100:
+            preview = text[:self.TEXT_PREVIEW_LENGTH]
+            if len(text) > self.TEXT_PREVIEW_LENGTH:
                 preview += "..."
             return escape(preview)
         return "Content deleted"
@@ -344,7 +349,7 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
 
                     # Add to banned email list
                     # Sanitize ban_reason to prevent any potential issues with special characters
-                    ban_reason = (report.warning_notes or "Multiple policy violations - permanent ban")[:800]
+                    ban_reason = (report.warning_notes or "Multiple policy violations - permanent ban")[:self.MAX_BAN_REASON_LENGTH]
                     BannedEmail.objects.get_or_create(email=user_to_ban.email, defaults={"ban_reason": ban_reason})
 
                     banned_users.append(user_to_ban.email)
@@ -355,7 +360,7 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                 report.resolved = True
                 if not report.warning_notes:
                     # Use sanitized ban_reason (already truncated above)
-                    report.warning_notes = f"User permanently banned: {ban_reason}"[:800]
+                    report.warning_notes = f"User permanently banned: {ban_reason}"[:self.MAX_BAN_REASON_LENGTH]
                 report.save()
                 count += 1
 
