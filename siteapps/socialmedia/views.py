@@ -705,10 +705,10 @@ class PostViewValidation:
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
-            "userId": serializers.IntegerField(required=False),
+            "userId": serializers.IntegerField(required=False, help_text="Admin/staff only: specify user to create post on behalf of"),
         },
     ),
-    responses={201: None, 400: None, 404: None, 405: None},
+    responses={201: None, 400: None, 403: None, 404: None, 405: None},
     tags=["Social Media"],
 )
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
@@ -731,12 +731,19 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         # Handle optional userId field
         user_id = data.get("userId")
         if user_id is not None:
+            # Only allow staff/admin users to create posts on behalf of others
+            if not request.user.is_staff:
+                return Response(
+                    status=status.HTTP_403_FORBIDDEN,
+                    data={"error": "You do not have permission to create posts on behalf of other users."}
+                )
+            
             try:
                 user = User.objects.get(id=user_id)
             except User.DoesNotExist:
                 return Response(
                     status=status.HTTP_404_NOT_FOUND,
-                    data={"error": f"User with id {user_id} not found."}
+                    data={"error": "Invalid user specified."}
                 )
             created_by_user = user
         else:
