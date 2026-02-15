@@ -251,4 +251,7 @@ class InappropriateContentReportAdminTest(TestCase):
         self.report.save()
 
         detail_html = self.admin.get_content_detail(self.report)
+        # Verify the exact string returned
+        self.assertEqual(detail_html, "Content no longer available (may have been deleted)")
+        # Also verify it's in the output for backward compatibility
         self.assertIn("no longer available", detail_html.lower())
