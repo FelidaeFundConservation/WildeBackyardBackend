@@ -705,10 +705,10 @@ class PostViewValidation:
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
-            "userId": serializers.IntegerField(required=False, help_text="Authenticated staff only: specify user ID to create post on behalf of. Returns 401 if unauthenticated, 403 if non-staff."),
+            "userId": serializers.IntegerField(required=False, help_text="Authenticated staff only: specify user ID to create post on behalf of. Returns 403 if unauthenticated or non-staff."),
         },
     ),
-    responses={201: None, 400: None, 401: None, 403: None, 404: None, 405: None},
+    responses={201: None, 400: None, 403: None, 404: None, 405: None},
     tags=["Social Media"],
 )
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
@@ -734,8 +734,8 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
             # Only allow authenticated staff/admin users to create posts on behalf of others
             if not request.user.is_authenticated:
                 return Response(
-                    status=status.HTTP_401_UNAUTHORIZED,
-                    data={"error": "Authentication required to use userId parameter."}
+                    status=status.HTTP_403_FORBIDDEN,
+                    data={"error": "The userId parameter requires authentication. Please log in or omit this parameter."}
                 )
             if not request.user.is_staff:
                 return Response(
