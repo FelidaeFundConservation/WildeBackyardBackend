@@ -508,8 +508,8 @@ class PostViewValidation:
         if isinstance(data, list):
             data = data[0]
 
-        # Check if the user is banned from posting
-        if BannedEmail.objects.filter(email=request.user.email).exists():
+        # Check if the user is banned from posting (only for authenticated users)
+        if request.user.is_authenticated and BannedEmail.objects.filter(email=request.user.email).exists():
             return (
                 Response(
                     status=status.HTTP_405_METHOD_NOT_ALLOWED,
@@ -690,7 +690,7 @@ class PostViewValidation:
 
 @extend_schema(
     summary="Create a new post",
-    description="Create a new wildlife sighting post with optional media, location, and species information",
+    description="Create a new wildlife sighting post with optional media, location, and species information. Authentication is optional - anonymous posts will have null creator.",
     request=inline_serializer(
         name="CreatePostRequest",
         fields={
@@ -705,15 +705,15 @@ class PostViewValidation:
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
-            "userId": serializers.IntegerField(required=False, help_text="Admin/staff only: specify user ID to create post on behalf of. Returns 403 if used by non-staff users."),
+            "userId": serializers.IntegerField(required=False, help_text="Authenticated staff only: specify user ID to create post on behalf of. Returns 401 if unauthenticated, 403 if non-staff."),
         },
     ),
-    responses={201: None, 400: None, 403: None, 404: None, 405: None},
+    responses={201: None, 400: None, 401: None, 403: None, 404: None, 405: None},
     tags=["Social Media"],
 )
 class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMixin, PostInputsValidationMixin):
     authentication_classes = [authentication.TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Allow unauthenticated access
 
     def post(self, request):
         data = json.loads(request.body)
@@ -731,7 +731,12 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
         # Handle optional userId field
         user_id = data.get("userId")
         if user_id is not None:
-            # Only allow staff/admin users to create posts on behalf of others
+            # Only allow authenticated staff/admin users to create posts on behalf of others
+            if not request.user.is_authenticated:
+                return Response(
+                    status=status.HTTP_401_UNAUTHORIZED,
+                    data={"error": "Authentication required to use userId parameter."}
+                )
             if not request.user.is_staff:
                 return Response(
                     status=status.HTTP_403_FORBIDDEN,
@@ -747,7 +752,8 @@ class CreatePostView(APIView, LatLngValidationMixin, PrivacySettingValidationMix
                 )
             created_by_user = user
         else:
-            created_by_user = request.user
+            # Use authenticated user if available, otherwise None for anonymous posts
+            created_by_user = request.user if request.user.is_authenticated else None
 
         # Finally, create the post object with given args, ignoring is a duplicate exists
         MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
@@ -856,7 +862,10 @@ def create_media(media_bytes, content_hash, request, is_video=False):
     logging.info(f"[VIDEO DEBUG] Final URL: {final_url}")
 
     return Media.objects.create(
-        file_cloud_path=final_url, content_hash=content_hash, uploaded_by=request.user, is_video=is_video
+        file_cloud_path=final_url, 
+        content_hash=content_hash, 
+        uploaded_by=request.user if request.user.is_authenticated else None, 
+        is_video=is_video
     )
 
 
