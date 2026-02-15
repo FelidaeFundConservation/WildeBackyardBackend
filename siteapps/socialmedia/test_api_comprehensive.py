@@ -359,7 +359,11 @@ class SocialMediaAPITestCase(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_create_post_with_optional_userid(self):
-        """Test creating a post with an optional userId field"""
+        """Test creating a post with an optional userId field (staff only)"""
+        # Make the test user a staff member
+        self.user.is_staff = True
+        self.user.save()
+        
         # Create another user
         other_user = User.objects.create(email="other@example.com")
         other_user.set_password("otherpassword")
@@ -406,7 +410,11 @@ class SocialMediaAPITestCase(TestCase):
         self.assertEqual(posts.count(), 1)
 
     def test_create_post_with_invalid_userid(self):
-        """Test creating a post with an invalid userId returns 404"""
+        """Test creating a post with an invalid userId returns 404 (staff only)"""
+        # Make the test user a staff member
+        self.user.is_staff = True
+        self.user.save()
+        
         post_data = {
             "postTitle": "Test Sighting",
             "privacySetting": "1",
@@ -421,4 +429,30 @@ class SocialMediaAPITestCase(TestCase):
         response = self.client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
         self.assertEqual(response.status_code, 404)
         self.assertIn("error", response.json())
-        self.assertIn("not found", response.json()["error"].lower())
+
+    def test_non_staff_cannot_use_userid(self):
+        """Test that non-staff users cannot use the userId parameter"""
+        # Ensure user is NOT staff
+        self.user.is_staff = False
+        self.user.save()
+        
+        # Create another user
+        other_user = User.objects.create(email="other2@example.com")
+        other_user.set_password("otherpassword")
+        other_user.save()
+        
+        post_data = {
+            "postTitle": "Test Sighting",
+            "privacySetting": "1",
+            "latitude": 34.0522,
+            "longitude": -118.2437,
+            "accuracyMeters": 100,
+            "encounterDatetime": timezone.now().isoformat(),
+            "geocodedLocationCountry": "USA",
+            "userId": other_user.id,
+        }
+
+        response = self.client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("error", response.json())
+        self.assertIn("permission", response.json()["error"].lower())
