@@ -352,11 +352,27 @@ class SocialMediaAPITestCase(TestCase):
         response = self.client.post("/v1/socialmedia/api/posts/create/", incomplete_data, format="json")
         self.assertEqual(response.status_code, 400)
 
-    def test_unauthenticated_cannot_create_post(self):
-        """Test that unauthenticated users cannot create posts"""
+    def test_unauthenticated_can_create_post(self):
+        """Test that unauthenticated users CAN create posts (anonymous sightings)"""
         client = APIClient()
-        response = client.post("/v1/socialmedia/api/posts/create/", self.create_post_data, format="json")
-        self.assertEqual(response.status_code, 401)
+        
+        # Create valid post data with proper field names
+        post_data = {
+            "postTitle": "Anonymous Sighting",
+            "privacySetting": "1",
+            "latitude": 34.0522,
+            "longitude": -118.2437,
+            "accuracyMeters": 100,
+            "encounterDatetime": timezone.now().isoformat(),
+            "geocodedLocationCountry": "USA",
+        }
+        
+        response = client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
+        self.assertEqual(response.status_code, 201)
+        
+        # Verify the post was created with null creator
+        posts = MediaPost.objects.filter(created_by=None, title="Anonymous Sighting")
+        self.assertEqual(posts.count(), 1)
 
     def test_staff_can_create_post_with_userid(self):
         """Test creating a post with an optional userId field (staff only)"""
@@ -456,3 +472,28 @@ class SocialMediaAPITestCase(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertIn("error", response.json())
         self.assertIn("permission", response.json()["error"].lower())
+
+    def test_unauthenticated_cannot_use_userid(self):
+        """Test that unauthenticated users cannot use the userId parameter"""
+        client = APIClient()
+        
+        # Create another user
+        other_user = User.objects.create(email="other3@example.com")
+        other_user.set_password("otherpassword")
+        other_user.save()
+        
+        post_data = {
+            "postTitle": "Test Sighting",
+            "privacySetting": "1",
+            "latitude": 34.0522,
+            "longitude": -118.2437,
+            "accuracyMeters": 100,
+            "encounterDatetime": timezone.now().isoformat(),
+            "geocodedLocationCountry": "USA",
+            "userId": other_user.id,
+        }
+
+        response = client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("error", response.json())
+        self.assertIn("authentication", response.json()["error"].lower())
