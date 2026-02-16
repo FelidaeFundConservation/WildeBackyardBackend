@@ -25,7 +25,7 @@ WSGI_APPLICATION = "config.wsgi.prod.application"
 # Use PostgreSQL for GCP Cloud SQL deployment
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": env.str("DB_NAME_PROD", "wildepod_prod"),
         "HOST": env.str("DB_HOST", SECRETS.get("DB-HOST", "localhost")),
         "USER": env.str("DB_USER", SECRETS.get("DB-USER", "wildepod_prod_user")),

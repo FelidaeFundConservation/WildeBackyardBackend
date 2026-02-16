@@ -28,7 +28,7 @@ WSGI_APPLICATION = "config.wsgi.local.application"
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": env.str("DB_NAME", "wildebackyard"),
         "USER": env.str("DB_USER", "jnovak"),
         "PASSWORD": env.str("DB_PASSWORD", ""),
