@@ -38,7 +38,7 @@ if env.str("CLOUD_SQL_DATABASE_URL_STAGING", default=""):
 else:
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.postgresql",
+            "ENGINE": "django.contrib.gis.db.backends.postgis",
             "NAME": env.str("DB_NAME_STAGING", "wildepod_staging"),
             "HOST": env.str("DB_HOST", "localhost"),
             "USER": env.str("DB_USER", "wildepod_staging_user"),
