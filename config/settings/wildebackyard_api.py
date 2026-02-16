@@ -1,6 +1,7 @@
 """Django settings for wildebackyard-api environment"""
 
 import os
+from pathlib import Path
 
 import environ
 
@@ -9,7 +10,6 @@ env = environ.Env(DEBUG=(bool, False))
 
 # Override to prevent Azure Key Vault lookup in base.py
 # Set a dummy file path to trigger env file read path instead of Azure
-from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 env_file = ROOT_DIR / ".env.gcp_dummy"
@@ -48,8 +48,9 @@ DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
 # Cloud SQL connection configuration
 DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-339517:us-west2:wildepoddb")
 
-# Enable Cloud SQL connection
-if os.getenv("GAE_APPLICATION", None):
+# Enable Cloud SQL connection when in production (GAE_APPLICATION or GAE_ENV for flex)
+# Always use Cloud SQL socket for this settings file since it's for GCP deployment
+if os.getenv("GAE_APPLICATION", None) or os.getenv("GAE_ENV", None) or os.getenv("PYTHON_ENV") == "production":
     DATABASES["default"]["HOST"] = f"/cloudsql/{DB_CONNECTION_NAME}"
     # Remove any host setting from OPTIONS to avoid conflicts with HOST
     # (django-environ may have parsed it from DATABASE_URL query string)
