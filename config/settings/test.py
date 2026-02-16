@@ -4,10 +4,10 @@ from .base import *  # noqa
 
 DEBUG = True
 
-# Use SQLite for testing to avoid database setup
+# Use SQLite with Spatialite extension for testing GeoDjango
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
+        "ENGINE": "django.contrib.gis.db.backends.spatialite",
         "NAME": ":memory:",
     }
 }
