@@ -42,6 +42,9 @@ WSGI_APPLICATION = "config.wsgi.wildebackyard_api.application"
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 DATABASES = {"default": env.db("WILDEBACKYARD_API_DATABASE_URL")}
 
+# Override ENGINE to use PostGIS
+DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+
 # Cloud SQL connection configuration
 DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-339517:us-west2:wildepoddb")
 
