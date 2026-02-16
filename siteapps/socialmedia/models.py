@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.gis.db import models as gis_models
 from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
@@ -125,6 +126,21 @@ class MediaPost(TextComment):
     # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
     private_location_latitude = models.FloatField(null=True)
     private_location_longitude = models.FloatField(null=True)
+
+    ##############################
+    # PostGIS Spatial Fields
+    ##############################
+    # Spatial point field for public location (uses SRID 4326 - WGS84)
+    # Automatically indexed by PostGIS
+    public_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
+
+    # Spatial point field for true location (private - obfuscated sightings)
+    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
+    true_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
+
+    # Spatial point field for private location
+    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
+    private_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
 
 
 # Model to handle reports for inappropriate content
