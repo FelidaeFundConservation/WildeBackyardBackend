@@ -8,6 +8,7 @@ import requests
 from dateutil import parser
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.gis.geos import Point
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import models
@@ -580,14 +581,23 @@ class PostViewValidation:
         if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
             kwargs["public_location_latitude"] = latitude
             kwargs["public_location_longitude"] = longitude
+            # Set spatial field for public location
+            if latitude is not None and longitude is not None:
+                kwargs["public_location_spatial"] = Point(longitude, latitude, srid=4326)
         elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             kwargs["true_location_latitude"] = latitude
             kwargs["true_location_longitude"] = longitude
             kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
             kwargs.update(obfuscation_box_corners)
+            # Set spatial field for true location
+            if latitude is not None and longitude is not None:
+                kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
         elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
             kwargs["private_location_latitude"] = latitude
             kwargs["private_location_longitude"] = longitude
+            # Set spatial field for private location
+            if latitude is not None and longitude is not None:
+                kwargs["private_location_spatial"] = Point(longitude, latitude, srid=4326)
 
     @staticmethod
     def set_optional_kwargs(data, kwargs):
