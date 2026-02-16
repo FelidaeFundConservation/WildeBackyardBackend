@@ -14,16 +14,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='mediapost',
             name='private_location_spatial',
-            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
+            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326, spatial_index=True),
         ),
         migrations.AddField(
             model_name='mediapost',
             name='public_location_spatial',
-            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
+            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326, spatial_index=True),
         ),
         migrations.AddField(
             model_name='mediapost',
             name='true_location_spatial',
-            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
+            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326, spatial_index=True),
         ),
     ]
