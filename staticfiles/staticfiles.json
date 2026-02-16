@@ -1,5 +1,5 @@
 {
-  "hash": "fec0ceee8ce9",
+  "hash": "cea73824ae35",
   "paths": {
     "admin/css/autocomplete.css": "admin/css/autocomplete.4a81fc4242d0.css",
     "admin/css/base.css": "admin/css/base.9f65b5cd54b3.css",
@@ -127,6 +127,14 @@
     "admin/js/vendor/xregexp/LICENSE.txt": "admin/js/vendor/xregexp/LICENSE.b6fd2ceea8d3.txt",
     "admin/js/vendor/xregexp/xregexp.js": "admin/js/vendor/xregexp/xregexp.a7e08b0ce686.js",
     "admin/js/vendor/xregexp/xregexp.min.js": "admin/js/vendor/xregexp/xregexp.min.f1ae4617847c.js",
+    "gis/css/ol3.css": "gis/css/ol3.90ae889d12fb.css",
+    "gis/img/draw_line_off.svg": "gis/img/draw_line_off.6b99a2c7b95c.svg",
+    "gis/img/draw_line_on.svg": "gis/img/draw_line_on.a1e2ff03b12e.svg",
+    "gis/img/draw_point_off.svg": "gis/img/draw_point_off.ca721bf1a7e7.svg",
+    "gis/img/draw_point_on.svg": "gis/img/draw_point_on.ff9db9f50411.svg",
+    "gis/img/draw_polygon_off.svg": "gis/img/draw_polygon_off.21a5a89c789c.svg",
+    "gis/img/draw_polygon_on.svg": "gis/img/draw_polygon_on.6793e8394e27.svg",
+    "gis/js/OLMapWidget.js": "gis/js/OLMapWidget.cf31c17ab50e.js",
     "rest_framework/css/bootstrap-theme.min.css": "rest_framework/css/bootstrap-theme.min.297168c864ac.css",
     "rest_framework/css/bootstrap-theme.min.css.map": "rest_framework/css/bootstrap-theme.min.css.51806092cc05.map",
     "rest_framework/css/bootstrap-tweaks.css": "rest_framework/css/bootstrap-tweaks.46ed116b0edd.css",
