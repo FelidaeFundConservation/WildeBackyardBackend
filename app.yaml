@@ -8,10 +8,14 @@ env_variables:
   CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
   WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_staging"
 
+# Cloud SQL configuration for flexible environment
+beta_settings:
+  cloud_sql_instances: "wildepod-339517:us-west2:wildepoddb"
+
 # Flexible environment scaling
 automatic_scaling:
   min_num_instances: 1
-  max_num_instances: 3
+  max_num_instances: 1
   cool_down_period_sec: 120
   cpu_utilization:
     target_utilization: 0.5

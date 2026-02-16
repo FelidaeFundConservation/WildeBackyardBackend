@@ -24,8 +24,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Collect static files
+# Collect static files with a dummy database URL (database not needed for static files)
+ENV WILDEBACKYARD_API_DATABASE_URL="postgres://dummy:dummy@localhost/dummy"
 RUN python manage.py collectstatic --noinput --settings=config.settings.wildebackyard_api || true
+
+# Remove the dummy database URL so runtime uses the real one from app.yaml
+ENV WILDEBACKYARD_API_DATABASE_URL=""
 
 # Run gunicorn
 CMD exec gunicorn -t 2400 -b :$PORT config.wsgi.wildebackyard_api:application
