@@ -114,12 +114,15 @@ ACCOUNT_EMAIL_VERIFICATION = "optional"
 # LOGGING
 # ------------------------------------------------------------------------------
 # Configure Google Cloud Logging
-# Initialize the Cloud Logging client
+# Initialize the Cloud Logging client and integrate with Python logging
+import logging
+
 gcp_logging_client = gcp_logging.Client()
+# This integrates Cloud Logging with Python's standard logging module
+# It will send all logs with level INFO and above to Cloud Logging
+gcp_logging_client.setup_logging(log_level=logging.INFO)
 
-# Get the Cloud Logging handler
-cloud_handler = gcp_logging_client.get_default_handler()
-
+# Django's LOGGING configuration
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -132,16 +135,11 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
-        "cloud_logging": {
-            "level": "INFO",
-            "class": "google.cloud.logging.handlers.CloudLoggingHandler",
-            "client": gcp_logging_client,
-        },
     },
-    "root": {"level": "INFO", "handlers": ["console", "cloud_logging"]},
+    "root": {"level": "INFO", "handlers": ["console"]},
     "loggers": {
         "django": {
-            "handlers": ["console", "cloud_logging"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
