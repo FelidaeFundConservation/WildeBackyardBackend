@@ -35,4 +35,4 @@ coverage==7.4.1
 pyyaml
 
 # SQLite with better Spatialite support for GeoDjango tests
-pysqlite3-binary==0.5.2
+pysqlite3-binary==0.5.4
