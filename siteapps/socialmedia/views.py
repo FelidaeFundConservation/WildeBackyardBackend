@@ -26,8 +26,7 @@ from siteapps.species.models import SpeciesName
 from siteapps.users.models import BannedEmail
 
 from .geo_utils import calculate_offset_coordinates, get_continental_us_center
-from .mixins import (LatLngValidationMixin, PostInputsValidationMixin,
-                     PrivacySettingValidationMixin, createResponse400)
+from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 User = get_user_model()
@@ -53,9 +52,7 @@ def generate_signed_url(gcs_path, expiration=3600):
         if not gcs_path.startswith("https://storage.googleapis.com/"):
             return gcs_path
 
-        path_parts = gcs_path.replace("https://storage.googleapis.com/", "").split(
-            "/", 1
-        )
+        path_parts = gcs_path.replace("https://storage.googleapis.com/", "").split("/", 1)
         if len(path_parts) < 2:
             return gcs_path
 
@@ -95,30 +92,23 @@ class Haversine(Func):
             "userId": serializers.IntegerField(required=False),
         },
     ),
-    responses={
-        200: inline_serializer(
-            name="PostListResponse", fields={"results": serializers.ListField()}
-        )
-    },
+    responses={200: inline_serializer(name="PostListResponse", fields={"results": serializers.ListField()})},
     tags=["Social Media"],
 )
 class GetRecentPostsView(APIView, LatLngValidationMixin):
     def post(self, request):
         data = json.loads(request.body)
-        
-        # Log input parameters
+
+        # Log input parameters with full request body
         logger.info(
-            "GetRecentPostsView: Request received",
+            f"GetRecentPostsView: Request received with parameters: {json.dumps(data)}",
             extra={
-                "userLatitude": data.get("userLatitude"),
-                "userLongitude": data.get("userLongitude"),
-                "distanceRadius": data.get("distanceRadius"),
-                "zipCode": data.get("zipCode"),
-                "species": data.get("species"),
-                "userId": data.get("userId"),
-            }
+                "request_data": data,
+                "http_method": request.method,
+                "path": request.path,
+            },
         )
-        
+
         # The center of the circle to check, if given
         user_latitude = data.get("userLatitude")
         user_longitude = data.get("userLongitude")
@@ -142,19 +132,13 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         # Filter by zipcode
         if zip_code:
-            media_posts = MediaPost.objects.filter(
-                geocoded_location_zip_code=zip_code
-            ).order_by("-created")
+            media_posts = MediaPost.objects.filter(geocoded_location_zip_code=zip_code).order_by("-created")
         # Filter by distance
         elif user_latitude or user_longitude or distance_radius:
             # Argument validation
             errors = [
                 self.validate_latitude_longitude(user_latitude, user_longitude),
-                (
-                    None
-                    if distance_radius is not None
-                    else createResponse400("No distance radius to search given.")
-                ),
+                (None if distance_radius is not None else createResponse400("No distance radius to search given.")),
             ]
 
             for error_response in errors:
@@ -176,10 +160,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                         lng_field="true_location_longitude",
                     ),
                 )
-                .filter(
-                    Q(distance_public__lte=distance_radius)
-                    | Q(distance_true__lte=distance_radius)
-                )
+                .filter(Q(distance_public__lte=distance_radius) | Q(distance_true__lte=distance_radius))
                 .order_by("-created")
             )
         # If no arguments given, get global posts
@@ -224,9 +205,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             if post.media:
                 media_url = post.media.file_cloud_path
                 # Generate signed URL for GCS files
-                if media_url and media_url.startswith(
-                    "https://storage.googleapis.com/"
-                ):
+                if media_url and media_url.startswith("https://storage.googleapis.com/"):
                     media_url = generate_signed_url(media_url)
 
                 media_data = {
@@ -292,17 +271,21 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
             post_data.append(current_data)
 
-        # Log response payload
+        # Create response
+        response_data = paginator.get_paginated_response(post_data).data
+
+        # Log response payload with full data
         logger.info(
-            "GetRecentPostsView: Returning response",
+            f"GetRecentPostsView: Returning {len(post_data)} posts",
             extra={
+                "response_data": response_data,
                 "post_count": len(post_data),
                 "has_next": paginator.get_next_link() is not None,
                 "has_previous": paginator.get_previous_link() is not None,
-            }
+            },
         )
-        
-        return paginator.get_paginated_response(post_data)
+
+        return Response(response_data)
 
 
 def check_post_is_liked_by(media_post_obj, user):
@@ -338,19 +321,11 @@ def get_post_responses(request):
                 comments_data.append(
                     {
                         "id": str(comment.id),
-                        "created_by__name": (
-                            comment.created_by.name
-                            if comment.created_by
-                            else "Anonymous"
-                        ),
+                        "created_by__name": (comment.created_by.name if comment.created_by else "Anonymous"),
                         "text_content": comment.text_content,
-                        "created": (
-                            comment.created.isoformat() if comment.created else None
-                        ),
+                        "created": (comment.created.isoformat() if comment.created else None),
                         "like_count": comment.upvoted_by.count(),
-                        "liked_by_current_user": comment.upvoted_by.filter(
-                            id=request.user.id
-                        ).exists(),
+                        "liked_by_current_user": comment.upvoted_by.filter(id=request.user.id).exists(),
                     }
                 )
 
@@ -358,9 +333,7 @@ def get_post_responses(request):
                 status=status.HTTP_200_OK,
                 data={
                     "like_count": media_post_obj.upvoted_by.all().count(),
-                    "liked_by_current_user": check_post_is_liked_by(
-                        media_post_obj=media_post_obj, user=request.user
-                    ),
+                    "liked_by_current_user": check_post_is_liked_by(media_post_obj=media_post_obj, user=request.user),
                     "comments": comments_data,
                     "total_pages": paginator.num_pages,
                     "current_page": comments_page.number,
@@ -440,9 +413,7 @@ class GetPostResponsesAuthenticatedView(APIView):
 @extend_schema(
     summary="Like/unlike a post",
     description="Toggle like status on a media post",
-    request=inline_serializer(
-        name="LikePostRequest", fields={"mediaPostId": serializers.IntegerField()}
-    ),
+    request=inline_serializer(name="LikePostRequest", fields={"mediaPostId": serializers.IntegerField()}),
     responses={200: None, 404: None},
     tags=["Social Media"],
 )
@@ -456,17 +427,13 @@ class LikePostView(APIView):
         media_post_id = data.get("mediaPostId")
 
         if media_post_id is None:
-            return createResponse400(
-                "The media post ID to like/unlike was not provided."
-            )
+            return createResponse400("The media post ID to like/unlike was not provided.")
         else:
             try:
                 media_post_obj = MediaPost.objects.get(id=media_post_id)
 
                 # Toggle the like status
-                if check_post_is_liked_by(
-                    media_post_obj=media_post_obj, user=request.user
-                ):
+                if check_post_is_liked_by(media_post_obj=media_post_obj, user=request.user):
                     media_post_obj.upvoted_by.remove(request.user)
                 else:
                     media_post_obj.upvoted_by.add(request.user)
@@ -484,9 +451,7 @@ class LikePostView(APIView):
 @extend_schema(
     summary="Like/unlike a comment",
     description="Toggle like status on a comment",
-    request=inline_serializer(
-        name="LikeCommentRequest", fields={"commentId": serializers.CharField()}
-    ),
+    request=inline_serializer(name="LikeCommentRequest", fields={"commentId": serializers.CharField()}),
     responses={200: None, 404: None},
     tags=["Social Media"],
 )
@@ -577,11 +542,7 @@ class CreateCommentView(APIView):
             return createResponse400("The provided comment text is empty.")
 
         # If everything's fine, create and add the comment
-        media_post.first().replies.add(
-            TextComment.objects.create(
-                text_content=comment_text, created_by=request.user
-            )
-        )
+        media_post.first().replies.add(TextComment.objects.create(text_content=comment_text, created_by=request.user))
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -594,10 +555,7 @@ class PostViewValidation:
             data = data[0]
 
         # Check if the user is banned from posting (only for authenticated users)
-        if (
-            request.user.is_authenticated
-            and BannedEmail.objects.filter(email=request.user.email).exists()
-        ):
+        if request.user.is_authenticated and BannedEmail.objects.filter(email=request.user.email).exists():
             return (
                 Response(
                     status=status.HTTP_405_METHOD_NOT_ALLOWED,
@@ -614,22 +572,16 @@ class PostViewValidation:
         media_bytes = data.get("mediaBytes")
         # Check if the media is a video
         is_video = data.get("isVideo")
-        logging.info(
-            f"[VIDEO DEBUG] process_media: is_video={is_video}, has_media={media_bytes is not None}"
-        )
+        logging.info(f"[VIDEO DEBUG] process_media: is_video={is_video}, has_media={media_bytes is not None}")
 
         # TODO: Handle creating the media object
         media_obj = None
 
         if media_bytes is not None:
-            logging.info(
-                f"[VIDEO DEBUG] Processing media, base64 length: {len(media_bytes)}"
-            )
+            logging.info(f"[VIDEO DEBUG] Processing media, base64 length: {len(media_bytes)}")
             try:
                 media_bytes = convert_base64_bytes(media_bytes, is_video=is_video)
-                logging.info(
-                    f"[VIDEO DEBUG] Converted base64, bytes size: {len(media_bytes)}"
-                )
+                logging.info(f"[VIDEO DEBUG] Converted base64, bytes size: {len(media_bytes)}")
                 content_hash = hashlib.sha256(media_bytes).hexdigest()
                 logging.info(f"[VIDEO DEBUG] Content hash: {content_hash}")
                 # Check if the file already exists
@@ -679,9 +631,7 @@ class PostViewValidation:
             kwargs["public_location_longitude"] = longitude
             # Set spatial field for public location
             if latitude is not None and longitude is not None:
-                kwargs["public_location_spatial"] = Point(
-                    longitude, latitude, srid=4326
-                )
+                kwargs["public_location_spatial"] = Point(longitude, latitude, srid=4326)
         elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             kwargs["true_location_latitude"] = latitude
             kwargs["true_location_longitude"] = longitude
@@ -695,9 +645,7 @@ class PostViewValidation:
             kwargs["private_location_longitude"] = longitude
             # Set spatial field for private location
             if latitude is not None and longitude is not None:
-                kwargs["private_location_spatial"] = Point(
-                    longitude, latitude, srid=4326
-                )
+                kwargs["private_location_spatial"] = Point(longitude, latitude, srid=4326)
 
     @staticmethod
     def set_optional_kwargs(data, kwargs):
@@ -738,9 +686,7 @@ class PostViewValidation:
         if camera_deployment_date is not None:
             kwargs["camera_deployment_date"] = parser.parse(camera_deployment_date)
         if camera_timestamp_offset_error_details is not None:
-            kwargs["camera_timestamp_offset_error_details"] = (
-                camera_timestamp_offset_error_details
-            )
+            kwargs["camera_timestamp_offset_error_details"] = camera_timestamp_offset_error_details
         if habitat_type is not None:
             kwargs["habitat_type"] = habitat_type
 
@@ -845,16 +791,12 @@ class CreatePostView(
         data = json.loads(request.body)
 
         # Validate data and check permissions
-        error_response, data = PostViewValidation.validate_data_and_permissions(
-            data, request
-        )
+        error_response, data = PostViewValidation.validate_data_and_permissions(data, request)
         if error_response:
             return error_response
 
         # Validate arguments
-        error_response, kwargs = PostViewValidation.validate_and_extract_data(
-            data, request
-        )
+        error_response, kwargs = PostViewValidation.validate_and_extract_data(data, request)
         if error_response:
             return error_response
 
@@ -872,9 +814,7 @@ class CreatePostView(
             if not request.user.is_staff:
                 return Response(
                     status=status.HTTP_403_FORBIDDEN,
-                    data={
-                        "error": "You do not have permission to create posts on behalf of other users."
-                    },
+                    data={"error": "You do not have permission to create posts on behalf of other users."},
                 )
 
             try:
@@ -903,13 +843,9 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
     if is_video:
         # Basic video size validation - max 500MB
         max_video_size = getattr(settings, "MAX_VIDEO_SIZE_MB", 500) * 1024 * 1024
-        logging.info(
-            f"[VIDEO DEBUG] Video validation: size={len(media_bytes_base64)}, max={max_video_size}"
-        )
+        logging.info(f"[VIDEO DEBUG] Video validation: size={len(media_bytes_base64)}, max={max_video_size}")
         if len(media_bytes_base64) > max_video_size:
-            raise ValueError(
-                f"Video file too large. Maximum size is {max_video_size / (1024*1024)}MB"
-            )
+            raise ValueError(f"Video file too large. Maximum size is {max_video_size / (1024*1024)}MB")
         logging.info("[VIDEO DEBUG] Video validated, returning bytearray")
         return media_bytes_base64
     else:
@@ -929,20 +865,14 @@ def convert_base64_bytes(media_bytes_base64, is_video=False):
 
 
 def create_media(media_bytes, content_hash, request, is_video=False):
-    logging.info(
-        f"[VIDEO DEBUG] create_media: is_video={is_video}, hash={content_hash}"
-    )
-    logging.info(
-        f"[VIDEO DEBUG] media_bytes type={type(media_bytes)}, size={len(media_bytes)}"
-    )
+    logging.info(f"[VIDEO DEBUG] create_media: is_video={is_video}, hash={content_hash}")
+    logging.info(f"[VIDEO DEBUG] media_bytes type={type(media_bytes)}, size={len(media_bytes)}")
     # Detect video format from file signature (magic bytes)
     file_extension = "JPEG"
     content_type = "image/jpeg"
 
     if is_video:
-        logging.info(
-            f"[VIDEO DEBUG] Detecting video format, first 12 bytes: {media_bytes[:12].hex()}"
-        )
+        logging.info(f"[VIDEO DEBUG] Detecting video format, first 12 bytes: {media_bytes[:12].hex()}")
         # Check video format from magic bytes
         if (
             media_bytes[:4] == b"\x00\x00\x00\x18"
@@ -966,9 +896,7 @@ def create_media(media_bytes, content_hash, request, is_video=False):
             content_type = "video/mp4"
             logging.warning("Unknown video format, defaulting to MP4")
 
-        logging.info(
-            f"[VIDEO DEBUG] Format detected: {file_extension}, content_type: {content_type}"
-        )
+        logging.info(f"[VIDEO DEBUG] Format detected: {file_extension}, content_type: {content_type}")
 
     # Upload to Google Cloud Storage
     gcs_url = None
@@ -989,16 +917,12 @@ def create_media(media_bytes, content_hash, request, is_video=False):
 
         gcs_blob = gcs_bucket.blob(blob_name)
         # Convert bytearray to bytes if needed
-        upload_data = (
-            bytes(media_bytes) if isinstance(media_bytes, bytearray) else media_bytes
-        )
+        upload_data = bytes(media_bytes) if isinstance(media_bytes, bytearray) else media_bytes
         logging.info(
             f"[VIDEO DEBUG] Uploading: data_type={type(upload_data)}, size={len(upload_data)}, content_type={content_type}"
         )
         gcs_blob.upload_from_string(upload_data, content_type=content_type)
-        gcs_url = (
-            f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
-        )
+        gcs_url = f"https://storage.googleapis.com/{settings.GCS_BUCKET_NAME}/{blob_name}"
 
         logging.info(f"Successfully uploaded media to GCS: {blob_name}")
         logging.info(f"[VIDEO DEBUG] GCS URL: {gcs_url}")
@@ -1051,9 +975,7 @@ class EditPostView(
         data = json.loads(request.body)
 
         # Validate data and check permissions
-        error_response, data = PostViewValidation.validate_data_and_permissions(
-            data, request
-        )
+        error_response, data = PostViewValidation.validate_data_and_permissions(data, request)
         if error_response:
             return error_response
 
@@ -1061,9 +983,7 @@ class EditPostView(
         try:
             post = MediaPost.objects.get(id=data.get("postId"))
         except MediaPost.DoesNotExist:
-            return Response(
-                status=status.HTTP_404_NOT_FOUND, data={"error": "Post not found."}
-            )
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "Post not found."})
 
         # Ensure the authenticated user is the one who created the post
         if post.created_by != request.user:
@@ -1072,9 +992,7 @@ class EditPostView(
                 data={"error": "You do not have permission to edit this post."},
             )
 
-        error_response, kwargs = PostViewValidation.validate_and_extract_data(
-            data, request
-        )
+        error_response, kwargs = PostViewValidation.validate_and_extract_data(data, request)
         if error_response:
             return error_response
 
