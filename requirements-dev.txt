@@ -36,4 +36,4 @@ pyyaml
 
 # SQLite with better Spatialite support for GeoDjango tests
 pysqlite3-binary==0.5.4
-gdal
+gdal==3.8.4
