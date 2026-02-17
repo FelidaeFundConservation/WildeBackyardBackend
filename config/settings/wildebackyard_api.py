@@ -18,6 +18,9 @@ os.environ.setdefault("DJANGO_SECRET_KEY", "temp-change-me-in-secret-manager")
 
 from .base import *  # noqa
 
+# Import Google Cloud Logging
+import google.cloud.logging as gcp_logging
+
 # HOSTS CONFIG
 # ------------------------------------------------------------------------------
 # Allow all hosts for App Engine deployments including versioned deployments
@@ -110,6 +113,13 @@ ACCOUNT_EMAIL_VERIFICATION = "optional"
 
 # LOGGING
 # ------------------------------------------------------------------------------
+# Configure Google Cloud Logging
+# Initialize the Cloud Logging client
+gcp_logging_client = gcp_logging.Client()
+
+# Set up Cloud Logging handler
+gcp_logging_client.setup_logging()
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -125,3 +135,10 @@ LOGGING = {
     },
     "root": {"level": "INFO", "handlers": ["console"]},
 }
+
+# MIDDLEWARE
+# ------------------------------------------------------------------------------
+# Add Google Cloud Logging RequestMiddleware to track requests
+MIDDLEWARE = MIDDLEWARE + [
+    "google.cloud.logging_v2.handlers.middleware.request.RequestMiddleware",
+]

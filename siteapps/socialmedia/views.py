@@ -32,6 +32,8 @@ from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 User = get_user_model()
 
+logger = logging.getLogger(__name__)
+
 
 def generate_signed_url(gcs_path, expiration=3600):
     """Make GCS object publicly readable and return its URL.
@@ -103,6 +105,20 @@ class Haversine(Func):
 class GetRecentPostsView(APIView, LatLngValidationMixin):
     def post(self, request):
         data = json.loads(request.body)
+        
+        # Log input parameters
+        logger.info(
+            "GetRecentPostsView: Request received",
+            extra={
+                "userLatitude": data.get("userLatitude"),
+                "userLongitude": data.get("userLongitude"),
+                "distanceRadius": data.get("distanceRadius"),
+                "zipCode": data.get("zipCode"),
+                "species": data.get("species"),
+                "userId": data.get("userId"),
+            }
+        )
+        
         # The center of the circle to check, if given
         user_latitude = data.get("userLatitude")
         user_longitude = data.get("userLongitude")
@@ -276,6 +292,16 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
             post_data.append(current_data)
 
+        # Log response payload
+        logger.info(
+            "GetRecentPostsView: Returning response",
+            extra={
+                "post_count": len(post_data),
+                "has_next": paginator.get_next_link() is not None,
+                "has_previous": paginator.get_previous_link() is not None,
+            }
+        )
+        
         return paginator.get_paginated_response(post_data)
 
 
