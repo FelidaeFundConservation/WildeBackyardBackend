@@ -16,10 +16,10 @@ env_file = ROOT_DIR / ".env.gcp_dummy"
 # Create a minimal env dict to prevent Azure lookup
 os.environ.setdefault("DJANGO_SECRET_KEY", "temp-change-me-in-secret-manager")
 
-from .base import *  # noqa
-
 # Import Google Cloud Logging
 import google.cloud.logging as gcp_logging
+
+from .base import *  # noqa
 
 # HOSTS CONFIG
 # ------------------------------------------------------------------------------
@@ -117,8 +117,8 @@ ACCOUNT_EMAIL_VERIFICATION = "optional"
 # Initialize the Cloud Logging client
 gcp_logging_client = gcp_logging.Client()
 
-# Set up Cloud Logging handler
-gcp_logging_client.setup_logging()
+# Get the Cloud Logging handler
+cloud_handler = gcp_logging_client.get_default_handler()
 
 LOGGING = {
     "version": 1,
@@ -131,9 +131,21 @@ LOGGING = {
             "level": "INFO",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-        }
+        },
+        "cloud_logging": {
+            "level": "INFO",
+            "class": "google.cloud.logging.handlers.CloudLoggingHandler",
+            "client": gcp_logging_client,
+        },
     },
-    "root": {"level": "INFO", "handlers": ["console"]},
+    "root": {"level": "INFO", "handlers": ["console", "cloud_logging"]},
+    "loggers": {
+        "django": {
+            "handlers": ["console", "cloud_logging"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
 
 # MIDDLEWARE
