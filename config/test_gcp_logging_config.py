@@ -17,16 +17,14 @@ class TestGCPLoggingConfiguration(unittest.TestCase):
     def test_google_cloud_logging_import(self):
         """Test that google.cloud.logging can be imported."""
         try:
-            import google.cloud.logging as gcp_logging
-            self.assertTrue(True, "google.cloud.logging imported successfully")
+            import google.cloud.logging as gcp_logging  # noqa: F401
         except ImportError as e:
             self.fail(f"Failed to import google.cloud.logging: {e}")
 
     def test_request_middleware_import(self):
         """Test that RequestMiddleware can be imported."""
         try:
-            from google.cloud.logging_v2.handlers.middleware.request import RequestMiddleware
-            self.assertTrue(True, "RequestMiddleware imported successfully")
+            from google.cloud.logging_v2.handlers.middleware.request import RequestMiddleware  # noqa: F401
         except ImportError as e:
             self.fail(f"Failed to import RequestMiddleware: {e}")
 
