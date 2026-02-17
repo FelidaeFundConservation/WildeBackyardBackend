@@ -84,6 +84,35 @@ automatic_scaling:
 3. **Database:** Password is URL-encoded in WILDEBACKYARD_API_DATABASE_URL
 4. **Requirements:** Deploys from root so requirements.txt is included (installs gunicorn)
 5. **Storage:** Uses GCS via direct google.cloud.storage client, not Django storage backend
+6. **Logging:** Uses Google Cloud Logging for application and request logging
+
+## Logging Configuration
+
+The application uses Google Cloud Logging for centralized log aggregation:
+
+- **Library:** `google-cloud-logging` (version 3.11.3+)
+- **Middleware:** `google.cloud.logging_v2.handlers.middleware.request.RequestMiddleware`
+- **Configuration:** Configured in `config/settings/wildebackyard_api.py`
+
+**Features:**
+- Automatic log capture and forwarding to Google Cloud Console
+- HTTP request tracking with detailed metadata
+- Integration with GCP Error Reporting and Cloud Monitoring
+- Structured logging with trace correlation
+
+**View Logs:**
+```bash
+# View recent logs
+gcloud app logs read --service=wildebackyard-api --limit=50
+
+# View logs with specific severity
+gcloud app logs read --service=wildebackyard-api --level=ERROR
+
+# Follow logs in real-time
+gcloud app logs tail --service=wildebackyard-api
+```
+
+**View in Console:** https://console.cloud.google.com/logs/query
 
 ## Database Configuration
 
