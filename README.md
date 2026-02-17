@@ -16,7 +16,7 @@ This project uses [uv](https://github.com/astral-sh/uv) for fast and reliable Py
 - **PostgreSQL** database with Django ORM
 - **Pydantic** for data validation and serialization
 - **Django REST Framework** for API endpoints
-- **Google Cloud Platform** (GCP) for storage and deployment
+- **Google Cloud Platform** (GCP) for storage, deployment, and logging
 - **django-allauth** for authentication
 - **uv** for fast package management
 
