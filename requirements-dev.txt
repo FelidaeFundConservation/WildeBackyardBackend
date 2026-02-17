@@ -33,3 +33,6 @@ pytest-django==4.7.0
 pytest-cov==4.1.0
 coverage==7.4.1
 pyyaml
+
+# SQLite with better Spatialite support for GeoDjango tests
+pysqlite3-binary==0.5.2
