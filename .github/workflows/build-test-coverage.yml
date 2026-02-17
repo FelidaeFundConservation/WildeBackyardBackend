@@ -15,7 +15,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+        
+      - name: Update package list
+        run: sudo apt-get update
+        
+      - name: Install Git and Build Tools
+        # Use -y to automatically answer yes to prompts
+        run: sudo apt-get install -y gdal-bin libgdal-dev libsqlite3-mod-spatialite libspatialite-dev
+        
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

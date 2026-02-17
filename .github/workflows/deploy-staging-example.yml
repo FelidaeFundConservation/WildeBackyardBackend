@@ -55,6 +55,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
+        
+      - name: Update package list
+        run: sudo apt-get update
+        
+      - name: Install Git and Build Tools
+        # Use -y to automatically answer yes to prompts
+        run: sudo apt-get install -y gdal-bin libgdal-dev libsqlite3-mod-spatialite libspatialite-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -126,13 +133,21 @@ jobs:
     name: Build Validation
     runs-on: ubuntu-latest
     needs: test
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    #    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || 
+    if: ${{ always() }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
+        
+      - name: Update package list
+        run: sudo apt-get update
+        
+      - name: Install Git and Build Tools
+        # Use -y to automatically answer yes to prompts
+        run: sudo apt-get install -y gdal-bin libgdal-dev libsqlite3-mod-spatialite libspatialite-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -190,7 +205,8 @@ jobs:
     name: Deploy to App Engine
     runs-on: ubuntu-latest
     needs: [test, build]
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+#    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: ${{ always() }}
     environment:
       name: staging
 
@@ -199,6 +215,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
+        
+      - name: Update package list
+        run: sudo apt-get update
+        
+      - name: Install Git and Build Tools
+        # Use -y to automatically answer yes to prompts
+        run: sudo apt-get install -y gdal-bin libgdal-dev libsqlite3-mod-spatialite libspatialite-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -295,6 +318,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
+        
+      - name: Update package list
+        run: sudo apt-get update
+        
+      - name: Install Git and Build Tools
+        # Use -y to automatically answer yes to prompts
+        run: sudo apt-get install -y gdal-bin libgdal-dev libsqlite3-mod-spatialite libspatialite-dev
 
       - name: Set up Python
         uses: actions/setup-python@v5
