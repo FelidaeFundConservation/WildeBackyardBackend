@@ -5,6 +5,7 @@ import logging
 from io import BytesIO
 
 import requests
+import structlog
 from dateutil import parser
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -31,7 +32,8 @@ from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 User = get_user_model()
 
-logger = logging.getLogger(__name__)
+# Use structlog for structured logging with automatic extra dict capture
+logger = structlog.get_logger(__name__)
 
 
 def generate_signed_url(gcs_path, expiration=3600):
@@ -99,14 +101,12 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
     def post(self, request):
         data = json.loads(request.body)
 
-        # Log input parameters with full request body
+        # Log input parameters with full request body using structlog
         logger.info(
-            f"GetRecentPostsView: Request received with parameters: {json.dumps(data)}",
-            extra={
-                "request_data": data,
-                "http_method": request.method,
-                "path": request.path,
-            },
+            "GetRecentPostsView: Request received",
+            request_data=data,
+            http_method=request.method,
+            path=request.path,
         )
 
         # The center of the circle to check, if given
@@ -274,15 +274,13 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         # Create response
         response_data = paginator.get_paginated_response(post_data).data
 
-        # Log response payload with full data
+        # Log response payload with full data using structlog
         logger.info(
-            f"GetRecentPostsView: Returning {len(post_data)} posts",
-            extra={
-                "response_data": response_data,
-                "post_count": len(post_data),
-                "has_next": paginator.get_next_link() is not None,
-                "has_previous": paginator.get_previous_link() is not None,
-            },
+            "GetRecentPostsView: Returning posts",
+            response_data=response_data,
+            post_count=len(post_data),
+            has_next=paginator.get_next_link() is not None,
+            has_previous=paginator.get_previous_link() is not None,
         )
 
         return Response(response_data)
