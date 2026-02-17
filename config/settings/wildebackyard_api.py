@@ -113,14 +113,34 @@ ACCOUNT_EMAIL_VERIFICATION = "optional"
 
 # LOGGING
 # ------------------------------------------------------------------------------
-# Configure Google Cloud Logging
-# Initialize the Cloud Logging client and integrate with Python logging
+# Configure Google Cloud Logging with structlog
 import logging
 
+import structlog
+
+# Initialize Google Cloud Logging client
 gcp_logging_client = gcp_logging.Client()
-# This integrates Cloud Logging with Python's standard logging module
-# It will send all logs with level INFO and above to Cloud Logging
 gcp_logging_client.setup_logging(log_level=logging.INFO)
+
+# Configure structlog to work with Google Cloud Logging
+# This ensures extra dict parameters are properly captured as structured JSON
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_logger_name,
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        # Use JSONRenderer to ensure structured output
+        structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
 
 # Django's LOGGING configuration
 LOGGING = {
@@ -128,12 +148,16 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"},
+        "json": {
+            "()": structlog.stdlib.ProcessorFormatter,
+            "processor": structlog.processors.JSONRenderer(),
+        },
     },
     "handlers": {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
         },
     },
     "root": {"level": "INFO", "handlers": ["console"]},
