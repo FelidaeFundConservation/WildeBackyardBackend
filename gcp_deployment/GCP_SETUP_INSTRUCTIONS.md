@@ -31,6 +31,9 @@ gcloud projects add-iam-policy-binding wildepod-339517 \
     --member="serviceAccount:github-actions@wildepod-339517.iam.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
 
+# For detailed instructions on granting Secret Manager permissions via Google Cloud Console (UI),
+# see: GRANT_SECRET_MANAGER_PERMISSIONS.md
+
 # Storage Admin (for static files)
 gcloud projects add-iam-policy-binding wildepod-339517 \
     --member="serviceAccount:github-actions@wildepod-339517.iam.gserviceaccount.com" \
