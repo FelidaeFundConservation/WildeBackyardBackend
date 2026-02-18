@@ -283,9 +283,9 @@ jobs:
       - name: Run database migrations
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          WILDEBACKYARD_API_DB_PASSWORD: ${{ secrets.WILDEBACKYARD_API_DB_PASSWORD }}
         run: |
-          # Get database credentials
-          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
+          # Get Cloud SQL connection name
           CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           # Start Cloud SQL Proxy in background
@@ -295,11 +295,13 @@ jobs:
           # Wait for proxy to be ready
           sleep 10
 
-          # Set database URL
-          export PROD_DATABASE_URL="postgres://wildepod_staging_user:${DB_PASSWORD}@127.0.0.1:5440/wildepod_staging"
+          # Set database URL for migrations via proxy
+          # URL-encode the password for use in connection string
+          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote_plus('${WILDEBACKYARD_API_DB_PASSWORD}'))")
+          export WILDEBACKYARD_API_DATABASE_URL="postgres://wildepod_wildebackyard_api_user:${ENCODED_PASSWORD}@127.0.0.1:5440/wildebackyard_api_staging"
 
-          # Run migrations
-          python manage.py migrate --settings=config.settings.staging --noinput
+          # Run migrations with the same settings module as deployment
+          python manage.py migrate --settings=config.settings.wildebackyard_api --noinput
 
           # Stop proxy
           kill $PROXY_PID || true
@@ -309,21 +311,23 @@ jobs:
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
+          WILDEBACKYARD_API_DB_PASSWORD: ${{ secrets.WILDEBACKYARD_API_DB_PASSWORD }}
         run: |
           # Only for initial setup - will fail if superuser exists
-          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
           CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
           PROXY_PID=$!
           sleep 10
 
-          export PROD_DATABASE_URL="postgres://wildepod_staging_user:${DB_PASSWORD}@127.0.0.1:5440/wildepod_staging"
+          # URL-encode the password for use in connection string
+          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote_plus('${WILDEBACKYARD_API_DB_PASSWORD}'))")
+          export WILDEBACKYARD_API_DATABASE_URL="postgres://wildepod_wildebackyard_api_user:${ENCODED_PASSWORD}@127.0.0.1:5440/wildebackyard_api_staging"
 
           python manage.py createsuperuser --noinput \
             --username=admin \
             --email=admin@wildepod.org \
-            --settings=config.settings.staging || echo "Superuser already exists"
+            --settings=config.settings.wildebackyard_api || echo "Superuser already exists"
 
           kill $PROXY_PID || true
 
