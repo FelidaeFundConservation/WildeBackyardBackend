@@ -130,17 +130,11 @@ class MediaPost(TextComment):
     ##############################
     # PostGIS Spatial Fields
     ##############################
-    # Spatial point field for public location (uses SRID 4326 - WGS84)
+    # Spatial point field for true location (uses SRID 4326 - WGS84)
     # Automatically indexed by PostGIS
-    public_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
-
-    # Spatial point field for true location (private - obfuscated sightings)
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
+    # THIS IS THE CANONICAL SOURCE FOR ALL LOCATION DATA
+    # Privacy transformations are applied during data retrieval, not storage
     true_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
-
-    # Spatial point field for private location
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
-    private_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
 
 
 # Model to handle reports for inappropriate content

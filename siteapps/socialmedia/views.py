@@ -649,18 +649,12 @@ class PostViewValidation:
         if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
             kwargs["public_location_latitude"] = latitude
             kwargs["public_location_longitude"] = longitude
-            # Set spatial field for public location (for backward compatibility)
-            if latitude is not None and longitude is not None:
-                kwargs["public_location_spatial"] = Point(longitude, latitude, srid=4326)
         elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
             kwargs.update(obfuscation_box_corners_dict)
         elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
             kwargs["private_location_latitude"] = latitude
             kwargs["private_location_longitude"] = longitude
-            # Set spatial field for private location (for backward compatibility)
-            if latitude is not None and longitude is not None:
-                kwargs["private_location_spatial"] = Point(longitude, latitude, srid=4326)
 
         # Return the array for validation purposes
         return obfuscation_box_corners_array
