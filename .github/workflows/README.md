@@ -1,0 +1,97 @@
+# GitHub Actions Workflows
+
+## Reusable Workflows
+
+### build-test-coverage.yml
+
+This is a **reusable workflow** that performs building, testing, and code coverage checks. It can be called from other workflows to avoid code duplication.
+
+#### Features
+
+- Python environment setup
+- Install GDAL and spatial libraries
+- Install project dependencies
+- Run linting with flake8
+- Run security checks with bandit
+- Check for hardcoded secrets
+- Run pytest tests
+- Upload test results and coverage reports
+- Comment coverage on pull requests
+- Enforce coverage threshold (70%)
+
+#### Usage
+
+To use this reusable workflow in another workflow, add it as a job:
+
+```yaml
+jobs:
+  test:
+    uses: ./.github/workflows/build-test-coverage.yml
+    with:
+      branch: ${{ github.ref }}           # Optional: branch or commit SHA to test
+      skip_tests: false                    # Optional: skip test execution
+    secrets: inherit                       # Required: pass all secrets to reusable workflow
+```
+
+#### Inputs
+
+| Input | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `branch` | string | No | `''` | Branch or commit SHA to test. Defaults to the triggering ref. |
+| `skip_tests` | boolean | No | `false` | Whether to skip test execution. |
+
+#### Secrets
+
+The workflow requires access to repository secrets. Use `secrets: inherit` to pass all secrets to the reusable workflow.
+
+Required secrets:
+- `GCP_PROJECT_ID` - Google Cloud Project ID
+- `WEBSITE_HOSTNAME` - Website hostname for testing
+
+#### Standalone Usage
+
+This workflow can also run standalone on:
+- Push to `main` branch
+- Pull requests
+- Manual workflow dispatch
+
+## Example: deploy-staging-example.yml
+
+The `deploy-staging-example.yml` workflow demonstrates how to use the reusable `build-test-coverage.yml` workflow:
+
+```yaml
+jobs:
+  # Use the reusable test workflow
+  test:
+    uses: ./.github/workflows/build-test-coverage.yml
+    with:
+      branch: ${{ github.event.inputs.branch || github.ref }}
+      skip_tests: ${{ github.event.inputs.skip_tests == 'true' }}
+    secrets: inherit
+
+  # Build job depends on test completion
+  build:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    needs: test
+    # ... build steps ...
+
+  # Deploy job depends on both test and build
+  deploy:
+    name: Deploy to App Engine
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    # ... deployment steps ...
+```
+
+## Benefits of Reusable Workflows
+
+1. **DRY Principle**: Write once, use many times
+2. **Consistency**: Same test process across all workflows
+3. **Maintainability**: Update tests in one place
+4. **Modularity**: Compose complex workflows from simple, reusable pieces
+
+## References
+
+- [GitHub Actions: Reusing Workflows](https://docs.github.com/en/actions/using-workflows/reusing-workflows)
+- [GitHub Actions: Workflow syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
