@@ -64,22 +64,30 @@ This workflow deploys the application to Google Cloud Platform App Engine (stagi
 | `GCP_SA_KEY` | Service account JSON key for GCP authentication | Full JSON key file content |
 | `GCP_PROJECT_ID` | Google Cloud Project ID | `wildepod-339517` |
 | `DJANGO_SECRET_KEY` | Django secret key for settings | Random 50+ character string |
-| `WILDEBACKYARD_API_DB_PASSWORD` | Database password (URL-decoded) | `/REDACTED=` |
 | `DJANGO_SUPERUSER_PASSWORD` | Admin user password for initial setup | Strong password |
 | `WEBSITE_HOSTNAME` | Website hostname | Used in settings |
 
-**Important Notes:**
-- `WILDEBACKYARD_API_DB_PASSWORD` should be the URL-decoded password (not URL-encoded)
-- The workflow will URL-encode it automatically when constructing the database URL
-- This password must match the password in `app.yaml`'s `WILDEBACKYARD_API_DATABASE_URL`
+### Database Password Configuration
 
-**Alternative: Using Google Secret Manager (Recommended for Production)**
+**This workflow uses Google Secret Manager** for database password storage (recommended for production).
 
-For better security, you can use Google Secret Manager instead of GitHub Secrets:
-- Store the database password in Google Secret Manager as `staging_db_password`
-- Grant the service account `roles/secretmanager.secretAccessor` permission
-- See detailed instructions: [gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md](../../gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md)
-- Benefits: Centralized secret management, better audit trail, easier credential rotation
+**Setup Required:**
+1. **Grant Secret Manager permissions** to the service account:
+   - Role: `roles/secretmanager.secretAccessor`
+   - See detailed instructions: [gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md](../../gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md)
+
+2. **Create secret in Google Secret Manager**:
+   - Secret name: `staging_db_password`
+   - Secret value: Your database password
+   - Via Console: Security → Secret Manager → Create Secret
+   - Via CLI: `echo -n "PASSWORD" | gcloud secrets create staging_db_password --data-file=-`
+
+**Benefits of Secret Manager:**
+- ✅ Centralized secret management - all GCP secrets in one place
+- ✅ Better security - secrets never leave GCP environment
+- ✅ Audit trail - all secret access is logged
+- ✅ Easier credential rotation - change in one place
+- ✅ Follows GCP best practices
 
 ### Workflow Jobs
 
