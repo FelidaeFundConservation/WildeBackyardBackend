@@ -324,7 +324,7 @@ jobs:
           # Get database password from Google Secret Manager
           DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
           
-          CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
+          CONNECTION_NAME=$(gcloud sql instances describe wildepoddb --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
           PROXY_PID=$!
