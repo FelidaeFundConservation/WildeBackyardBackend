@@ -73,6 +73,14 @@ This workflow deploys the application to Google Cloud Platform App Engine (stagi
 - The workflow will URL-encode it automatically when constructing the database URL
 - This password must match the password in `app.yaml`'s `WILDEBACKYARD_API_DATABASE_URL`
 
+**Alternative: Using Google Secret Manager (Recommended for Production)**
+
+For better security, you can use Google Secret Manager instead of GitHub Secrets:
+- Store the database password in Google Secret Manager as `staging_db_password`
+- Grant the service account `roles/secretmanager.secretAccessor` permission
+- See detailed instructions: [gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md](../../gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md)
+- Benefits: Centralized secret management, better audit trail, easier credential rotation
+
 ### Workflow Jobs
 
 1. **test**: Runs the reusable build-test-coverage workflow
