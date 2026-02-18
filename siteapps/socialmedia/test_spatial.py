@@ -40,7 +40,7 @@ class SpatialFieldsTestCase(TestCase):
         self.species = SpeciesName.objects.create(name="Gray Wolf", scientific_name="Canis lupus")
 
     def test_public_location_spatial_field_created(self):
-        """Test that public_location_spatial is created for public posts"""
+        """Test that both public_location_spatial and true_location_spatial are created for public posts"""
         post_data = {
             "postTitle": "Wolf Sighting",
             "privacySetting": "public",
@@ -63,15 +63,22 @@ class SpatialFieldsTestCase(TestCase):
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.public_location_spatial)
+        # NEW: true_location_spatial should also be set for public posts
+        self.assertIsNotNone(post.true_location_spatial)
 
         # Verify the spatial field has correct coordinates
         # Note: Point is (longitude, latitude) - order matters!
         expected_point = Point(-122.6765, 45.5231, srid=4326)
         self.assertEqual(post.public_location_spatial, expected_point)
+        # NEW: true_location_spatial should match for public posts
+        self.assertEqual(post.true_location_spatial, expected_point)
 
         # Verify latitude and longitude are correct
         self.assertAlmostEqual(post.public_location_spatial.y, 45.5231, places=4)
         self.assertAlmostEqual(post.public_location_spatial.x, -122.6765, places=4)
+        # NEW: true_location should match for public posts
+        self.assertAlmostEqual(post.true_location_spatial.y, 45.5231, places=4)
+        self.assertAlmostEqual(post.true_location_spatial.x, -122.6765, places=4)
 
     def test_true_location_spatial_field_created(self):
         """Test that true_location_spatial is created for obscured posts"""
@@ -119,7 +126,7 @@ class SpatialFieldsTestCase(TestCase):
         self.assertAlmostEqual(post.true_location_spatial.x, -122.3321, places=4)
 
     def test_private_location_spatial_field_created(self):
-        """Test that private_location_spatial is created for private posts"""
+        """Test that both private_location_spatial and true_location_spatial are created for private posts"""
         post_data = {
             "postTitle": "Wolf Sighting - Private",
             "privacySetting": "private",
@@ -142,14 +149,21 @@ class SpatialFieldsTestCase(TestCase):
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.private_location_spatial)
+        # NEW: true_location_spatial should also be set for private posts
+        self.assertIsNotNone(post.true_location_spatial)
 
         # Verify the spatial field has correct coordinates
         expected_point = Point(-74.0060, 40.7128, srid=4326)
         self.assertEqual(post.private_location_spatial, expected_point)
+        # NEW: true_location_spatial should match for private posts
+        self.assertEqual(post.true_location_spatial, expected_point)
 
         # Verify latitude and longitude are correct
         self.assertAlmostEqual(post.private_location_spatial.y, 40.7128, places=4)
         self.assertAlmostEqual(post.private_location_spatial.x, -74.0060, places=4)
+        # NEW: true_location should match for private posts
+        self.assertAlmostEqual(post.true_location_spatial.y, 40.7128, places=4)
+        self.assertAlmostEqual(post.true_location_spatial.x, -74.0060, places=4)
 
     def test_spatial_field_srid(self):
         """Test that spatial fields use correct SRID (4326 - WGS84)"""
