@@ -12,6 +12,9 @@
 # 2. Verify GCP_PROJECT_ID secret is set
 # 3. Ensure staging.yaml file exists and is properly configured
 # 4. Set up Cloud SQL instance and database secrets
+# 5. Configure WILDEBACKYARD_API_DB_PASSWORD secret (URL-decoded password)
+#    - This should match the password in app.yaml's WILDEBACKYARD_API_DATABASE_URL
+#    - The workflow will URL-encode it automatically for the connection string
 #
 # For manual deployment, see: GCP_DEPLOYMENT_REFERENCE.md
 
