@@ -48,6 +48,56 @@ Required secrets:
 - `GCP_PROJECT_ID` - Google Cloud Project ID
 - `WEBSITE_HOSTNAME` - Website hostname for testing
 
+## deploy-staging.yml
+
+This workflow deploys the application to Google Cloud Platform App Engine (staging environment).
+
+### Trigger
+
+- **Manual only** via workflow_dispatch
+- Allows specifying branch and whether to skip tests
+
+### Required GitHub Secrets
+
+| Secret | Description | Example/Notes |
+|--------|-------------|---------------|
+| `GCP_SA_KEY` | Service account JSON key for GCP authentication | Full JSON key file content |
+| `GCP_PROJECT_ID` | Google Cloud Project ID | `wildepod-339517` |
+| `DJANGO_SECRET_KEY` | Django secret key for settings | Random 50+ character string |
+| `DJANGO_SUPERUSER_PASSWORD` | Admin user password for initial setup | Strong password |
+| `WEBSITE_HOSTNAME` | Website hostname | Used in settings |
+
+### Database Password Configuration
+
+**This workflow uses Google Secret Manager** for database password storage (recommended for production).
+
+**Setup Required:**
+1. **Grant Secret Manager permissions** to the service account:
+   - Role: `roles/secretmanager.secretAccessor`
+   - See detailed instructions: [gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md](../../gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md)
+
+2. **Create secret in Google Secret Manager**:
+   - Secret name: `staging_db_password`
+   - Secret value: Your database password
+   - Via Console: Security → Secret Manager → Create Secret
+   - Via CLI: `echo -n "PASSWORD" | gcloud secrets create staging_db_password --data-file=-`
+
+**Benefits of Secret Manager:**
+- ✅ Centralized secret management - all GCP secrets in one place
+- ✅ Better security - secrets never leave GCP environment
+- ✅ Audit trail - all secret access is logged
+- ✅ Easier credential rotation - change in one place
+- ✅ Follows GCP best practices
+
+### Workflow Jobs
+
+1. **test**: Runs the reusable build-test-coverage workflow
+2. **build**: Validates GCP credentials, app.yaml, and Cloud SQL instance
+3. **deploy**: Deploys to App Engine with no-promote flag
+4. **migrate**: Runs database migrations using Cloud SQL Proxy
+5. **smoke-test**: Health checks and promotes version if successful
+6. **notify**: Sends deployment status notification
+
 #### Standalone Usage
 
 This workflow can also run standalone on:
