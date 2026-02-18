@@ -294,7 +294,7 @@ jobs:
           DB_PASSWORD=$(gcloud secrets versions access latest --secret="wildebackyard_api_db_password" --project=$GCP_PROJECT_ID)
           
           # Get Cloud SQL connection name
-          CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
+          CONNECTION_NAME=$(gcloud sql instances describe wildebackyard_api_staging --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           # Start Cloud SQL Proxy in background
           ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
