@@ -226,17 +226,17 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             }
 
             if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+                # Use true_location as the source field - no perturbation for public
                 current_data.update(
                     {
                         "geocoded_location": geocoded_location,
-                        "latitude": post.public_location_latitude,
-                        "longitude": post.public_location_longitude,
+                        "latitude": post.true_location_latitude,
+                        "longitude": post.true_location_longitude,
                         "accuracy": post.accuracy_ring_radius_meters,
                     }
                 )
             elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
-                # WARNING: Don't send true location for obscured.
-                # Calculate randomly offset coordinates based on obfuscation range
+                # Use true_location as source, but perturb it randomly within obfuscationKilometers diameter
                 offset_lat, offset_lon = calculate_offset_coordinates(
                     post.true_location_latitude,
                     post.true_location_longitude,
@@ -259,8 +259,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                     }
                 )
             elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
-                # WARNING: Don't send any location data for private.
-                # Return center of continental US coordinates
+                # Return center of lower 48 states (continental US)
                 center_lat, center_lon = get_continental_us_center()
                 current_data.update(
                     {
@@ -640,25 +639,26 @@ class PostViewValidation:
             "obfuscation_box_corner_4_longitude": data.get("corner4Longitude"),
         }
 
+        # ALWAYS set true_location_spatial and true_location lat/lng regardless of privacy setting
+        kwargs["true_location_latitude"] = latitude
+        kwargs["true_location_longitude"] = longitude
+        if latitude is not None and longitude is not None:
+            kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
+
         # Set geoprivacy-specific keyword args
         if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
             kwargs["public_location_latitude"] = latitude
             kwargs["public_location_longitude"] = longitude
-            # Set spatial field for public location
+            # Set spatial field for public location (for backward compatibility)
             if latitude is not None and longitude is not None:
                 kwargs["public_location_spatial"] = Point(longitude, latitude, srid=4326)
         elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
-            kwargs["true_location_latitude"] = latitude
-            kwargs["true_location_longitude"] = longitude
             kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
             kwargs.update(obfuscation_box_corners_dict)
-            # Set spatial field for true location
-            if latitude is not None and longitude is not None:
-                kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
         elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
             kwargs["private_location_latitude"] = latitude
             kwargs["private_location_longitude"] = longitude
-            # Set spatial field for private location
+            # Set spatial field for private location (for backward compatibility)
             if latitude is not None and longitude is not None:
                 kwargs["private_location_spatial"] = Point(longitude, latitude, srid=4326)
 
