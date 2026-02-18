@@ -2,9 +2,8 @@ name: Build, Test, and Coverage
 
 on:
   push:
-    branches: [ main, johnnovak/add_tests_and_fixes, copilot/add-media-upload-to-cloud ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, johnnovak/add_tests_and_fixes ]
   workflow_dispatch:
   
 env:
