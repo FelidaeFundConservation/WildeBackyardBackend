@@ -31,11 +31,22 @@ DATABASES = {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": env.str("DB_NAME", "wildebackyard"),
         "USER": env.str("DB_USER", "jnovak"),
+        # For local development, use Unix socket (peer auth) - no HOST/PORT
+        # To use TCP connection, set DB_HOST in .env and provide DB_PASSWORD
         "PASSWORD": env.str("DB_PASSWORD", ""),
-        "HOST": env.str("DB_HOST", "localhost"),
-        "PORT": env.str("DB_PORT", "5432"),
+        "HOST": env.str("DB_HOST", ""),  # Empty string = Unix socket
+        "PORT": env.str("DB_PORT", ""),
+        "TEST": {
+            # Use template_postgis if available, otherwise Django will create PostGIS extension
+            "TEMPLATE": "template_postgis",
+        },
     }
 }
+
+# Ensure PostGIS extension is created during test database creation
+# This is handled automatically by Django's PostGIS backend
+# If you manually drop test_wildebackyard, run:
+# psql -h localhost -p 5432 -U jnovak -d postgres -c "CREATE DATABASE test_wildebackyard TEMPLATE template_postgis;"
 
 
 # MEDIA

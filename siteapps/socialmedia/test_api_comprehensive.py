@@ -10,8 +10,7 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
-from siteapps.socialmedia.models import (InappropriateContentReport, Media,
-                                         MediaPost, TextComment)
+from siteapps.socialmedia.models import InappropriateContentReport, Media, MediaPost, TextComment
 from siteapps.species.models import SpeciesName
 from siteapps.users.models import BannedEmail
 
@@ -41,9 +40,7 @@ class SocialMediaAPITestCase(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
         # Create test species
-        self.species = SpeciesName.objects.create(
-            name="Acorn Woodpecker", scientific_name="Melanerpes formicivorus"
-        )
+        self.species = SpeciesName.objects.create(name="Acorn Woodpecker", scientific_name="Melanerpes formicivorus")
 
         # Create test post data
         self.create_post_data = {
@@ -59,9 +56,7 @@ class SocialMediaAPITestCase(TestCase):
 
     def test_create_post_without_media(self):
         """Test creating a post without media"""
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", self.create_post_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", self.create_post_data, format="json")
         # API may require media files
         self.assertIn(response.status_code, [200, 201, 400])
 
@@ -116,9 +111,7 @@ class SocialMediaAPITestCase(TestCase):
 
         # Skip due to API signature issue with LatLngValidationMixin
         self.skipTest("API has signature issue with validate_latitude_longitude")
-        response = self.client.post(
-            "/v1/socialmedia/api/feed/get/", data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/feed/get/", data, format="json")
         self.assertEqual(response.status_code, 200)
         results = response.json()["results"]
         # Should only return nearby post
@@ -137,9 +130,7 @@ class SocialMediaAPITestCase(TestCase):
         )
 
         data = {"zipCode": "90001"}
-        response = self.client.post(
-            "/v1/socialmedia/api/feed/get/", data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/feed/get/", data, format="json")
         self.assertEqual(response.status_code, 200)
         results = response.json()["results"]
         self.assertGreaterEqual(len(results), 1)
@@ -157,9 +148,7 @@ class SocialMediaAPITestCase(TestCase):
         )
 
         data = {"species": "Acorn Woodpecker"}
-        response = self.client.post(
-            "/v1/socialmedia/api/feed/get/", data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/feed/get/", data, format="json")
         self.assertEqual(response.status_code, 200)
 
     def test_edit_post(self):
@@ -180,9 +169,7 @@ class SocialMediaAPITestCase(TestCase):
             "newPostTitle": "Updated Title",
         }
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/edit/", edit_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/edit/", edit_data, format="json")
         # May require additional fields
         self.assertIn(response.status_code, [200, 400])
 
@@ -212,9 +199,7 @@ class SocialMediaAPITestCase(TestCase):
             "newPostTitle": "Hacked",
         }
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/edit/", edit_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/edit/", edit_data, format="json")
         # Should be denied - not owner (could be 400 or 403)
         self.assertIn(response.status_code, [400, 403])
 
@@ -276,9 +261,7 @@ class SocialMediaAPITestCase(TestCase):
 
         comment_data = {"parentPostId": str(post.id), "commentText": "Great sighting!"}
 
-        response = self.client.post(
-            "/v1/socialmedia/api/comments/create/", comment_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/comments/create/", comment_data, format="json")
         self.assertIn(response.status_code, [200, 201])
 
         # Verify comment was created
@@ -343,9 +326,7 @@ class SocialMediaAPITestCase(TestCase):
 
         # Create multiple comments
         for i in range(15):
-            comment = TextComment.objects.create(
-                created_by=self.user, text_content=f"Comment {i}"
-            )
+            comment = TextComment.objects.create(created_by=self.user, text_content=f"Comment {i}")
             post.replies.add(comment)
 
         # Get first page
@@ -369,44 +350,32 @@ class SocialMediaAPITestCase(TestCase):
         self.assertTrue(response_page_2.data["has_previous"])
 
         # Ensure comments are unique across pages
-        first_page_comments = {
-            comment["id"] for comment in response_page_1.data["comments"]
-        }
-        second_page_comments = {
-            comment["id"] for comment in response_page_2.data["comments"]
-        }
+        first_page_comments = {comment["id"] for comment in response_page_1.data["comments"]}
+        second_page_comments = {comment["id"] for comment in response_page_2.data["comments"]}
         self.assertTrue(first_page_comments.isdisjoint(second_page_comments))
 
     def test_banned_user_create_media_post(self):
         """Test that banned users cannot create posts"""
         BannedEmail.objects.create(email=self.user.email)
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", self.create_post_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", self.create_post_data, format="json")
 
         self.assertEqual(response.status_code, 405)
-        self.assertFalse(
-            MediaPost.objects.filter(created_by__email=self.user.email).exists()
-        )
+        self.assertFalse(MediaPost.objects.filter(created_by__email=self.user.email).exists())
 
     def test_create_post_invalid_coordinates(self):
         """Test that invalid coordinates are rejected"""
         invalid_data = self.create_post_data.copy()
         invalid_data["publicLocationLatitude"] = 200  # Invalid latitude
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", invalid_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", invalid_data, format="json")
         self.assertEqual(response.status_code, 400)
 
     def test_create_post_missing_required_fields(self):
         """Test that missing required fields are rejected"""
         incomplete_data = {"title": "Just a title"}
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", incomplete_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", incomplete_data, format="json")
         self.assertEqual(response.status_code, 400)
 
     def test_unauthenticated_can_create_post(self):
@@ -416,7 +385,7 @@ class SocialMediaAPITestCase(TestCase):
         # Create valid post data with proper field names
         post_data = {
             "postTitle": "Anonymous Sighting",
-            "privacySetting": "1",
+            "privacySetting": "public",
             "latitude": 34.0522,
             "longitude": -118.2437,
             "accuracyMeters": 100,
@@ -424,9 +393,7 @@ class SocialMediaAPITestCase(TestCase):
             "geocodedLocationCountry": "USA",
         }
 
-        response = client.post(
-            "/v1/socialmedia/api/posts/create/", post_data, format="json"
-        )
+        response = client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
         self.assertEqual(response.status_code, 201)
 
         # Verify the post was created with null creator
@@ -447,7 +414,7 @@ class SocialMediaAPITestCase(TestCase):
         # Create valid post data with proper field names
         post_data = {
             "postTitle": "Test Sighting",
-            "privacySetting": "1",
+            "privacySetting": "public",
             "latitude": 34.0522,
             "longitude": -118.2437,
             "accuracyMeters": 100,
@@ -456,9 +423,7 @@ class SocialMediaAPITestCase(TestCase):
             "userId": other_user.id,
         }
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", post_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
         self.assertEqual(response.status_code, 201)
 
         # Verify the post was created with the specified user
@@ -471,7 +436,7 @@ class SocialMediaAPITestCase(TestCase):
         # Create valid post data without userId
         post_data = {
             "postTitle": "Another Test Sighting",
-            "privacySetting": "1",
+            "privacySetting": "public",
             "latitude": 34.0522,
             "longitude": -118.2437,
             "accuracyMeters": 100,
@@ -479,15 +444,14 @@ class SocialMediaAPITestCase(TestCase):
             "geocodedLocationCountry": "USA",
         }
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", post_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
+        if response.status_code != 201:
+            print(f"Response status: {response.status_code}")
+            print(f"Response content: {response.content}")
         self.assertEqual(response.status_code, 201)
 
         # Verify the post was created with the authenticated user
-        posts = MediaPost.objects.filter(
-            created_by=self.user, title="Another Test Sighting"
-        )
+        posts = MediaPost.objects.filter(created_by=self.user, title="Another Test Sighting")
         self.assertEqual(posts.count(), 1)
 
     def test_staff_create_post_with_invalid_userid_returns_404(self):
@@ -498,7 +462,7 @@ class SocialMediaAPITestCase(TestCase):
 
         post_data = {
             "postTitle": "Test Sighting",
-            "privacySetting": "1",
+            "privacySetting": "public",
             "latitude": 34.0522,
             "longitude": -118.2437,
             "accuracyMeters": 100,
@@ -507,9 +471,7 @@ class SocialMediaAPITestCase(TestCase):
             "userId": 99999,  # Non-existent user ID
         }
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", post_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
         self.assertEqual(response.status_code, 404)
         self.assertIn("error", response.json())
 
@@ -526,7 +488,7 @@ class SocialMediaAPITestCase(TestCase):
 
         post_data = {
             "postTitle": "Test Sighting",
-            "privacySetting": "1",
+            "privacySetting": "public",
             "latitude": 34.0522,
             "longitude": -118.2437,
             "accuracyMeters": 100,
@@ -535,9 +497,7 @@ class SocialMediaAPITestCase(TestCase):
             "userId": other_user.id,
         }
 
-        response = self.client.post(
-            "/v1/socialmedia/api/posts/create/", post_data, format="json"
-        )
+        response = self.client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
         self.assertEqual(response.status_code, 403)
         self.assertIn("error", response.json())
         self.assertIn("permission", response.json()["error"].lower())
@@ -553,7 +513,7 @@ class SocialMediaAPITestCase(TestCase):
 
         post_data = {
             "postTitle": "Test Sighting",
-            "privacySetting": "1",
+            "privacySetting": "public",
             "latitude": 34.0522,
             "longitude": -118.2437,
             "accuracyMeters": 100,
@@ -562,17 +522,14 @@ class SocialMediaAPITestCase(TestCase):
             "userId": target_user.id,
         }
 
-        response = client.post(
-            "/v1/socialmedia/api/posts/create/", post_data, format="json"
-        )
+        response = client.post("/v1/socialmedia/api/posts/create/", post_data, format="json")
         self.assertEqual(response.status_code, 403)
         self.assertIn("error", response.json())
         self.assertIn("authentication", response.json()["error"].lower())
 
     def test_privacy_based_location_return(self):
         """Test that lat/lon is returned based on privacy setting"""
-        from siteapps.socialmedia.geo_utils import (CONTINENTAL_US_CENTER_LAT,
-                                                    CONTINENTAL_US_CENTER_LON)
+        from siteapps.socialmedia.geo_utils import CONTINENTAL_US_CENTER_LAT, CONTINENTAL_US_CENTER_LON
 
         # Create public post
         public_post = MediaPost.objects.create(
@@ -626,9 +583,7 @@ class SocialMediaAPITestCase(TestCase):
         self.assertIn("latitude", obscured_data)
         self.assertIn("longitude", obscured_data)
         # Should not match the true location exactly
-        is_offset = (obscured_data["latitude"] != 34.0522) or (
-            obscured_data["longitude"] != -118.2437
-        )
+        is_offset = (obscured_data["latitude"] != 34.0522) or (obscured_data["longitude"] != -118.2437)
         self.assertTrue(
             is_offset,
             "Obscured post should return offset coordinates, not true location",
