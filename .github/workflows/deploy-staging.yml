@@ -11,10 +11,13 @@
 # 1. Ensure GCP_SA_KEY secret is configured with service account credentials
 # 2. Verify GCP_PROJECT_ID secret is set
 # 3. Ensure staging.yaml file exists and is properly configured
-# 4. Set up Cloud SQL instance and database secrets
-# 5. Configure WILDEBACKYARD_API_DB_PASSWORD secret (URL-decoded password)
-#    - This should match the password in app.yaml's WILDEBACKYARD_API_DATABASE_URL
-#    - The workflow will URL-encode it automatically for the connection string
+# 4. Set up Cloud SQL instance and database
+# 5. Grant Secret Manager permissions to the service account:
+#    - Role: roles/secretmanager.secretAccessor
+#    - See: gcp_deployment/GRANT_SECRET_MANAGER_PERMISSIONS.md for detailed instructions
+# 6. Create secret in Google Secret Manager:
+#    - Name: staging_db_password
+#    - Value: Your database password
 #
 # For manual deployment, see: GCP_DEPLOYMENT_REFERENCE.md
 
@@ -286,8 +289,10 @@ jobs:
       - name: Run database migrations
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          WILDEBACKYARD_API_DB_PASSWORD: ${{ secrets.WILDEBACKYARD_API_DB_PASSWORD }}
         run: |
+          # Get database password from Google Secret Manager
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
+          
           # Get Cloud SQL connection name
           CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
@@ -300,7 +305,7 @@ jobs:
 
           # Set database URL for migrations via proxy
           # URL-encode the password for use in connection string
-          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote_plus('${WILDEBACKYARD_API_DB_PASSWORD}'))")
+          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote_plus('${DB_PASSWORD}'))")
           export WILDEBACKYARD_API_DATABASE_URL="postgres://wildepod_wildebackyard_api_user:${ENCODED_PASSWORD}@127.0.0.1:5440/wildebackyard_api_staging"
 
           # Run migrations with the same settings module as deployment
@@ -314,9 +319,11 @@ jobs:
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
           DJANGO_SUPERUSER_PASSWORD: ${{ secrets.DJANGO_SUPERUSER_PASSWORD }}
-          WILDEBACKYARD_API_DB_PASSWORD: ${{ secrets.WILDEBACKYARD_API_DB_PASSWORD }}
         run: |
           # Only for initial setup - will fail if superuser exists
+          # Get database password from Google Secret Manager
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
+          
           CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
@@ -324,7 +331,7 @@ jobs:
           sleep 10
 
           # URL-encode the password for use in connection string
-          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote_plus('${WILDEBACKYARD_API_DB_PASSWORD}'))")
+          ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote_plus('${DB_PASSWORD}'))")
           export WILDEBACKYARD_API_DATABASE_URL="postgres://wildepod_wildebackyard_api_user:${ENCODED_PASSWORD}@127.0.0.1:5440/wildebackyard_api_staging"
 
           python manage.py createsuperuser --noinput \
