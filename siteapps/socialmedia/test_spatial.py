@@ -3,7 +3,6 @@ Tests for GeoDjango PostGIS spatial functionality
 """
 
 import json
-from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
@@ -32,18 +31,13 @@ class SpatialFieldsTestCase(TestCase):
         # Create API client
         self.client = APIClient()
         login_response = self.client.post(
-            "/v1/users/login/",
-            {"email": self.test_email, "password": self.test_password},
-            format="json"
+            "/v1/users/login/", {"email": self.test_email, "password": self.test_password}, format="json"
         )
         token = json.loads(login_response.content)["key"]
         self.client.credentials(HTTP_AUTHORIZATION="Token " + token)
 
         # Create test species
-        self.species = SpeciesName.objects.create(
-            name="Gray Wolf",
-            scientific_name="Canis lupus"
-        )
+        self.species = SpeciesName.objects.create(name="Gray Wolf", scientific_name="Canis lupus")
 
     def test_public_location_spatial_field_created(self):
         """Test that public_location_spatial is created for public posts"""
@@ -59,27 +53,22 @@ class SpatialFieldsTestCase(TestCase):
         }
 
         response = self.client.post(
-            "/v1/socialmedia/posts/create/",
-            json.dumps(post_data),
-            content_type="application/json"
+            "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 201)
 
         # Get the created post
-        post = MediaPost.objects.filter(
-            public_location_latitude=45.5231,
-            public_location_longitude=-122.6765
-        ).first()
+        post = MediaPost.objects.filter(public_location_latitude=45.5231, public_location_longitude=-122.6765).first()
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.public_location_spatial)
-        
+
         # Verify the spatial field has correct coordinates
         # Note: Point is (longitude, latitude) - order matters!
         expected_point = Point(-122.6765, 45.5231, srid=4326)
         self.assertEqual(post.public_location_spatial, expected_point)
-        
+
         # Verify latitude and longitude are correct
         self.assertAlmostEqual(post.public_location_spatial.y, 45.5231, places=4)
         self.assertAlmostEqual(post.public_location_spatial.x, -122.6765, places=4)
@@ -107,26 +96,24 @@ class SpatialFieldsTestCase(TestCase):
         }
 
         response = self.client.post(
-            "/v1/socialmedia/posts/create/",
-            json.dumps(post_data),
-            content_type="application/json"
+            "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
         )
 
+        if response.status_code != 201:
+            print(f"Response status: {response.status_code}")
+            print(f"Response content: {response.content}")
         self.assertEqual(response.status_code, 201)
 
         # Get the created post
-        post = MediaPost.objects.filter(
-            true_location_latitude=47.6062,
-            true_location_longitude=-122.3321
-        ).first()
+        post = MediaPost.objects.filter(true_location_latitude=47.6062, true_location_longitude=-122.3321).first()
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.true_location_spatial)
-        
+
         # Verify the spatial field has correct coordinates
         expected_point = Point(-122.3321, 47.6062, srid=4326)
         self.assertEqual(post.true_location_spatial, expected_point)
-        
+
         # Verify latitude and longitude are correct
         self.assertAlmostEqual(post.true_location_spatial.y, 47.6062, places=4)
         self.assertAlmostEqual(post.true_location_spatial.x, -122.3321, places=4)
@@ -145,26 +132,21 @@ class SpatialFieldsTestCase(TestCase):
         }
 
         response = self.client.post(
-            "/v1/socialmedia/posts/create/",
-            json.dumps(post_data),
-            content_type="application/json"
+            "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 201)
 
         # Get the created post
-        post = MediaPost.objects.filter(
-            private_location_latitude=40.7128,
-            private_location_longitude=-74.0060
-        ).first()
+        post = MediaPost.objects.filter(private_location_latitude=40.7128, private_location_longitude=-74.0060).first()
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.private_location_spatial)
-        
+
         # Verify the spatial field has correct coordinates
         expected_point = Point(-74.0060, 40.7128, srid=4326)
         self.assertEqual(post.private_location_spatial, expected_point)
-        
+
         # Verify latitude and longitude are correct
         self.assertAlmostEqual(post.private_location_spatial.y, 40.7128, places=4)
         self.assertAlmostEqual(post.private_location_spatial.x, -74.0060, places=4)
@@ -182,17 +164,12 @@ class SpatialFieldsTestCase(TestCase):
         }
 
         response = self.client.post(
-            "/v1/socialmedia/posts/create/",
-            json.dumps(post_data),
-            content_type="application/json"
+            "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 201)
 
-        post = MediaPost.objects.filter(
-            public_location_latitude=51.5074,
-            public_location_longitude=-0.1278
-        ).first()
+        post = MediaPost.objects.filter(public_location_latitude=51.5074, public_location_longitude=-0.1278).first()
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.public_location_spatial)
@@ -208,7 +185,7 @@ class SpatialFieldsTestCase(TestCase):
             geoprivacy="public",
             accuracy_ring_radius_meters=10,
             geocoded_location_country="USA",
-            created_by=self.user
+            created_by=self.user,
         )
 
         self.assertIsNone(post.public_location_latitude)
@@ -236,7 +213,7 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             public_location_latitude=34.0522,
             public_location_longitude=-118.2437,
-            created_by=self.user
+            created_by=self.user,
         )
 
         post2 = MediaPost.objects.create(
@@ -247,7 +224,7 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             true_location_latitude=40.7128,
             true_location_longitude=-74.0060,
-            created_by=self.user
+            created_by=self.user,
         )
 
         post3 = MediaPost.objects.create(
@@ -258,7 +235,7 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             private_location_latitude=37.7749,
             private_location_longitude=-122.4194,
-            created_by=self.user
+            created_by=self.user,
         )
 
         # Verify spatial fields are None initially
@@ -267,11 +244,12 @@ class ManagementCommandTestCase(TestCase):
         self.assertIsNone(post3.private_location_spatial)
 
         # Run the management command
-        from django.core.management import call_command
         from io import StringIO
 
+        from django.core.management import call_command
+
         out = StringIO()
-        call_command('populate_spatial_fields', stdout=out)
+        call_command("populate_spatial_fields", stdout=out)
 
         # Refresh from database
         post1.refresh_from_db()
@@ -298,17 +276,18 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             public_location_latitude=34.0522,
             public_location_longitude=-118.2437,
-            created_by=self.user
+            created_by=self.user,
         )
 
         self.assertIsNone(post.public_location_spatial)
 
         # Run with dry-run flag
-        from django.core.management import call_command
         from io import StringIO
 
+        from django.core.management import call_command
+
         out = StringIO()
-        call_command('populate_spatial_fields', '--dry-run', stdout=out)
+        call_command("populate_spatial_fields", "--dry-run", stdout=out)
 
         # Refresh from database
         post.refresh_from_db()

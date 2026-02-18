@@ -4,6 +4,7 @@ Tests for Django Admin moderation interface
 
 from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
+from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
 
@@ -19,6 +20,10 @@ class MockRequest:
 
     def __init__(self, user):
         self.user = user
+        # Django's message framework requires _messages attribute
+        # Use FallbackStorage for proper message handling
+        self.session = {}
+        self._messages = FallbackStorage(self)
 
 
 class InappropriateContentReportAdminTest(TestCase):
@@ -184,7 +189,8 @@ class InappropriateContentReportAdminTest(TestCase):
         """Test get_user_history displays moderation history"""
         history_html = self.admin.get_user_history(self.report)
         self.assertIn("Moderation History", history_html)
-        self.assertIn(self.offending_user.email, history_html)
+        # Check for user's name (which is displayed instead of email)
+        self.assertIn(self.offending_user.name, history_html)
 
     def test_readonly_fields(self):
         """Test that sensitive fields are readonly"""

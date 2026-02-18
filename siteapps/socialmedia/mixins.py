@@ -74,9 +74,9 @@ class PostInputsValidationMixin:
                 return createResponse400("Invalid obfuscation range. Must be between 1 and 10 kilometers.")
 
             # 4 corners with latitude and longitude, so 8 values
-            if len(obfuscation_box_corners) != 8:
+            if obfuscation_box_corners is None or len(obfuscation_box_corners) != 8:
                 return createResponse400(
-                    f"Invalid number of values for obfuscation box coordinates ({len(obfuscation_box_corners)} provided.)"
+                    f"Invalid number of values for obfuscation box coordinates ({len(obfuscation_box_corners) if obfuscation_box_corners else 0} provided.)"
                 )
 
         # Check if a post title was given
