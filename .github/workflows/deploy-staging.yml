@@ -291,7 +291,7 @@ jobs:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         run: |
           # Get database password from Google Secret Manager
-          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret="wildebackyard_api_db_password" --project=$GCP_PROJECT_ID)
           
           # Get Cloud SQL connection name
           CONNECTION_NAME=$(gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID --format="value(connectionName)")
