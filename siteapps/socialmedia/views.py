@@ -610,9 +610,26 @@ class PostViewValidation:
         obfuscation_kilometers = data.get("obfuscationKilometers")
         # This is a list of 4 points creating an offset box from the true point,
         # to obscure the true location from the public. Used in obfuscation mode.
-        obfuscation_box_corners = data.get("obfuscationBoxCorners")
-        # 4 corners of the obfuscation box, if given
-        obfuscation_box_corners = {
+        obfuscation_box_corners_array = data.get("obfuscationBoxCorners")
+
+        # If corners are not provided as an array, build from individual corner fields
+        if obfuscation_box_corners_array is None:
+            corner_values = [
+                data.get("corner1Latitude"),
+                data.get("corner1Longitude"),
+                data.get("corner2Latitude"),
+                data.get("corner2Longitude"),
+                data.get("corner3Latitude"),
+                data.get("corner3Longitude"),
+                data.get("corner4Latitude"),
+                data.get("corner4Longitude"),
+            ]
+            # Only create array if at least one corner value is provided
+            if any(v is not None for v in corner_values):
+                obfuscation_box_corners_array = corner_values
+
+        # 4 corners of the obfuscation box, if given (for database storage)
+        obfuscation_box_corners_dict = {
             "obfuscation_box_corner_1_latitude": data.get("corner1Latitude"),
             "obfuscation_box_corner_1_longitude": data.get("corner1Longitude"),
             "obfuscation_box_corner_2_latitude": data.get("corner2Latitude"),
@@ -634,7 +651,7 @@ class PostViewValidation:
             kwargs["true_location_latitude"] = latitude
             kwargs["true_location_longitude"] = longitude
             kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
-            kwargs.update(obfuscation_box_corners)
+            kwargs.update(obfuscation_box_corners_dict)
             # Set spatial field for true location
             if latitude is not None and longitude is not None:
                 kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
@@ -644,6 +661,9 @@ class PostViewValidation:
             # Set spatial field for private location
             if latitude is not None and longitude is not None:
                 kwargs["private_location_spatial"] = Point(longitude, latitude, srid=4326)
+
+        # Return the array for validation purposes
+        return obfuscation_box_corners_array
 
     @staticmethod
     def set_optional_kwargs(data, kwargs):
@@ -697,6 +717,23 @@ class PostViewValidation:
         geocoded_location_country = data.get("geocodedLocationCountry")
         post_title = data.get("postTitle")
 
+        # Build obfuscation_box_corners_array for validation
+        obfuscation_box_corners_array = data.get("obfuscationBoxCorners")
+        if obfuscation_box_corners_array is None:
+            corner_values = [
+                data.get("corner1Latitude"),
+                data.get("corner1Longitude"),
+                data.get("corner2Latitude"),
+                data.get("corner2Longitude"),
+                data.get("corner3Latitude"),
+                data.get("corner3Longitude"),
+                data.get("corner4Latitude"),
+                data.get("corner4Longitude"),
+            ]
+            # Only create array if at least one corner value is provided
+            if any(v is not None for v in corner_values):
+                obfuscation_box_corners_array = corner_values
+
         # Validate arguments
         errors = [
             LatLngValidationMixin.validate_latitude_longitude(
@@ -708,7 +745,7 @@ class PostViewValidation:
                 encounter_datetime,
                 accuracy_meters,
                 data.get("obfuscationKilometers"),
-                data.get("obfuscationBoxCorners"),
+                obfuscation_box_corners_array,
                 geocoded_location_country,
                 post_title,
             ),
