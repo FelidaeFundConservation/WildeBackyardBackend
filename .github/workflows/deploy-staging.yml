@@ -3,9 +3,8 @@
 # This workflow deploys the application to Google Cloud Platform App Engine (staging environment).
 #
 # IMPORTANT: Branch Configuration
-# - This workflow triggers on pushes to the 'main' branch
-# - Unlike the Azure deployment, there is no separate 'staging' branch
-# - The 'main' branch is used for both Azure and GCP staging deployments
+# - This workflow triggers MANUALLY ONLY
+# - Use the "Run workflow" button in GitHub Actions to trigger a deployment
 # - Production GCP deployments should use a separate workflow configured for production
 #
 # To enable this workflow:
@@ -19,12 +18,6 @@
 name: Deploy to GCP Staging
 
 on:
-  push:
-    branches:
-      - main  # Changed from 'staging' to 'main' to match actual branch structure
-  pull_request:
-    branches:
-      - main  # Changed from 'staging' to 'main' to match actual branch structure
   workflow_dispatch:
     inputs:
       branch:
