@@ -40,7 +40,7 @@ class SpatialFieldsTestCase(TestCase):
         self.species = SpeciesName.objects.create(name="Gray Wolf", scientific_name="Canis lupus")
 
     def test_public_location_spatial_field_created(self):
-        """Test that both public_location_spatial and true_location_spatial are created for public posts"""
+        """Test that true_location_spatial is created for public posts"""
         post_data = {
             "postTitle": "Wolf Sighting",
             "privacySetting": "public",
@@ -62,21 +62,16 @@ class SpatialFieldsTestCase(TestCase):
         post = MediaPost.objects.filter(public_location_latitude=45.5231, public_location_longitude=-122.6765).first()
 
         self.assertIsNotNone(post)
-        self.assertIsNotNone(post.public_location_spatial)
-        # NEW: true_location_spatial should also be set for public posts
+        # true_location_spatial should be set for public posts
         self.assertIsNotNone(post.true_location_spatial)
 
         # Verify the spatial field has correct coordinates
         # Note: Point is (longitude, latitude) - order matters!
         expected_point = Point(-122.6765, 45.5231, srid=4326)
-        self.assertEqual(post.public_location_spatial, expected_point)
-        # NEW: true_location_spatial should match for public posts
+        # true_location_spatial should match for public posts
         self.assertEqual(post.true_location_spatial, expected_point)
 
         # Verify latitude and longitude are correct
-        self.assertAlmostEqual(post.public_location_spatial.y, 45.5231, places=4)
-        self.assertAlmostEqual(post.public_location_spatial.x, -122.6765, places=4)
-        # NEW: true_location should match for public posts
         self.assertAlmostEqual(post.true_location_spatial.y, 45.5231, places=4)
         self.assertAlmostEqual(post.true_location_spatial.x, -122.6765, places=4)
 
@@ -126,7 +121,7 @@ class SpatialFieldsTestCase(TestCase):
         self.assertAlmostEqual(post.true_location_spatial.x, -122.3321, places=4)
 
     def test_private_location_spatial_field_created(self):
-        """Test that both private_location_spatial and true_location_spatial are created for private posts"""
+        """Test that true_location_spatial is created for private posts"""
         post_data = {
             "postTitle": "Wolf Sighting - Private",
             "privacySetting": "private",
@@ -148,25 +143,20 @@ class SpatialFieldsTestCase(TestCase):
         post = MediaPost.objects.filter(private_location_latitude=40.7128, private_location_longitude=-74.0060).first()
 
         self.assertIsNotNone(post)
-        self.assertIsNotNone(post.private_location_spatial)
-        # NEW: true_location_spatial should also be set for private posts
+        # true_location_spatial should be set for private posts
         self.assertIsNotNone(post.true_location_spatial)
 
         # Verify the spatial field has correct coordinates
         expected_point = Point(-74.0060, 40.7128, srid=4326)
-        self.assertEqual(post.private_location_spatial, expected_point)
-        # NEW: true_location_spatial should match for private posts
+        # true_location_spatial should match for private posts
         self.assertEqual(post.true_location_spatial, expected_point)
 
         # Verify latitude and longitude are correct
-        self.assertAlmostEqual(post.private_location_spatial.y, 40.7128, places=4)
-        self.assertAlmostEqual(post.private_location_spatial.x, -74.0060, places=4)
-        # NEW: true_location should match for private posts
         self.assertAlmostEqual(post.true_location_spatial.y, 40.7128, places=4)
         self.assertAlmostEqual(post.true_location_spatial.x, -74.0060, places=4)
 
     def test_spatial_field_srid(self):
-        """Test that spatial fields use correct SRID (4326 - WGS84)"""
+        """Test that true_location_spatial uses correct SRID (4326 - WGS84)"""
         post_data = {
             "postTitle": "Test SRID",
             "privacySetting": "public",
@@ -186,11 +176,11 @@ class SpatialFieldsTestCase(TestCase):
         post = MediaPost.objects.filter(public_location_latitude=51.5074, public_location_longitude=-0.1278).first()
 
         self.assertIsNotNone(post)
-        self.assertIsNotNone(post.public_location_spatial)
-        self.assertEqual(post.public_location_spatial.srid, 4326)
+        self.assertIsNotNone(post.true_location_spatial)
+        self.assertEqual(post.true_location_spatial.srid, 4326)
 
     def test_spatial_fields_none_when_no_location(self):
-        """Test that spatial fields remain None when no location provided"""
+        """Test that true_location_spatial remains None when no location provided"""
         # Create a post directly without going through the API
         # (to bypass validation that requires location)
         post = MediaPost.objects.create(
@@ -204,9 +194,7 @@ class SpatialFieldsTestCase(TestCase):
 
         self.assertIsNone(post.public_location_latitude)
         self.assertIsNone(post.public_location_longitude)
-        self.assertIsNone(post.public_location_spatial)
         self.assertIsNone(post.true_location_spatial)
-        self.assertIsNone(post.private_location_spatial)
 
 
 class ManagementCommandTestCase(TestCase):
@@ -217,7 +205,7 @@ class ManagementCommandTestCase(TestCase):
         self.user = User.objects.create(email="command_test@example.com")
 
     def test_populate_spatial_fields_from_existing_data(self):
-        """Test that management command populates spatial fields from lat/lng"""
+        """Test that management command populates true_location_spatial from lat/lng"""
         # Create posts with lat/lng but no spatial fields
         post1 = MediaPost.objects.create(
             title="Post 1",
@@ -227,6 +215,8 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             public_location_latitude=34.0522,
             public_location_longitude=-118.2437,
+            true_location_latitude=34.0522,
+            true_location_longitude=-118.2437,
             created_by=self.user,
         )
 
@@ -249,13 +239,15 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             private_location_latitude=37.7749,
             private_location_longitude=-122.4194,
+            true_location_latitude=37.7749,
+            true_location_longitude=-122.4194,
             created_by=self.user,
         )
 
         # Verify spatial fields are None initially
-        self.assertIsNone(post1.public_location_spatial)
+        self.assertIsNone(post1.true_location_spatial)
         self.assertIsNone(post2.true_location_spatial)
-        self.assertIsNone(post3.private_location_spatial)
+        self.assertIsNone(post3.true_location_spatial)
 
         # Run the management command
         from io import StringIO
@@ -270,15 +262,15 @@ class ManagementCommandTestCase(TestCase):
         post2.refresh_from_db()
         post3.refresh_from_db()
 
-        # Verify spatial fields are now populated
-        self.assertIsNotNone(post1.public_location_spatial)
-        self.assertEqual(post1.public_location_spatial, Point(-118.2437, 34.0522, srid=4326))
+        # Verify true_location_spatial fields are now populated for all posts
+        self.assertIsNotNone(post1.true_location_spatial)
+        self.assertEqual(post1.true_location_spatial, Point(-118.2437, 34.0522, srid=4326))
 
         self.assertIsNotNone(post2.true_location_spatial)
         self.assertEqual(post2.true_location_spatial, Point(-74.0060, 40.7128, srid=4326))
 
-        self.assertIsNotNone(post3.private_location_spatial)
-        self.assertEqual(post3.private_location_spatial, Point(-122.4194, 37.7749, srid=4326))
+        self.assertIsNotNone(post3.true_location_spatial)
+        self.assertEqual(post3.true_location_spatial, Point(-122.4194, 37.7749, srid=4326))
 
     def test_populate_spatial_fields_dry_run(self):
         """Test that dry run mode doesn't save changes"""
@@ -290,10 +282,12 @@ class ManagementCommandTestCase(TestCase):
             geocoded_location_country="USA",
             public_location_latitude=34.0522,
             public_location_longitude=-118.2437,
+            true_location_latitude=34.0522,
+            true_location_longitude=-118.2437,
             created_by=self.user,
         )
 
-        self.assertIsNone(post.public_location_spatial)
+        self.assertIsNone(post.true_location_spatial)
 
         # Run with dry-run flag
         from io import StringIO
@@ -307,4 +301,4 @@ class ManagementCommandTestCase(TestCase):
         post.refresh_from_db()
 
         # Verify spatial field is still None (no changes saved)
-        self.assertIsNone(post.public_location_spatial)
+        self.assertIsNone(post.true_location_spatial)
