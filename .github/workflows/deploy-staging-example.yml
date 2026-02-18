@@ -45,88 +45,13 @@ env:
   WEBSITE_HOSTNAME: ${{ secrets.WEBSITE_HOSTNAME }}
 
 jobs:
-  # Job 1: Run tests and quality checks
+  # Job 1: Run tests and quality checks using reusable workflow
   test:
-    name: Test and Quality Checks
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
-        
-      - name: Update package list
-        run: sudo apt-get update
-        
-      - name: Install Git and Build Tools
-        # Use -y to automatically answer yes to prompts
-        run: sudo apt-get install -y gdal-bin libgdal-dev libsqlite3-mod-spatialite libspatialite-dev
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-
-      - name: Run linting (flake8)
-        continue-on-error: true
-        run: |
-          pip install flake8
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-      - name: Run security checks (bandit)
-        continue-on-error: true
-        run: |
-          pip install bandit
-          # Use .bandit config file and exclude test files via command line
-          bandit -r siteapps/ config/ -x '*/test_*.py,*_test.py,*/tests.py,*/tests/*' -c .bandit -f json -o bandit-report.json || true
-          bandit -r siteapps/ config/ -x '*/test_*.py,*_test.py,*/tests.py,*/tests/*' -c .bandit -f screen
-
-      - name: Check for secrets in code
-        run: |
-          # Simple check for common secret patterns
-          set -e
-          if grep -r "SECRET_KEY\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("; then
-            echo "Error: Found hardcoded SECRET_KEY in code!"
-            exit 1
-          fi
-          if grep -r "PASSWORD\s*=\s*['\"].*['\"]" config/settings/*.py | grep -v "env("; then
-            echo "Error: Found hardcoded PASSWORD in code!"
-            exit 1
-          fi
-          echo "✓ No hardcoded secrets found"
-
-      - name: Run tests
-        if: github.event.inputs.skip_tests != 'true'
-        env:
-          DJANGO_SETTINGS_MODULE: config.settings.test
-        run: |
-          # Run pytest if tests exist
-          if [ -d "siteapps" ]; then
-            pytest -v --tb=short || echo "Some tests failed but continuing"
-          else
-            echo "No tests directory found"
-          fi
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            bandit-report.json
-            .coverage
-          retention-days: 30
+    uses: ./.github/workflows/build-test-coverage.yml
+    with:
+      branch: ${{ github.event.inputs.branch || github.ref }}
+      skip_tests: ${{ github.event.inputs.skip_tests == 'true' }}
+    secrets: inherit
 
   # Job 2: Build and validate
   build:
