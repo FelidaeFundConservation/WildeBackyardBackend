@@ -48,6 +48,40 @@ Required secrets:
 - `GCP_PROJECT_ID` - Google Cloud Project ID
 - `WEBSITE_HOSTNAME` - Website hostname for testing
 
+## deploy-staging.yml
+
+This workflow deploys the application to Google Cloud Platform App Engine (staging environment).
+
+### Trigger
+
+- **Manual only** via workflow_dispatch
+- Allows specifying branch and whether to skip tests
+
+### Required GitHub Secrets
+
+| Secret | Description | Example/Notes |
+|--------|-------------|---------------|
+| `GCP_SA_KEY` | Service account JSON key for GCP authentication | Full JSON key file content |
+| `GCP_PROJECT_ID` | Google Cloud Project ID | `wildepod-339517` |
+| `DJANGO_SECRET_KEY` | Django secret key for settings | Random 50+ character string |
+| `WILDEBACKYARD_API_DB_PASSWORD` | Database password (URL-decoded) | `/REDACTED=` |
+| `DJANGO_SUPERUSER_PASSWORD` | Admin user password for initial setup | Strong password |
+| `WEBSITE_HOSTNAME` | Website hostname | Used in settings |
+
+**Important Notes:**
+- `WILDEBACKYARD_API_DB_PASSWORD` should be the URL-decoded password (not URL-encoded)
+- The workflow will URL-encode it automatically when constructing the database URL
+- This password must match the password in `app.yaml`'s `WILDEBACKYARD_API_DATABASE_URL`
+
+### Workflow Jobs
+
+1. **test**: Runs the reusable build-test-coverage workflow
+2. **build**: Validates GCP credentials, app.yaml, and Cloud SQL instance
+3. **deploy**: Deploys to App Engine with no-promote flag
+4. **migrate**: Runs database migrations using Cloud SQL Proxy
+5. **smoke-test**: Health checks and promotes version if successful
+6. **notify**: Sends deployment status notification
+
 #### Standalone Usage
 
 This workflow can also run standalone on:
