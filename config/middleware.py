@@ -1,3 +1,5 @@
+import io
+
 from django.utils.deprecation import MiddlewareMixin
 
 
@@ -16,10 +18,10 @@ class BufferRequestMiddleware(MiddlewareMixin):
 
         # Accessing request.body reads the raw stream and stores the result
         # on the request object, making it available for repeated reads.
-        #_ = request.body
+        # _ = request.body
 
         # Reset the stream position so any code that reads _stream directly
         # also starts from the beginning.
-        #if request._stream and hasattr(request._stream, "seek"):
+        # if request._stream and hasattr(request._stream, "seek"):
         #    request._stream.seek(0)
         return None
