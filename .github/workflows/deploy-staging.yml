@@ -226,7 +226,7 @@ jobs:
         id: deployment
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          URL="https://${VERSION}-dot-staging-dot-${GCP_PROJECT_ID}.appspot.com"
+          URL="https://${VERSION}-dot-wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -393,7 +393,7 @@ jobs:
       - name: Promote version
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          gcloud app services set-traffic staging \
+          gcloud app services set-traffic wildebackyard-api \
             --splits=${VERSION}=1 \
             --project=$GCP_PROJECT_ID \
             --quiet
@@ -410,7 +410,7 @@ jobs:
         run: |
           if [ "${{ needs.smoke-test.result }}" = "success" ]; then
             echo "✅ Deployment to staging successful!"
-            echo "URL: https://staging-dot-${GCP_PROJECT_ID}.appspot.com"
+            echo "URL: https://wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
           else
             echo "❌ Deployment failed or was skipped"
             exit 1
