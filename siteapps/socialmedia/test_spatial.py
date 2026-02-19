@@ -107,7 +107,7 @@ class SpatialFieldsTestCase(TestCase):
         self.assertEqual(response.status_code, 201)
 
         # Get the created post
-        post = MediaPost.objects.filter(true_location_latitude=47.6062, true_location_longitude=-122.3321).first()
+        post = MediaPost.objects.filter(true_location_spatial__isnull=False).first()
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.true_location_spatial)
@@ -140,7 +140,7 @@ class SpatialFieldsTestCase(TestCase):
         self.assertEqual(response.status_code, 201)
 
         # Get the created post
-        post = MediaPost.objects.filter(private_location_latitude=40.7128, private_location_longitude=-74.0060).first()
+        post = MediaPost.objects.filter(true_location_spatial__isnull=False, geoprivacy="private").first()
 
         self.assertIsNotNone(post)
         # true_location_spatial should be set for private posts
@@ -214,10 +214,7 @@ class ManagementCommandTestCase(TestCase):
             accuracy_ring_radius_meters=10,
             geocoded_location_country="USA",
             public_location_latitude=34.0522,
-            public_location_longitude=-118.2437,
-            true_location_latitude=34.0522,
-            true_location_longitude=-118.2437,
-            created_by=self.user,
+            public_location_longitude=-118.2437,            created_by=self.user,
         )
 
         post2 = MediaPost.objects.create(
@@ -225,10 +222,7 @@ class ManagementCommandTestCase(TestCase):
             encounter_datetime=timezone.now(),
             geoprivacy="obscured",
             accuracy_ring_radius_meters=10,
-            geocoded_location_country="USA",
-            true_location_latitude=40.7128,
-            true_location_longitude=-74.0060,
-            created_by=self.user,
+            geocoded_location_country="USA",            created_by=self.user,
         )
 
         post3 = MediaPost.objects.create(
@@ -236,12 +230,7 @@ class ManagementCommandTestCase(TestCase):
             encounter_datetime=timezone.now(),
             geoprivacy="private",
             accuracy_ring_radius_meters=10,
-            geocoded_location_country="USA",
-            private_location_latitude=37.7749,
-            private_location_longitude=-122.4194,
-            true_location_latitude=37.7749,
-            true_location_longitude=-122.4194,
-            created_by=self.user,
+            geocoded_location_country="USA",            private_location_longitude=-122.4194,            created_by=self.user,
         )
 
         # Verify spatial fields are None initially
@@ -281,10 +270,7 @@ class ManagementCommandTestCase(TestCase):
             accuracy_ring_radius_meters=10,
             geocoded_location_country="USA",
             public_location_latitude=34.0522,
-            public_location_longitude=-118.2437,
-            true_location_latitude=34.0522,
-            true_location_longitude=-118.2437,
-            created_by=self.user,
+            public_location_longitude=-118.2437,            created_by=self.user,
         )
 
         self.assertIsNone(post.true_location_spatial)
