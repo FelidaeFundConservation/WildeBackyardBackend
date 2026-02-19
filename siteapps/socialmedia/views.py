@@ -137,7 +137,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         elif user_latitude or user_longitude or distance_radius:
             # Argument validation
             errors = [
-                self.validate_latitude_longitude(user_latitude, user_longitude),
+                LatLngValidationMixin.validate_latitude_longitude(user_latitude, user_longitude),
                 (None if distance_radius is not None else createResponse400("No distance radius to search given.")),
             ]
 
@@ -149,18 +149,18 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             from django.contrib.gis.db.models.functions import Distance
             from django.contrib.gis.geos import Point
             from django.contrib.gis.measure import D
-            
+
             user_point = Point(user_longitude, user_latitude, srid=4326)
-            
-            # ST_DWithin uses the spatial index for better performance
-            # Filter posts within the specified radius using geography for accurate distance in meters
+
+            # ST_DWithin with spheroid=True uses geography for accurate distance calculations
+            # Distance must be specified using D() for proper unit conversion
             media_posts = (
                 MediaPost.objects.filter(
                     true_location_spatial__isnull=False,
-                    true_location_spatial__dwithin=(user_point, D(km=distance_radius))
                 )
-                .annotate(distance=Distance('true_location_spatial', user_point))
-                .order_by("-created")
+                .annotate(distance=Distance("true_location_spatial", user_point, spheroid=True))
+                .filter(distance__lte=D(km=distance_radius))
+                .order_by("distance")
             )
         # If no arguments given, get global posts
         else:
