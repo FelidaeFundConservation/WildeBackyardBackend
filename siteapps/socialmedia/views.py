@@ -145,22 +145,16 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 if error_response is not None:
                     return error_response
 
+            # Use PostGIS distance calculation with true_location_spatial
+            from django.contrib.gis.db.models.functions import Distance
+            from django.contrib.gis.geos import Point
+            
+            user_point = Point(user_longitude, user_latitude, srid=4326)
+            
             media_posts = (
-                MediaPost.objects.annotate(
-                    distance_public=Haversine(
-                        lat=user_latitude,
-                        lng=user_longitude,
-                        lat_field="public_location_latitude",
-                        lng_field="public_location_longitude",
-                    ),
-                    distance_true=Haversine(
-                        lat=user_latitude,
-                        lng=user_longitude,
-                        lat_field="true_location_latitude",
-                        lng_field="true_location_longitude",
-                    ),
-                )
-                .filter(Q(distance_public__lte=distance_radius) | Q(distance_true__lte=distance_radius))
+                MediaPost.objects.filter(true_location_spatial__isnull=False)
+                .annotate(distance=Distance('true_location_spatial', user_point))
+                .filter(distance__lte=distance_radius * 1000)  # Convert km to meters
                 .order_by("-created")
             )
         # If no arguments given, get global posts
@@ -226,38 +220,32 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             }
 
             if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
-                # Use true_location as the source field - no perturbation for public
-                current_data.update(
-                    {
-                        "geocoded_location": geocoded_location,
-                        "latitude": post.true_location_latitude,
-                        "longitude": post.true_location_longitude,
-                        "accuracy": post.accuracy_ring_radius_meters,
-                    }
-                )
+                # Use true_location_spatial as the source field - no perturbation for public
+                if post.true_location_spatial:
+                    current_data.update(
+                        {
+                            "geocoded_location": geocoded_location,
+                            "latitude": post.true_location_spatial.y,
+                            "longitude": post.true_location_spatial.x,
+                            "accuracy": post.accuracy_ring_radius_meters,
+                        }
+                    )
             elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
-                # Use true_location as source, but perturb it randomly within obfuscationKilometers diameter
-                offset_lat, offset_lon = calculate_offset_coordinates(
-                    post.true_location_latitude,
-                    post.true_location_longitude,
-                    post.obfuscation_range_kilometers,
-                )
-                current_data.update(
-                    {
-                        "geocoded_location": geocoded_location,
-                        "latitude": offset_lat,
-                        "longitude": offset_lon,
-                        "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
-                        "corner_1_latitude": post.obfuscation_box_corner_1_latitude,
-                        "corner_1_longitude": post.obfuscation_box_corner_1_longitude,
-                        "corner_2_latitude": post.obfuscation_box_corner_2_latitude,
-                        "corner_2_longitude": post.obfuscation_box_corner_2_longitude,
-                        "corner_3_latitude": post.obfuscation_box_corner_3_latitude,
-                        "corner_3_longitude": post.obfuscation_box_corner_3_longitude,
-                        "corner_4_latitude": post.obfuscation_box_corner_4_latitude,
-                        "corner_4_longitude": post.obfuscation_box_corner_4_longitude,
-                    }
-                )
+                # Use true_location_spatial as source, perturb it randomly within obfuscationKilometers diameter
+                if post.true_location_spatial:
+                    offset_lat, offset_lon = calculate_offset_coordinates(
+                        post.true_location_spatial.y,
+                        post.true_location_spatial.x,
+                        post.obfuscation_range_kilometers,
+                    )
+                    current_data.update(
+                        {
+                            "geocoded_location": geocoded_location,
+                            "latitude": offset_lat,
+                            "longitude": offset_lon,
+                            "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
+                        }
+                    )
             elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
                 # Return center of lower 48 states (continental US)
                 center_lat, center_lon = get_continental_us_center()
@@ -607,41 +595,8 @@ class PostViewValidation:
         longitude = data.get("longitude")
         # The length of one side of the box
         obfuscation_kilometers = data.get("obfuscationKilometers")
-        # This is a list of 4 points creating an offset box from the true point,
-        # to obscure the true location from the public. Used in obfuscation mode.
-        obfuscation_box_corners_array = data.get("obfuscationBoxCorners")
 
-        # If corners are not provided as an array, build from individual corner fields
-        if obfuscation_box_corners_array is None:
-            corner_values = [
-                data.get("corner1Latitude"),
-                data.get("corner1Longitude"),
-                data.get("corner2Latitude"),
-                data.get("corner2Longitude"),
-                data.get("corner3Latitude"),
-                data.get("corner3Longitude"),
-                data.get("corner4Latitude"),
-                data.get("corner4Longitude"),
-            ]
-            # Only create array if at least one corner value is provided
-            if any(v is not None for v in corner_values):
-                obfuscation_box_corners_array = corner_values
-
-        # 4 corners of the obfuscation box, if given (for database storage)
-        obfuscation_box_corners_dict = {
-            "obfuscation_box_corner_1_latitude": data.get("corner1Latitude"),
-            "obfuscation_box_corner_1_longitude": data.get("corner1Longitude"),
-            "obfuscation_box_corner_2_latitude": data.get("corner2Latitude"),
-            "obfuscation_box_corner_2_longitude": data.get("corner2Longitude"),
-            "obfuscation_box_corner_3_latitude": data.get("corner3Latitude"),
-            "obfuscation_box_corner_3_longitude": data.get("corner3Longitude"),
-            "obfuscation_box_corner_4_latitude": data.get("corner4Latitude"),
-            "obfuscation_box_corner_4_longitude": data.get("corner4Longitude"),
-        }
-
-        # ALWAYS set true_location_spatial and true_location lat/lng regardless of privacy setting
-        kwargs["true_location_latitude"] = latitude
-        kwargs["true_location_longitude"] = longitude
+        # ALWAYS set true_location_spatial regardless of privacy setting
         if latitude is not None and longitude is not None:
             kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
 
@@ -651,13 +606,9 @@ class PostViewValidation:
             kwargs["public_location_longitude"] = longitude
         elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             kwargs["obfuscation_range_kilometers"] = obfuscation_kilometers
-            kwargs.update(obfuscation_box_corners_dict)
-        elif privacy_setting == settings.PRIVACY_SETTING_PRIVATE:
-            kwargs["private_location_latitude"] = latitude
-            kwargs["private_location_longitude"] = longitude
 
-        # Return the array for validation purposes
-        return obfuscation_box_corners_array
+        # No need to return anything for validation
+        return None
 
     @staticmethod
     def set_optional_kwargs(data, kwargs):
@@ -711,23 +662,6 @@ class PostViewValidation:
         geocoded_location_country = data.get("geocodedLocationCountry")
         post_title = data.get("postTitle")
 
-        # Build obfuscation_box_corners_array for validation
-        obfuscation_box_corners_array = data.get("obfuscationBoxCorners")
-        if obfuscation_box_corners_array is None:
-            corner_values = [
-                data.get("corner1Latitude"),
-                data.get("corner1Longitude"),
-                data.get("corner2Latitude"),
-                data.get("corner2Longitude"),
-                data.get("corner3Latitude"),
-                data.get("corner3Longitude"),
-                data.get("corner4Latitude"),
-                data.get("corner4Longitude"),
-            ]
-            # Only create array if at least one corner value is provided
-            if any(v is not None for v in corner_values):
-                obfuscation_box_corners_array = corner_values
-
         # Validate arguments
         errors = [
             LatLngValidationMixin.validate_latitude_longitude(
@@ -739,7 +673,7 @@ class PostViewValidation:
                 encounter_datetime,
                 accuracy_meters,
                 data.get("obfuscationKilometers"),
-                obfuscation_box_corners_array,
+                None,  # No longer validating obfuscation_box_corners
                 geocoded_location_country,
                 post_title,
             ),
