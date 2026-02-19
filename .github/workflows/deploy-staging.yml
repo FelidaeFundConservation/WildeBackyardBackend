@@ -355,7 +355,7 @@ jobs:
       - name: Check application health
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          URL="https://${VERSION}-dot-wildebackyard-api-${GCP_PROJECT_ID}.wl.r.appspot.com"
+          URL="https://${VERSION}-dot-wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
 
           # Check if site is up
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL || echo "000")
