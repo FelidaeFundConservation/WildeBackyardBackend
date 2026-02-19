@@ -76,16 +76,7 @@ class ObscuredPrivacyTestCase(TestCase):
             "encounterDatetime": timezone.now().isoformat(),
             "geocodedLocationCountry": "USA",
             "species": "Gray Wolf",
-            "obfuscationKilometers": 5.0,
-            "corner1Latitude": 45.52,
-            "corner1Longitude": -122.68,
-            "corner2Latitude": 45.53,
-            "corner2Longitude": -122.68,
-            "corner3Latitude": 45.53,
-            "corner3Longitude": -122.67,
-            "corner4Latitude": 45.52,
-            "corner4Longitude": -122.67,
-        }
+            "obfuscationKilometers": 5.0,        }
 
         response = self.client.post(
             "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
@@ -94,9 +85,7 @@ class ObscuredPrivacyTestCase(TestCase):
         self.assertEqual(response.status_code, 201)
 
         # Get the created post
-        post = MediaPost.objects.filter(
-            true_location_latitude=45.5231, true_location_longitude=-122.6765, geoprivacy="obscured"
-        ).first()
+        post = MediaPost.objects.filter(geoprivacy="obscured", true_location_spatial__isnull=False).first()
 
         self.assertIsNotNone(post)
         self.assertIsNotNone(post.true_location_spatial)
@@ -118,16 +107,7 @@ class ObscuredPrivacyTestCase(TestCase):
             "encounterDatetime": timezone.now().isoformat(),
             "geocodedLocationCountry": "USA",
             "species": "Gray Wolf",
-            "obfuscationKilometers": obfuscation_km,
-            "corner1Latitude": 40.71,
-            "corner1Longitude": -74.01,
-            "corner2Latitude": 40.72,
-            "corner2Longitude": -74.01,
-            "corner3Latitude": 40.72,
-            "corner3Longitude": -74.00,
-            "corner4Latitude": 40.71,
-            "corner4Longitude": -74.00,
-        }
+            "obfuscationKilometers": obfuscation_km,        }
 
         response = self.client.post(
             "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
@@ -176,16 +156,7 @@ class ObscuredPrivacyTestCase(TestCase):
             "encounterDatetime": timezone.now().isoformat(),
             "geocodedLocationCountry": "USA",
             "species": "Gray Wolf",
-            "obfuscationKilometers": obfuscation_km,
-            "corner1Latitude": 34.05,
-            "corner1Longitude": -118.25,
-            "corner2Latitude": 34.06,
-            "corner2Longitude": -118.25,
-            "corner3Latitude": 34.06,
-            "corner3Longitude": -118.24,
-            "corner4Latitude": 34.05,
-            "corner4Longitude": -118.24,
-        }
+            "obfuscationKilometers": obfuscation_km,        }
 
         response = self.client.post(
             "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
@@ -236,16 +207,7 @@ class ObscuredPrivacyTestCase(TestCase):
                 "encounterDatetime": timezone.now().isoformat(),
                 "geocodedLocationCountry": "USA",
                 "species": "Gray Wolf",
-                "obfuscationKilometers": obfuscation_km,
-                "corner1Latitude": test_lat - 0.01,
-                "corner1Longitude": test_lon - 0.01,
-                "corner2Latitude": test_lat + 0.01,
-                "corner2Longitude": test_lon - 0.01,
-                "corner3Latitude": test_lat + 0.01,
-                "corner3Longitude": test_lon + 0.01,
-                "corner4Latitude": test_lat - 0.01,
-                "corner4Longitude": test_lon + 0.01,
-            }
+                "obfuscationKilometers": obfuscation_km,            }
 
             response = self.client.post(
                 "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"
@@ -300,16 +262,7 @@ class ObscuredPrivacyTestCase(TestCase):
                 "encounterDatetime": timezone.now().isoformat(),
                 "geocodedLocationCountry": "USA",
                 "species": "Gray Wolf",
-                "obfuscationKilometers": obfuscation_km,
-                "corner1Latitude": test_lat - 0.01,
-                "corner1Longitude": test_lon - 0.01,
-                "corner2Latitude": test_lat + 0.01,
-                "corner2Longitude": test_lon - 0.01,
-                "corner3Latitude": test_lat + 0.01,
-                "corner3Longitude": test_lon + 0.01,
-                "corner4Latitude": test_lat - 0.01,
-                "corner4Longitude": test_lon + 0.01,
-            }
+                "obfuscationKilometers": obfuscation_km,            }
 
             response = self.client.post(
                 "/v1/socialmedia/api/posts/create/", json.dumps(post_data), content_type="application/json"

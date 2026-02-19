@@ -86,21 +86,6 @@ class MediaPost(TextComment):
     # Length of one side of the obfuscation box
     obfuscation_range_kilometers = models.FloatField(null=True)
 
-    # Coordinates of each corner of the box. This should be randomly offset.
-    # This is shown publicly in place of the true coordinate.
-    # The number order matters for drawing the box client-side.
-    obfuscation_box_corner_1_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_1_longitude = models.FloatField(null=True)
-
-    obfuscation_box_corner_2_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_2_longitude = models.FloatField(null=True)
-
-    obfuscation_box_corner_3_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_3_longitude = models.FloatField(null=True)
-
-    obfuscation_box_corner_4_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_4_longitude = models.FloatField(null=True)
-
     # Human readable location info
     geocoded_location_locality = models.CharField(max_length=64, null=True)
     geocoded_location_state = models.CharField(max_length=64, null=True)
@@ -113,19 +98,6 @@ class MediaPost(TextComment):
     camera_timestamp_offset_error_details = models.CharField(max_length=512, null=True)
 
     habitat_type = models.CharField(max_length=64, null=True)
-
-    ##############################
-    # (!!!) Private Information
-    ##############################
-    # The true, unobfuscated location available privately, if obfuscation was selected.
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
-    true_location_latitude = models.FloatField(null=True)
-    true_location_longitude = models.FloatField(null=True)
-
-    # The private location.
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
-    private_location_latitude = models.FloatField(null=True)
-    private_location_longitude = models.FloatField(null=True)
 
     ##############################
     # PostGIS Spatial Fields
