@@ -145,16 +145,21 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 if error_response is not None:
                     return error_response
 
-            # Use PostGIS distance calculation with true_location_spatial
+            # Use PostGIS ST_DWithin for efficient spatial index usage
             from django.contrib.gis.db.models.functions import Distance
             from django.contrib.gis.geos import Point
+            from django.contrib.gis.measure import D
             
             user_point = Point(user_longitude, user_latitude, srid=4326)
             
+            # ST_DWithin uses the spatial index for better performance
+            # Filter posts within the specified radius using geography for accurate distance in meters
             media_posts = (
-                MediaPost.objects.filter(true_location_spatial__isnull=False)
+                MediaPost.objects.filter(
+                    true_location_spatial__isnull=False,
+                    true_location_spatial__dwithin=(user_point, D(km=distance_radius))
+                )
                 .annotate(distance=Distance('true_location_spatial', user_point))
-                .filter(distance__lte=distance_radius * 1000)  # Convert km to meters
                 .order_by("-created")
             )
         # If no arguments given, get global posts
