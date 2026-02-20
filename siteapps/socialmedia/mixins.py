@@ -1,6 +1,9 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
+
+from siteapps.validators import validate_no_profanity
 
 
 class LatLngValidationMixin:
@@ -83,3 +86,12 @@ def createResponse400(message):
         status=status.HTTP_400_BAD_REQUEST,
         data={"error": message},
     )
+
+
+def check_profanity(value):
+    """Return a 400 Response if the text contains profanity, otherwise None."""
+    try:
+        validate_no_profanity(value)
+    except ValidationError:
+        return createResponse400("The provided text contains inappropriate language.")
+    return None
