@@ -362,10 +362,15 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
 
         # Query with spatial index using __within or __contained
         # __contained uses the && operator which utilizes the spatial index
-        media_posts = MediaPost.objects.filter(
-            true_location_spatial__isnull=False,
-            true_location_spatial__contained=bbox,
-        ).order_by("-created")
+        # Exclude private sightings from bounding box queries
+        media_posts = (
+            MediaPost.objects.filter(
+                true_location_spatial__isnull=False,
+                true_location_spatial__contained=bbox,
+            )
+            .exclude(geoprivacy=settings.PRIVACY_SETTING_PRIVATE)
+            .order_by("-created")
+        )
 
         # Apply optional filters
         if user_id is not None:
@@ -381,6 +386,10 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
         # Collect and format post information to send
         post_data = []
         for post in paginated_media_posts:
+            # Skip private sightings (belt-and-suspenders check)
+            if post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+                continue
+
             location_info_fields = [
                 post.geocoded_location_locality,
                 post.geocoded_location_state,
