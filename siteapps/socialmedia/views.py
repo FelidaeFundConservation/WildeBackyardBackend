@@ -278,6 +278,208 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         return Response(response_data)
 
 
+@extend_schema(
+    summary="Get posts by bounding box",
+    description="Retrieve wildlife sighting posts within a geographic bounding box. Uses spatial index for efficient querying.",
+    request=inline_serializer(
+        name="GetPostsByBoundingBoxRequest",
+        fields={
+            "minLatitude": serializers.FloatField(required=True, help_text="Southern latitude boundary"),
+            "maxLatitude": serializers.FloatField(required=True, help_text="Northern latitude boundary"),
+            "minLongitude": serializers.FloatField(required=True, help_text="Western longitude boundary"),
+            "maxLongitude": serializers.FloatField(required=True, help_text="Eastern longitude boundary"),
+            "species": serializers.CharField(required=False, help_text="Filter by species name"),
+            "userId": serializers.IntegerField(required=False, help_text="Filter by user ID"),
+        },
+    ),
+    responses={200: inline_serializer(name="BoundingBoxPostListResponse", fields={"results": serializers.ListField()})},
+    tags=["Social Media"],
+)
+class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
+    def post(self, request):
+        data = json.loads(request.body)
+
+        # Log input parameters with full request body using structlog
+        logger.info(
+            "GetPostsByBoundingBoxView: Request received",
+            request_data=data,
+            http_method=request.method,
+            path=request.path,
+        )
+
+        # Extract bounding box parameters
+        min_latitude = data.get("minLatitude")
+        max_latitude = data.get("maxLatitude")
+        min_longitude = data.get("minLongitude")
+        max_longitude = data.get("maxLongitude")
+
+        # Optional filters
+        species = data.get("species")
+        user_id = data.get("userId")
+
+        # Validate required parameters
+        if min_latitude is None or max_latitude is None or min_longitude is None or max_longitude is None:
+            return Response(
+                {
+                    "error": "All bounding box parameters (minLatitude, maxLatitude, minLongitude, maxLongitude) are required."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate latitude ranges
+        if not (-90 <= min_latitude <= 90) or not (-90 <= max_latitude <= 90):
+            return Response(
+                {"error": "Latitude values must be between -90 and 90."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate longitude ranges
+        if not (-180 <= min_longitude <= 180) or not (-180 <= max_longitude <= 180):
+            return Response(
+                {"error": "Longitude values must be between -180 and 180."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate that min < max
+        if min_latitude >= max_latitude:
+            return Response(
+                {"error": "minLatitude must be less than maxLatitude."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if min_longitude >= max_longitude:
+            return Response(
+                {"error": "minLongitude must be less than maxLongitude."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Use PostGIS Polygon for bounding box query
+        # This uses the spatial index (GIST) on true_location_spatial for efficient querying
+        from django.contrib.gis.geos import Polygon
+
+        # Create bounding box polygon: ((min_lng, min_lat), (max_lng, max_lat))
+        bbox = Polygon.from_bbox((min_longitude, min_latitude, max_longitude, max_latitude))
+
+        # Query with spatial index using __within or __contained
+        # __contained uses the && operator which utilizes the spatial index
+        media_posts = MediaPost.objects.filter(
+            true_location_spatial__isnull=False,
+            true_location_spatial__contained=bbox,
+        ).order_by("-created")
+
+        # Apply optional filters
+        if user_id is not None:
+            media_posts = media_posts.filter(created_by__id=user_id)
+
+        if species is not None:
+            media_posts = media_posts.filter(species__name=species)
+
+        # Apply pagination
+        paginator = LimitOffsetPagination()
+        paginated_media_posts = paginator.paginate_queryset(media_posts, request)
+
+        # Collect and format post information to send
+        post_data = []
+        for post in paginated_media_posts:
+            location_info_fields = [
+                post.geocoded_location_locality,
+                post.geocoded_location_state,
+                post.geocoded_location_country,
+                post.geocoded_location_zip_code,
+            ]
+            geocoded_location = ", ".join(filter(None, location_info_fields))
+
+            additional_data = {
+                "camera_model": post.camera_model,
+                "camera_deployment_date": post.camera_deployment_date,
+                "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
+                "habitat_type": post.habitat_type,
+            }
+
+            media_data = None
+            if post.media:
+                media_url = post.media.file_cloud_path
+                # Generate signed URL for GCS files
+                if media_url and media_url.startswith("https://storage.googleapis.com/"):
+                    media_url = generate_signed_url(media_url)
+
+                media_data = {
+                    "url": media_url,
+                    "is_video": post.media.is_video,
+                }
+
+            current_data = {
+                "id": post.id,
+                "geoprivacy": post.geoprivacy,
+                "created_by": getattr(post.created_by, "name", "Deleted User"),
+                "encounter_datetime": post.encounter_datetime,
+                "species": getattr(post.species, "name", None),
+                "media": media_data,
+                "additional_info": additional_data,
+                "title": post.title,
+                "body": post.text_content,
+            }
+
+            if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+                # Use true_location_spatial as the source field - no perturbation for public
+                if post.true_location_spatial:
+                    current_data.update(
+                        {
+                            "geocoded_location": geocoded_location,
+                            "latitude": post.true_location_spatial.y,
+                            "longitude": post.true_location_spatial.x,
+                            "accuracy": post.accuracy_ring_radius_meters,
+                        }
+                    )
+            elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+                # Use true_location_spatial as source, perturb it randomly within obfuscationKilometers diameter
+                if post.true_location_spatial:
+                    offset_lat, offset_lon = calculate_offset_coordinates(
+                        post.true_location_spatial.y,
+                        post.true_location_spatial.x,
+                        post.obfuscation_range_kilometers,
+                    )
+                    current_data.update(
+                        {
+                            "geocoded_location": geocoded_location,
+                            "latitude": offset_lat,
+                            "longitude": offset_lon,
+                            "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
+                        }
+                    )
+            elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+                # Return center of lower 48 states (continental US)
+                center_lat, center_lon = get_continental_us_center()
+                current_data.update(
+                    {
+                        "latitude": center_lat,
+                        "longitude": center_lon,
+                    }
+                )
+
+            post_data.append(current_data)
+
+        # Create response
+        response_data = paginator.get_paginated_response(post_data).data
+
+        # Log response payload with full data using structlog
+        logger.info(
+            "GetPostsByBoundingBoxView: Returning posts",
+            response_data=response_data,
+            post_count=len(post_data),
+            has_next=paginator.get_next_link() is not None,
+            has_previous=paginator.get_previous_link() is not None,
+            bbox_params={
+                "minLat": min_latitude,
+                "maxLat": max_latitude,
+                "minLng": min_longitude,
+                "maxLng": max_longitude,
+            },
+        )
+
+        return Response(response_data)
+
+
 def check_post_is_liked_by(media_post_obj, user):
     return media_post_obj.upvoted_by.filter(id=user.id).exists()
 
