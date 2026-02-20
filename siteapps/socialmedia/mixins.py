@@ -54,7 +54,7 @@ class PostInputsValidationMixin:
         encounter_datetime,
         accuracy_meters,
         obfuscation_kilometers,
-        obfuscation_box_corners,
+        obfuscation_box_corners,  # Keep parameter for backward compatibility but ignore
         geocoded_location_country,
         post_title,
     ):
@@ -72,12 +72,6 @@ class PostInputsValidationMixin:
         if privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             if obfuscation_kilometers is None or int(obfuscation_kilometers) < 1 or int(obfuscation_kilometers) > 10:
                 return createResponse400("Invalid obfuscation range. Must be between 1 and 10 kilometers.")
-
-            # 4 corners with latitude and longitude, so 8 values
-            if obfuscation_box_corners is None or len(obfuscation_box_corners) != 8:
-                return createResponse400(
-                    f"Invalid number of values for obfuscation box coordinates ({len(obfuscation_box_corners) if obfuscation_box_corners else 0} provided.)"
-                )
 
         # Check if a post title was given
         if post_title is None:
