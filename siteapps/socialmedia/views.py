@@ -27,7 +27,7 @@ from siteapps.species.models import SpeciesName
 from siteapps.users.models import BannedEmail
 
 from .geo_utils import calculate_offset_coordinates, get_continental_us_center
-from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
+from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, check_profanity, createResponse400
 from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 User = get_user_model()
@@ -863,6 +863,10 @@ class CreateCommentView(APIView):
         if comment_text is None or len(comment_text) == 0:
             return createResponse400("The provided comment text is empty.")
 
+        profanity_error = check_profanity(comment_text)
+        if profanity_error is not None:
+            return profanity_error
+
         # If everything's fine, create and add the comment
         media_post.first().replies.add(TextComment.objects.create(text_content=comment_text, created_by=request.user))
 
@@ -1014,6 +1018,8 @@ class PostViewValidation:
                 geocoded_location_country,
                 post_title,
             ),
+            check_profanity(post_title),
+            check_profanity(data.get("postBody")),
         ]
         for error_response in errors:
             if error_response is not None:
