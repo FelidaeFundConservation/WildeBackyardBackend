@@ -86,21 +86,6 @@ class MediaPost(TextComment):
     # Length of one side of the obfuscation box
     obfuscation_range_kilometers = models.FloatField(null=True)
 
-    # Coordinates of each corner of the box. This should be randomly offset.
-    # This is shown publicly in place of the true coordinate.
-    # The number order matters for drawing the box client-side.
-    obfuscation_box_corner_1_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_1_longitude = models.FloatField(null=True)
-
-    obfuscation_box_corner_2_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_2_longitude = models.FloatField(null=True)
-
-    obfuscation_box_corner_3_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_3_longitude = models.FloatField(null=True)
-
-    obfuscation_box_corner_4_latitude = models.FloatField(null=True)
-    obfuscation_box_corner_4_longitude = models.FloatField(null=True)
-
     # Human readable location info
     geocoded_location_locality = models.CharField(max_length=64, null=True)
     geocoded_location_state = models.CharField(max_length=64, null=True)
@@ -115,32 +100,13 @@ class MediaPost(TextComment):
     habitat_type = models.CharField(max_length=64, null=True)
 
     ##############################
-    # (!!!) Private Information
-    ##############################
-    # The true, unobfuscated location available privately, if obfuscation was selected.
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
-    true_location_latitude = models.FloatField(null=True)
-    true_location_longitude = models.FloatField(null=True)
-
-    # The private location.
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
-    private_location_latitude = models.FloatField(null=True)
-    private_location_longitude = models.FloatField(null=True)
-
-    ##############################
     # PostGIS Spatial Fields
     ##############################
-    # Spatial point field for public location (uses SRID 4326 - WGS84)
+    # Spatial point field for true location (uses SRID 4326 - WGS84)
     # Automatically indexed by PostGIS
-    public_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
-
-    # Spatial point field for true location (private - obfuscated sightings)
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
+    # THIS IS THE CANONICAL SOURCE FOR ALL LOCATION DATA
+    # Privacy transformations are applied during data retrieval, not storage
     true_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
-
-    # Spatial point field for private location
-    # THIS SHOULD NEVER BE ACCESSIBLE/SENT TO THE PUBLIC VIA THE APP/API
-    private_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
 
 
 # Model to handle reports for inappropriate content
