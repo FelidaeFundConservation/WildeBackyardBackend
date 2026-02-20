@@ -247,3 +247,4 @@ bin/
 auth.json
 update-check.json
 actionlint
+CODE_REVIEW_INVESTIGATION.md
