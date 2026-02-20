@@ -80,6 +80,86 @@ class Haversine(Func):
     output_field = models.FloatField()
 
 
+def serialize_post(post):
+    """Serialize a single MediaPost to a dict with privacy-aware location handling.
+
+    Used by GetRecentPostsView, GetPostsByBoundingBoxView, and GetPostByIdView so that
+    the response format is identical regardless of how the post was retrieved.
+    """
+    location_info_fields = [
+        post.geocoded_location_locality,
+        post.geocoded_location_state,
+        post.geocoded_location_country,
+        post.geocoded_location_zip_code,
+    ]
+    geocoded_location = ", ".join(filter(None, location_info_fields))
+
+    additional_data = {
+        "camera_model": post.camera_model,
+        "camera_deployment_date": post.camera_deployment_date,
+        "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
+        "habitat_type": post.habitat_type,
+    }
+
+    media_data = None
+    if post.media:
+        media_url = post.media.file_cloud_path
+        if media_url and media_url.startswith("https://storage.googleapis.com/"):
+            media_url = generate_signed_url(media_url)
+        media_data = {
+            "url": media_url,
+            "is_video": post.media.is_video,
+        }
+
+    data = {
+        "id": post.id,
+        "geoprivacy": post.geoprivacy,
+        "created_by": getattr(post.created_by, "name", "Deleted User"),
+        "encounter_datetime": post.encounter_datetime,
+        "species": getattr(post.species, "name", None),
+        "media": media_data,
+        "additional_info": additional_data,
+        "title": post.title,
+        "body": post.text_content,
+    }
+
+    if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+        if post.true_location_spatial:
+            data.update(
+                {
+                    "geocoded_location": geocoded_location,
+                    "latitude": post.true_location_spatial.y,
+                    "longitude": post.true_location_spatial.x,
+                    "accuracy": post.accuracy_ring_radius_meters,
+                }
+            )
+    elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+        if post.true_location_spatial:
+            offset_lat, offset_lon = calculate_offset_coordinates(
+                post.true_location_spatial.y,
+                post.true_location_spatial.x,
+                post.obfuscation_range_kilometers,
+            )
+            data.update(
+                {
+                    "geocoded_location": geocoded_location,
+                    "latitude": offset_lat,
+                    "longitude": offset_lon,
+                    "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
+                }
+            )
+    elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+        center_lat, center_lon = get_continental_us_center()
+        data.update(
+            {
+                "latitude": center_lat,
+                "longitude": center_lon,
+            }
+        )
+
+    return data
+
+
 @extend_schema(
     summary="Get recent posts",
     description="Retrieve recent wildlife sighting posts with optional filtering by location, distance, or species",
@@ -487,6 +567,47 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
         )
 
         return Response(response_data)
+
+
+@extend_schema(
+    summary="Get a single post by ID",
+    description="Retrieve a single wildlife sighting post by its UUID. Returns the same field set as the feed endpoints.",
+    responses={
+        200: inline_serializer(
+            name="PostDetailByIdResponse",
+            fields={
+                "id": serializers.UUIDField(),
+                "title": serializers.CharField(),
+                "body": serializers.CharField(),
+                "species": serializers.CharField(),
+                "geoprivacy": serializers.CharField(),
+                "created_by": serializers.CharField(),
+                "encounter_datetime": serializers.DateTimeField(),
+                "media": serializers.DictField(required=False),
+                "additional_info": serializers.DictField(),
+                "geocoded_location": serializers.CharField(required=False),
+                "latitude": serializers.FloatField(required=False),
+                "longitude": serializers.FloatField(required=False),
+            },
+        ),
+        404: None,
+    },
+    tags=["Social Media"],
+)
+class GetPostByIdView(APIView):
+    """Return a single post by UUID. Used by the web app detail page."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, post_id):
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        logger.info("GetPostByIdView: returning post", post_id=str(post_id))
+        return Response(serialize_post(post))
 
 
 def check_post_is_liked_by(media_post_obj, user):
