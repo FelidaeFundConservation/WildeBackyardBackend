@@ -32,6 +32,15 @@ from .models import InappropriateContentReport, Media, MediaPost, TextComment
 
 User = get_user_model()
 
+# Some early records were saved with the Django choice-tuple key ("1"/"2"/"3")
+# instead of the human-readable value ("public"/"obscured"/"private").
+# Normalise before any geoprivacy comparison.
+_GEOPRIVACY_CODES: dict[str, str] = {
+    "1": "public",  # settings.PRIVACY_SETTING_PUBLIC
+    "2": "obscured",  # settings.PRIVACY_SETTING_OBSCURED
+    "3": "private",  # settings.PRIVACY_SETTING_PRIVATE
+}
+
 # Use structlog for structured logging with automatic extra dict capture
 logger = structlog.get_logger(__name__)
 
@@ -123,7 +132,10 @@ def serialize_post(post):
         "body": post.text_content,
     }
 
-    if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+    # Normalise legacy integer-code geoprivacy values before comparison
+    geoprivacy = _GEOPRIVACY_CODES.get(post.geoprivacy, post.geoprivacy)
+
+    if geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
         if post.true_location_spatial:
             data.update(
                 {
@@ -133,7 +145,7 @@ def serialize_post(post):
                     "accuracy": post.accuracy_ring_radius_meters,
                 }
             )
-    elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+    elif geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
         if post.true_location_spatial:
             offset_lat, offset_lon = calculate_offset_coordinates(
                 post.true_location_spatial.y,
@@ -148,7 +160,7 @@ def serialize_post(post):
                     "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
                 }
             )
-    elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+    elif geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
         center_lat, center_lon = get_continental_us_center()
         data.update(
             {
@@ -463,90 +475,16 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
         paginator = LimitOffsetPagination()
         paginated_media_posts = paginator.paginate_queryset(media_posts, request)
 
-        # Collect and format post information to send
+        # Collect and format post information to send.
+        # serialize_post handles privacy-aware location selection and normalises
+        # legacy integer-code geoprivacy values ("1"/"2"/"3").
         post_data = []
         for post in paginated_media_posts:
-            # Skip private sightings (belt-and-suspenders check)
-            if post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
+            # Skip private sightings – handle both string ("private") and
+            # legacy integer code ("3") geoprivacy values.
+            if post.geoprivacy in (settings.PRIVACY_SETTING_PRIVATE, "3"):
                 continue
-
-            location_info_fields = [
-                post.geocoded_location_locality,
-                post.geocoded_location_state,
-                post.geocoded_location_country,
-                post.geocoded_location_zip_code,
-            ]
-            geocoded_location = ", ".join(filter(None, location_info_fields))
-
-            additional_data = {
-                "camera_model": post.camera_model,
-                "camera_deployment_date": post.camera_deployment_date,
-                "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
-                "habitat_type": post.habitat_type,
-            }
-
-            media_data = None
-            if post.media:
-                media_url = post.media.file_cloud_path
-                # Generate signed URL for GCS files
-                if media_url and media_url.startswith("https://storage.googleapis.com/"):
-                    media_url = generate_signed_url(media_url)
-
-                media_data = {
-                    "url": media_url,
-                    "is_video": post.media.is_video,
-                }
-
-            current_data = {
-                "id": post.id,
-                "geoprivacy": post.geoprivacy,
-                "created_by": getattr(post.created_by, "name", "Deleted User"),
-                "encounter_datetime": post.encounter_datetime,
-                "species": getattr(post.species, "name", None),
-                "media": media_data,
-                "additional_info": additional_data,
-                "title": post.title,
-                "body": post.text_content,
-            }
-
-            if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
-                # Use true_location_spatial as the source field - no perturbation for public
-                if post.true_location_spatial:
-                    current_data.update(
-                        {
-                            "geocoded_location": geocoded_location,
-                            "latitude": post.true_location_spatial.y,
-                            "longitude": post.true_location_spatial.x,
-                            "accuracy": post.accuracy_ring_radius_meters,
-                        }
-                    )
-            elif post.geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
-                # Use true_location_spatial as source, perturb it randomly within obfuscationKilometers diameter
-                if post.true_location_spatial:
-                    offset_lat, offset_lon = calculate_offset_coordinates(
-                        post.true_location_spatial.y,
-                        post.true_location_spatial.x,
-                        post.obfuscation_range_kilometers,
-                    )
-                    current_data.update(
-                        {
-                            "geocoded_location": geocoded_location,
-                            "latitude": offset_lat,
-                            "longitude": offset_lon,
-                            "obfuscation_range_kilometers": post.obfuscation_range_kilometers,
-                        }
-                    )
-            elif post.geoprivacy == settings.PRIVACY_SETTING_PRIVATE:
-                # Return center of lower 48 states (continental US)
-                center_lat, center_lon = get_continental_us_center()
-                current_data.update(
-                    {
-                        "latitude": center_lat,
-                        "longitude": center_lon,
-                    }
-                )
-
-            post_data.append(current_data)
+            post_data.append(serialize_post(post))
 
         # Create response
         response_data = paginator.get_paginated_response(post_data).data
