@@ -6,7 +6,22 @@ from django.utils.safestring import mark_safe
 
 from siteapps.users.models import BannedEmail
 
-from .models import InappropriateContentReport, Media, MediaPost, TextComment
+from .models import InappropriateContentReport, Media, MediaPost, PostQualityMetric, SightingSpecies, TextComment
+
+
+@admin.register(SightingSpecies)
+class SightingSpeciesAdmin(admin.ModelAdmin):
+    list_display = ("post", "species", "rank", "created")
+    list_filter = ("rank",)
+    search_fields = ("post__title", "species__name")
+
+
+@admin.register(PostQualityMetric)
+class PostQualityMetricAdmin(admin.ModelAdmin):
+    list_display = ("post", "user", "metric", "agree", "created")
+    list_filter = ("metric", "agree")
+    search_fields = ("post__title", "user__email", "user__name")
+    readonly_fields = ("id", "created", "modified")
 
 
 @admin.register(InappropriateContentReport)
@@ -128,22 +143,22 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
     def get_content_preview(self, obj):
         """Display a preview of the reported content"""
         if obj.reported_post:
-            title = obj.reported_post.title[:self.TITLE_PREVIEW_LENGTH]
+            title = obj.reported_post.title[: self.TITLE_PREVIEW_LENGTH]
             # Add ellipsis if title was truncated
             if len(obj.reported_post.title) > self.TITLE_PREVIEW_LENGTH:
                 title += "..."
             # Escape title once
             escaped_title = escape(title)
-            
-            text = obj.reported_post.text_content[:self.TEXT_PREVIEW_LENGTH] if obj.reported_post.text_content else ""
+
+            text = obj.reported_post.text_content[: self.TEXT_PREVIEW_LENGTH] if obj.reported_post.text_content else ""
             # Add ellipsis if text was truncated
             if text and len(obj.reported_post.text_content) > self.TEXT_PREVIEW_LENGTH:
                 text += "..."
-            
+
             return f"{escaped_title} - {escape(text)}" if text else escaped_title
         elif obj.reported_comment:
             text = obj.reported_comment.text_content or ""
-            preview = text[:self.TEXT_PREVIEW_LENGTH]
+            preview = text[: self.TEXT_PREVIEW_LENGTH]
             if len(text) > self.TEXT_PREVIEW_LENGTH:
                 preview += "..."
             return escape(preview)
@@ -157,14 +172,14 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
             post = obj.reported_post
             # Escape all user-generated content
             title = escape(post.title)
-            text_content = escape(post.text_content or 'No text content')
-            species = escape(str(post.species) if post.species else 'Not specified')
-            locality = escape(post.geocoded_location_locality or 'Unknown')
-            state = escape(post.geocoded_location_state or '')
+            text_content = escape(post.text_content or "No text content")
+            species = escape(str(post.species) if post.species else "Not specified")
+            locality = escape(post.geocoded_location_locality or "Unknown")
+            state = escape(post.geocoded_location_state or "")
             encounter_date = escape(str(post.encounter_datetime))
             privacy = escape(str(post.geoprivacy))
             created = escape(str(post.created))
-            
+
             details = f"""
             <div style="padding: 10px; background: #f5f5f5; border-radius: 5px;">
                 <h3>Post: {title}</h3>
@@ -177,16 +192,16 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
             """
             if post.media:
                 media_path = escape(post.media.file_cloud_path)
-                details += f'<p><strong>Media:</strong> {media_path}</p>'
+                details += f"<p><strong>Media:</strong> {media_path}</p>"
             details += "</div>"
             return mark_safe(details)
         elif obj.reported_comment:
             comment = obj.reported_comment
             # Escape all user-generated content
-            text_content = escape(comment.text_content or 'No text content')
+            text_content = escape(comment.text_content or "No text content")
             upvote_count = comment.upvoted_by.count()
             created = escape(str(comment.created))
-            
+
             details = f"""
             <div style="padding: 10px; background: #f5f5f5; border-radius: 5px;">
                 <h3>Comment</h3>
@@ -252,7 +267,7 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
 
         # Escape user-generated content
         user_display = escape(user.name or user.email)
-        
+
         history = f"""
         <div style="padding: 10px; background: #fff3cd; border-radius: 5px;">
             <h4>Moderation History for {user_display}</h4>
@@ -267,7 +282,7 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
             for warning in previous_warnings[:5]:  # Show last 5 warnings
                 # Escape warning notes (staff-created but still escape for safety)
                 safe_notes = escape(warning.warning_notes)
-                date_str = escape(warning.created.strftime('%Y-%m-%d'))
+                date_str = escape(warning.created.strftime("%Y-%m-%d"))
                 history += f"<li><em>{date_str}:</em> {safe_notes}</li>"
             history += "</ul>"
 
@@ -347,18 +362,20 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
 
                 if user_to_ban and user_to_ban.email not in banned_users:
                     # Delete ALL media files associated with user's posts
-                    user_posts = MediaPost.objects.filter(created_by=user_to_ban).select_related('media')
+                    user_posts = MediaPost.objects.filter(created_by=user_to_ban).select_related("media")
                     for post in user_posts:
                         if post.media:
                             post.media.delete()
-                    
+
                     # Delete ALL content by this user
                     MediaPost.objects.filter(created_by=user_to_ban).delete()
                     TextComment.objects.filter(created_by=user_to_ban).delete()
 
                     # Add to banned email list
                     # Sanitize ban_reason to prevent any potential issues with special characters
-                    ban_reason = (report.warning_notes or "Multiple policy violations - permanent ban")[:self.MAX_BAN_REASON_LENGTH]
+                    ban_reason = (report.warning_notes or "Multiple policy violations - permanent ban")[
+                        : self.MAX_BAN_REASON_LENGTH
+                    ]
                     BannedEmail.objects.get_or_create(email=user_to_ban.email, defaults={"ban_reason": ban_reason})
 
                     banned_users.append(user_to_ban.email)
@@ -371,7 +388,9 @@ class InappropriateContentReportAdmin(admin.ModelAdmin):
                     # Ensure prefix + reason fits within MAX_BAN_REASON_LENGTH
                     prefix = "User permanently banned: "
                     max_reason_length = self.MAX_BAN_REASON_LENGTH - len(prefix)
-                    truncated_reason = ban_reason[:max_reason_length] if len(ban_reason) > max_reason_length else ban_reason
+                    truncated_reason = (
+                        ban_reason[:max_reason_length] if len(ban_reason) > max_reason_length else ban_reason
+                    )
                     report.warning_notes = f"{prefix}{truncated_reason}"
                 report.save()
                 count += 1
