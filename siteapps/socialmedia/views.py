@@ -28,7 +28,7 @@ from siteapps.users.models import BannedEmail
 
 from .geo_utils import calculate_offset_coordinates, get_continental_us_center
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
-from .models import InappropriateContentReport, Media, MediaPost, TextComment
+from .models import InappropriateContentReport, Media, MediaPost, PostQualityMetric, SightingSpecies, TextComment
 
 User = get_user_model()
 
@@ -89,11 +89,18 @@ class Haversine(Func):
     output_field = models.FloatField()
 
 
-def serialize_post(post):
+def serialize_post(post, user=None, include_quality_metrics=False):
     """Serialize a single MediaPost to a dict with privacy-aware location handling.
 
     Used by GetRecentPostsView, GetPostsByBoundingBoxView, and GetPostByIdView so that
     the response format is identical regardless of how the post was retrieved.
+
+    Args:
+        post: MediaPost instance
+        user: Optional authenticated User — when provided, user_vote is populated
+              in quality_metrics (only relevant when include_quality_metrics=True)
+        include_quality_metrics: When True, attach per-metric aggregates to the
+                                  response (used on single-post detail views only)
     """
     location_info_fields = [
         post.geocoded_location_locality,
@@ -130,7 +137,52 @@ def serialize_post(post):
         "additional_info": additional_data,
         "title": post.title,
         "body": post.text_content,
+        "quality_grade": post.quality_grade,
+        "num_identification_agreements": post.num_identification_agreements,
+        "num_identification_disagreements": post.num_identification_disagreements,
+        "animal_count": post.animal_count,
     }
+
+    # Build ordered species list from SightingSpecies; fall back to single species FK
+    sighting_species_qs = post.sighting_species.select_related("species").order_by("rank")
+    if sighting_species_qs.exists():
+        data["species_list"] = list(sighting_species_qs.values_list("species__name", flat=True))
+    elif post.species:
+        data["species_list"] = [post.species.name]
+    else:
+        data["species_list"] = []
+
+    if include_quality_metrics:
+        # Derived quality criteria — computed from post data, not user votes
+        has_location = post.true_location_spatial is not None or (
+            post.public_location_latitude is not None and post.public_location_longitude is not None
+        )
+        data["quality_flags"] = {
+            "date_specified": post.encounter_datetime is not None,
+            "location_specified": has_location,
+            "has_media": post.media is not None,
+            "id_supported_by_two_or_more": post.num_identification_agreements >= 2,
+        }
+
+        # Community-voted quality metrics
+        quality_metrics_data = []
+        for metric in PostQualityMetric.METRICS:
+            metric_votes = post.quality_metrics.filter(metric=metric)
+            user_vote = None
+            if user and user.is_authenticated:
+                vote = metric_votes.filter(user=user).first()
+                if vote is not None:
+                    user_vote = vote.agree
+            quality_metrics_data.append(
+                {
+                    "metric": metric,
+                    "question": PostQualityMetric.METRIC_QUESTIONS[metric],
+                    "agree_count": metric_votes.filter(agree=True).count(),
+                    "disagree_count": metric_votes.filter(agree=False).count(),
+                    "user_vote": user_vote,
+                }
+            )
+        data["quality_metrics"] = quality_metrics_data
 
     # Normalise legacy integer-code geoprivacy values before comparison
     geoprivacy = _GEOPRIVACY_CODES.get(post.geoprivacy, post.geoprivacy)
@@ -314,6 +366,9 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "additional_info": additional_data,
                 "title": post.title,
                 "body": post.text_content,
+                "quality_grade": post.quality_grade,
+                "num_identification_agreements": post.num_identification_agreements,
+                "num_identification_disagreements": post.num_identification_disagreements,
             }
 
             if post.geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
@@ -545,7 +600,108 @@ class GetPostByIdView(APIView):
             return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
 
         logger.info("GetPostByIdView: returning post", post_id=str(post_id))
-        return Response(serialize_post(post))
+        return Response(serialize_post(post, user=request.user, include_quality_metrics=True))
+
+
+@extend_schema(
+    summary="Vote on a quality metric",
+    description="Submit or toggle a quality-metric vote (agree/disagree) for a post. "
+    "Voting the same way twice removes the vote (toggle). After each vote the post's "
+    "quality_grade is recomputed.",
+    request=inline_serializer(
+        name="VoteQualityMetricRequest",
+        fields={"agree": serializers.BooleanField(help_text="True = agrees with the metric; False = disagrees")},
+    ),
+    responses={200: None, 400: None, 404: None},
+    tags=["Social Media"],
+)
+class VoteQualityMetricView(APIView):
+    """Toggle a quality-metric vote. Restricted to staff and superusers."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, post_id, metric):
+        if metric not in PostQualityMetric.METRICS:
+            return Response(
+                {"error": f"Invalid metric. Valid values: {PostQualityMetric.METRICS}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        agree = request.data.get("agree")
+        if agree is None:
+            return Response({"error": "'agree' field is required (true or false)"}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(agree, bool):
+            agree = str(agree).lower() == "true"
+
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        existing = PostQualityMetric.objects.filter(post=post, user=request.user, metric=metric).first()
+        if existing is not None:
+            if existing.agree == agree:
+                # Same vote again → toggle off
+                existing.delete()
+            else:
+                # Opposite vote → update
+                existing.agree = agree
+                existing.save(update_fields=["agree"])
+        else:
+            PostQualityMetric.objects.create(post=post, user=request.user, metric=metric, agree=agree)
+
+        post.recompute_quality_grade()
+
+        return Response(
+            {
+                "quality_grade": post.quality_grade,
+                "num_identification_agreements": post.num_identification_agreements,
+                "num_identification_disagreements": post.num_identification_disagreements,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class UpdateSightingSpeciesView(APIView):
+    """Replace the species list for a post. Restricted to staff and superusers."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, post_id):
+        species_names = [s.strip() for s in (request.data.get("species_list") or []) if s and s.strip()]
+        species_names = species_names[: SightingSpecies.MAX_SPECIES]
+
+        if not species_names:
+            return Response(
+                {"error": "species_list must contain at least one species."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate all species names exist
+        resolved = []
+        for name in species_names:
+            try:
+                sp = SpeciesName.objects.get(name=name)
+                resolved.append(sp)
+            except SpeciesName.DoesNotExist:
+                return Response({"error": f"Species not found: {name}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Replace all SightingSpecies rows atomically
+        SightingSpecies.objects.filter(post=post).delete()
+        for rank, sp in enumerate(resolved, start=1):
+            SightingSpecies.objects.create(post=post, species=sp, rank=rank)
+
+        # Keep primary species FK on MediaPost in sync with rank-1 species
+        post.species = resolved[0]
+        post.save(update_fields=["species"])
+
+        return Response({"species_list": [sp.name for sp in resolved]}, status=status.HTTP_200_OK)
 
 
 def check_post_is_liked_by(media_post_obj, user):
@@ -914,11 +1070,24 @@ class PostViewValidation:
             kwargs["geocoded_location_state"] = geocoded_location_state
         if geocoded_location_zip_code is not None:
             kwargs["geocoded_location_zip_code"] = geocoded_location_zip_code
-        if species is not None:
+
+        # speciesList[0] takes precedence over single 'species' field
+        species_names = [s for s in (data.get("speciesList") or []) if s]
+        primary_species_name = species_names[0] if species_names else data.get("species")
+        if primary_species_name is not None:
             try:
-                kwargs["species"] = SpeciesName.objects.get(name=species)
+                kwargs["species"] = SpeciesName.objects.get(name=primary_species_name)
             except Exception:
-                logging.error(f"No species name found named {species}.")
+                logging.error(f"No species name found named {primary_species_name}.")
+
+        # Animal count
+        animal_count = data.get("animalCount")
+        if animal_count is not None:
+            try:
+                kwargs["animal_count"] = int(animal_count)
+            except (ValueError, TypeError):
+                pass
+
         if camera_model is not None:
             kwargs["camera_model"] = camera_model
         if camera_deployment_date is not None:
@@ -1004,6 +1173,14 @@ class PostViewValidation:
             "encounterDatetime": serializers.DateTimeField(),
             "geocodedLocationCountry": serializers.CharField(),
             "species": serializers.CharField(required=False),
+            "speciesList": serializers.ListField(
+                child=serializers.CharField(),
+                required=False,
+                help_text="Ordered list of up to 5 species names; first entry is the primary identification",
+            ),
+            "animalCount": serializers.IntegerField(
+                required=False, help_text="Number of individual animals in the sighting"
+            ),
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
             "isVideo": serializers.BooleanField(required=False),
@@ -1067,8 +1244,20 @@ class CreatePostView(
             # For non-userId requests: use authenticated user if available, otherwise None for anonymous posts
             created_by_user = request.user if request.user.is_authenticated else None
 
-        # Finally, create the post object with given args, ignoring is a duplicate exists
-        MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
+        # Finally, create the post object with given args, ignoring if a duplicate exists
+        post, _ = MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
+
+        # Process multi-species list (up to MAX_SPECIES)
+        species_names = [s for s in (data.get("speciesList") or []) if s][: SightingSpecies.MAX_SPECIES]
+        if species_names:
+            # Replace any existing SightingSpecies for this post
+            post.sighting_species.all().delete()
+            for rank, name in enumerate(species_names, start=1):
+                try:
+                    sp = SpeciesName.objects.get(name=name)
+                    SightingSpecies.objects.create(post=post, species=sp, rank=rank)
+                except SpeciesName.DoesNotExist:
+                    logging.error(f"Species not found when creating SightingSpecies: {name}")
 
         return Response(status=status.HTTP_201_CREATED)
 
