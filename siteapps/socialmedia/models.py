@@ -100,6 +100,39 @@ class MediaPost(TextComment):
     habitat_type = models.CharField(max_length=64, null=True)
 
     ##############################
+    # Identification Quality Fields
+    ##############################
+    QUALITY_GRADE_CASUAL = "casual"
+    QUALITY_GRADE_NEEDS_ID = "needs_id"
+    QUALITY_GRADE_RESEARCH = "research"
+    QUALITY_GRADE_CHOICES = [
+        (QUALITY_GRADE_CASUAL, "Casual"),
+        (QUALITY_GRADE_NEEDS_ID, "Needs ID"),
+        (QUALITY_GRADE_RESEARCH, "Research"),
+    ]
+
+    # Number of identifications that agree with the community taxon
+    num_identification_agreements = models.IntegerField(default=0)
+
+    # Number of identifications that disagree with the community taxon
+    num_identification_disagreements = models.IntegerField(default=0)
+
+    # Overall data quality grade for this sighting
+    quality_grade = models.CharField(
+        max_length=16,
+        choices=QUALITY_GRADE_CHOICES,
+        default=QUALITY_GRADE_CASUAL,
+    )
+
+    ##############################
+    # Observation Counts
+    ##############################
+    # Number of individual animals visible in the sighting
+    animal_count = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Number of individual animals in the sighting"
+    )
+
+    ##############################
     # PostGIS Spatial Fields
     ##############################
     # Spatial point field for true location (uses SRID 4326 - WGS84)
@@ -107,6 +140,123 @@ class MediaPost(TextComment):
     # THIS IS THE CANONICAL SOURCE FOR ALL LOCATION DATA
     # Privacy transformations are applied during data retrieval, not storage
     true_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
+
+    def recompute_quality_grade(self):
+        """Recompute quality_grade, num_identification_agreements, and
+        num_identification_disagreements from current votes and save the post.
+
+        Grade logic (modelled on iNaturalist):
+        - casual  : missing encounter_datetime, location, or media evidence;
+                    OR majority of "wild" votes disagree.
+        - research: all basics present + has species + ID agreements > disagreements
+                    with at least 2 agreeing votes.
+        - needs_id: all basics present but species/ID threshold not yet met.
+        """
+        # Denormalise species-identification vote counts
+        id_votes = self.quality_metrics.filter(metric=PostQualityMetric.SPECIES_ID)
+        self.num_identification_agreements = id_votes.filter(agree=True).count()
+        self.num_identification_disagreements = id_votes.filter(agree=False).count()
+
+        # --- Casual checks (any failure → casual) ---
+        has_date = self.encounter_datetime is not None
+        has_location = self.true_location_spatial is not None or (
+            self.public_location_latitude is not None and self.public_location_longitude is not None
+        )
+        has_evidence = self.media is not None
+
+        if not (has_date and has_location and has_evidence):
+            self.quality_grade = self.QUALITY_GRADE_CASUAL
+            self.save(
+                update_fields=["quality_grade", "num_identification_agreements", "num_identification_disagreements"]
+            )
+            return
+
+        wild_votes = self.quality_metrics.filter(metric=PostQualityMetric.WILD)
+        if wild_votes.exists():
+            not_wild = wild_votes.filter(agree=False).count()
+            is_wild = wild_votes.filter(agree=True).count()
+            if not_wild > is_wild:
+                self.quality_grade = self.QUALITY_GRADE_CASUAL
+                self.save(
+                    update_fields=["quality_grade", "num_identification_agreements", "num_identification_disagreements"]
+                )
+                return
+
+        # --- Research check ---
+        if (
+            self.species is not None
+            and self.num_identification_agreements >= 2
+            and self.num_identification_agreements > self.num_identification_disagreements
+        ):
+            self.quality_grade = self.QUALITY_GRADE_RESEARCH
+        else:
+            self.quality_grade = self.QUALITY_GRADE_NEEDS_ID
+
+        self.save(update_fields=["quality_grade", "num_identification_agreements", "num_identification_disagreements"])
+
+
+class PostQualityMetric(TimeStampedModel):
+    """Records a single user's vote on a quality dimension for a MediaPost.
+
+    Modelled on iNaturalist's QualityMetric system. Each (post, user, metric)
+    combination is unique — voting again on the same metric toggles the value.
+    """
+
+    WILD = "wild"
+    LOCATION = "location"
+    DATE = "date"
+    EVIDENCE = "evidence"
+    SPECIES_ID = "species_id"
+
+    METRIC_CHOICES = [
+        (WILD, "Is the organism wild?"),
+        (LOCATION, "Does the location seem accurate?"),
+        (DATE, "Does the date seem accurate?"),
+        (EVIDENCE, "Is there sufficient evidence of the organism?"),
+        (SPECIES_ID, "Does this match the identified species?"),
+    ]
+    METRICS = [m[0] for m in METRIC_CHOICES]
+
+    METRIC_QUESTIONS = {
+        WILD: "Is the organism wild?",
+        LOCATION: "Does the location seem accurate?",
+        DATE: "Does the date seem accurate?",
+        EVIDENCE: "Is there sufficient evidence of the organism?",
+        SPECIES_ID: "Does this match the identified species?",
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    post = models.ForeignKey(MediaPost, related_name="quality_metrics", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name="quality_metric_votes", on_delete=models.CASCADE)
+
+    metric = models.CharField(max_length=16, choices=METRIC_CHOICES)
+
+    # True = agrees with the metric (e.g. "yes, it is wild"); False = disagrees
+    agree = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = [("post", "user", "metric")]
+
+
+class SightingSpecies(TimeStampedModel):
+    """Records one of up to MAX_SPECIES species associated with a MediaPost.
+
+    rank=1 is the primary identification (mirrors MediaPost.species FK).
+    rank 2-5 are additional species observed in the same sighting.
+    """
+
+    MAX_SPECIES = 5
+
+    post = models.ForeignKey(MediaPost, related_name="sighting_species", on_delete=models.CASCADE)
+    species = models.ForeignKey(SpeciesName, on_delete=models.CASCADE)
+
+    # 1 = primary identification, 2-5 = additional
+    rank = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        unique_together = [("post", "rank"), ("post", "species")]
+        ordering = ["rank"]
 
 
 # Model to handle reports for inappropriate content

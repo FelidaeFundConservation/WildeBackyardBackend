@@ -248,3 +248,8 @@ auth.json
 update-check.json
 actionlint
 CODE_REVIEW_INVESTIGATION.md
+test_sightings_ids.json
+.env.local
+.env.*
+*.xlsx
+distance_test_results.txt
