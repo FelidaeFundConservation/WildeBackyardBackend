@@ -8,6 +8,7 @@ from .models import BannedEmail, User
 # since email management is already handled in the User admin
 try:
     from allauth.account.models import EmailAddress
+
     admin.site.unregister(EmailAddress)
 except (admin.sites.NotRegistered, ImportError):
     # EmailAddress may not be registered or allauth may not be installed
@@ -25,17 +26,20 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
         "is_staff",
         "is_superuser",
         "is_active",
+        "is_volunteer",
+        "is_expert",
         "warnings",
         "created",
     )
-    list_filter = ("is_staff", "is_superuser", "is_active", "warnings")
+    list_filter = ("is_staff", "is_superuser", "is_active", "is_volunteer", "is_expert", "warnings")
     search_fields = ("email", "name")
     ordering = ("email",)
 
     # Fields to display on the user detail/edit page
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Personal info", {"fields": ("name", "bio")}),
+        ("Personal info", {"fields": ("name", "bio", "phone_number")}),
+        ("Roles", {"fields": ("is_volunteer", "is_expert")}),
         (
             "Permissions",
             {
