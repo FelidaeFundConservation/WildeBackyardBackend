@@ -18,6 +18,7 @@ from siteapps.socialmedia.views import (
     GetRecentPostsView,
     LikeCommentView,
     LikePostView,
+    UpdateAnimalCountView,
     UpdateSightingSpeciesView,
     VoteQualityMetricView,
 )
@@ -33,6 +34,7 @@ urlpatterns = [
     path("api/posts/<uuid:post_id>/", GetPostByIdView.as_view(), name="get_post_by_id"),
     path("api/posts/<uuid:post_id>/quality/<str:metric>/", VoteQualityMetricView.as_view(), name="vote_quality_metric"),
     path("api/posts/<uuid:post_id>/species/", UpdateSightingSpeciesView.as_view(), name="update_sighting_species"),
+    path("api/posts/<uuid:post_id>/animal-count/", UpdateAnimalCountView.as_view(), name="update_animal_count"),
     path("api/posts/responses/get/noauth", GetPostResponsesNoAuthView.as_view(), name="get_post_responses_noauth"),
     path("api/posts/responses/get/auth", GetPostResponsesAuthenticatedView.as_view(), name="get_post_responses_auth"),
     path("api/posts/reports/create", CreateInappropriateContentReportView.as_view(), name="report_content"),
