@@ -25,9 +25,7 @@ class UserCreate(UserBase):
     password: str = Field(min_length=8, description="User password (minimum 8 characters)")
 
     model_config = ConfigDict(
-        json_schema_extra={
-            "example": {"email": "user@example.com", "name": "John Doe", "password": "********"}
-        }
+        json_schema_extra={"example": {"email": "user@example.com", "name": "John Doe", "password": "********"}}
     )
 
 
@@ -36,6 +34,8 @@ class UserUpdate(BaseModel):
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     email: Optional[EmailStr] = None
+    bio: Optional[str] = Field(None, max_length=10000)
+    phone_number: Optional[str] = Field(None, max_length=25)
 
     model_config = ConfigDict(json_schema_extra={"example": {"name": "Jane Doe", "email": "newemail@example.com"}})
 
@@ -48,6 +48,10 @@ class UserResponse(UserBase):
     is_active: bool
     is_staff: bool
     warnings: int
+    is_volunteer: bool
+    is_expert: bool
+    phone_number: str
+    bio: str
     created: datetime
     modified: datetime
 
@@ -99,73 +103,3 @@ class BannedEmailResponse(BannedEmailBase):
     modified: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
-
-# Example usage in views:
-"""
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
-from pydantic import ValidationError
-from .models import User
-from .schemas import UserCreate, UserResponse, UserUpdate
-
-@api_view(['POST'])
-def create_user(request):
-    '''Create a new user with Pydantic validation.'''
-    try:
-        # Validate incoming data
-        user_data = UserCreate(**request.data)
-
-        # Create Django model instance
-        user = User.objects.create_user(
-            email=user_data.email,
-            name=user_data.name,
-            password=user_data.password
-        )
-
-        # Serialize response
-        response = UserResponse.model_validate(user)
-        return Response(response.model_dump(), status=status.HTTP_201_CREATED)
-
-    except ValidationError as e:
-        return Response({'errors': e.errors()}, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET'])
-def get_user(request, user_id):
-    '''Get user by ID with Pydantic serialization.'''
-    try:
-        user = User.objects.get(id=user_id)
-        response = UserResponse.model_validate(user)
-        return Response(response.model_dump())
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['PATCH'])
-def update_user(request, user_id):
-    '''Update user with Pydantic validation.'''
-    try:
-        user = User.objects.get(id=user_id)
-
-        # Validate update data
-        update_data = UserUpdate(**request.data)
-
-        # Update only provided fields
-        if update_data.name is not None:
-            user.name = update_data.name
-        if update_data.email is not None:
-            user.email = update_data.email
-
-        user.save()
-
-        # Return updated user
-        response = UserResponse.model_validate(user)
-        return Response(response.model_dump())
-
-    except User.DoesNotExist:
-        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
-    except ValidationError as e:
-        return Response({'errors': e.errors()}, status=status.HTTP_400_BAD_REQUEST)
-"""
