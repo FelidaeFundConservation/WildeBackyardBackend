@@ -61,6 +61,17 @@ class User(AbstractUser, TimeStampedModel):
     # The number of warnings the user has received
     warnings = models.IntegerField(default=0)
 
+    # Additional flag to indicate if user is a volunteer
+    is_volunteer = models.BooleanField(default=False)
+    # Flag to indicate an expert user. Their votes will provide direct validation for category, species and activity
+    # (i.e. no consensus necessary)
+    is_expert = models.BooleanField(
+        default=False,
+        help_text="Expert user votes directly validate Category, Species and Activity without need for additional consensus",
+    )
+    # Phone number if needed
+    phone_number = models.CharField("Phone Number", max_length=25, blank=True)
+
     # History of model instance changes
     history = HistoricalRecords()
 
