@@ -128,9 +128,7 @@ class MediaPost(TextComment):
     # Observation Counts
     ##############################
     # Number of individual animals visible in the sighting
-    animal_count = models.PositiveSmallIntegerField(
-        null=True, blank=True, help_text="Number of individual animals in the sighting"
-    )
+    animal_count = models.PositiveSmallIntegerField(default=1, help_text="Number of individual animals in the sighting")
 
     ##############################
     # PostGIS Spatial Fields
