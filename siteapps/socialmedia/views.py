@@ -704,6 +704,31 @@ class UpdateSightingSpeciesView(APIView):
         return Response({"species_list": [sp.name for sp in resolved]}, status=status.HTTP_200_OK)
 
 
+class UpdateAnimalCountView(APIView):
+    """Update the animal count for a post. Restricted to staff and superusers."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, post_id):
+        try:
+            count = int(request.data.get("animal_count"))
+        except (TypeError, ValueError):
+            return Response({"error": "'animal_count' must be a positive integer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if count < 1:
+            return Response({"error": "'animal_count' must be at least 1."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        post.animal_count = count
+        post.save(update_fields=["animal_count"])
+        return Response({"animal_count": post.animal_count}, status=status.HTTP_200_OK)
+
+
 def check_post_is_liked_by(media_post_obj, user):
     return media_post_obj.upvoted_by.filter(id=user.id).exists()
 
