@@ -704,6 +704,78 @@ class UpdateSightingSpeciesView(APIView):
         return Response({"species_list": [sp.name for sp in resolved]}, status=status.HTTP_200_OK)
 
 
+class UpdateLocationView(APIView):
+    """Update latitude, longitude, privacy setting, and obfuscation radius for a post.
+    Restricted to staff and superusers."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, post_id):
+        try:
+            latitude = float(request.data.get("latitude"))
+            longitude = float(request.data.get("longitude"))
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "'latitude' and 'longitude' must be valid numbers."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not (-90 <= latitude <= 90):
+            return Response({"error": "'latitude' must be between -90 and 90."}, status=status.HTTP_400_BAD_REQUEST)
+        if not (-180 <= longitude <= 180):
+            return Response({"error": "'longitude' must be between -180 and 180."}, status=status.HTTP_400_BAD_REQUEST)
+
+        privacy_setting = request.data.get("privacy_setting", settings.PRIVACY_SETTING_OBSCURED)
+        if privacy_setting not in (
+            settings.PRIVACY_SETTING_PUBLIC,
+            settings.PRIVACY_SETTING_OBSCURED,
+            settings.PRIVACY_SETTING_PRIVATE,
+        ):
+            return Response({"error": "Invalid 'privacy_setting'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        obfuscation_km = request.data.get("obfuscation_kilometers", 0.5)
+        try:
+            obfuscation_km = float(obfuscation_km)
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "'obfuscation_kilometers' must be a valid number."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        if obfuscation_km <= 0:
+            return Response(
+                {"error": "'obfuscation_kilometers' must be greater than 0."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        update_kwargs = {
+            "true_location_spatial": Point(longitude, latitude, srid=4326),
+            "geoprivacy": privacy_setting,
+        }
+
+        if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
+            update_kwargs["public_location_latitude"] = latitude
+            update_kwargs["public_location_longitude"] = longitude
+        elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
+            update_kwargs["obfuscation_range_kilometers"] = obfuscation_km
+
+        for field, value in update_kwargs.items():
+            setattr(post, field, value)
+        post.save(update_fields=list(update_kwargs.keys()))
+
+        return Response(
+            {
+                "latitude": latitude,
+                "longitude": longitude,
+                "privacy_setting": privacy_setting,
+                "obfuscation_kilometers": obfuscation_km,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class UpdateAnimalCountView(APIView):
     """Update the animal count for a post. Restricted to staff and superusers."""
 
