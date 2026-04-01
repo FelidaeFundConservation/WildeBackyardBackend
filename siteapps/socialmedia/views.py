@@ -750,6 +750,20 @@ class UpdateLocationView(APIView):
         except MediaPost.DoesNotExist:
             return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        accuracy_ring_radius_meters = request.data.get("accuracy_ring_radius_meters")
+        if accuracy_ring_radius_meters is not None:
+            try:
+                accuracy_ring_radius_meters = int(accuracy_ring_radius_meters)
+            except (TypeError, ValueError):
+                return Response(
+                    {"error": "'accuracy_ring_radius_meters' must be a valid integer."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if accuracy_ring_radius_meters < 0:
+                return Response(
+                    {"error": "'accuracy_ring_radius_meters' must be 0 or greater."}, status=status.HTTP_400_BAD_REQUEST
+                )
+
         update_kwargs = {
             "true_location_spatial": Point(longitude, latitude, srid=4326),
             "geoprivacy": privacy_setting,
@@ -761,6 +775,9 @@ class UpdateLocationView(APIView):
         elif privacy_setting == settings.PRIVACY_SETTING_OBSCURED:
             update_kwargs["obfuscation_range_kilometers"] = obfuscation_km
 
+        if accuracy_ring_radius_meters is not None:
+            update_kwargs["accuracy_ring_radius_meters"] = accuracy_ring_radius_meters
+
         for field, value in update_kwargs.items():
             setattr(post, field, value)
         post.save(update_fields=list(update_kwargs.keys()))
@@ -771,6 +788,7 @@ class UpdateLocationView(APIView):
                 "longitude": longitude,
                 "privacy_setting": privacy_setting,
                 "obfuscation_kilometers": obfuscation_km,
+                "accuracy_ring_radius_meters": accuracy_ring_radius_meters,
             },
             status=status.HTTP_200_OK,
         )
