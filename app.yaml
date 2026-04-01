@@ -6,7 +6,7 @@ env_variables:
   DJANGO_SETTINGS_MODULE: "config.settings.wildebackyard_api"
   PYTHON_ENV: "production"
   CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
-  WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_staging"
+  WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_prod"
 
 # Cloud SQL configuration for flexible environment
 beta_settings:
