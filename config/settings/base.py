@@ -283,11 +283,10 @@ SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 EMAIL_SUBJECT_PREFIX = "[Wilde Backyard]"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 
-# Sendgrid email settings (optional)
-SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", default=SECRETS.get("SENDGRID-API-KEY", None))
-EMAIL_HOST = "smtp.sendgrid.net"
-EMAIL_HOST_USER = "apikey"
-EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
+# Mailgun SMTP settings
+EMAIL_HOST = "smtp.mailgun.org"
+EMAIL_HOST_USER = "noreply@wildepod.org"
+EMAIL_HOST_PASSWORD = env.str("MAILGUN_SMTP_PASSWORD", default="")
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
