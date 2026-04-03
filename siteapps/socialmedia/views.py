@@ -23,7 +23,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from siteapps.species.models import SpeciesName
+from siteapps.species.models import SpeciesName, Taxon
 from siteapps.users.models import BannedEmail
 
 from .geo_utils import calculate_offset_coordinates, get_continental_us_center
@@ -143,14 +143,50 @@ def serialize_post(post, user=None, include_quality_metrics=False):
         "animal_count": post.animal_count,
     }
 
-    # Build ordered species list from SightingSpecies; fall back to single species FK
-    sighting_species_qs = post.sighting_species.select_related("species").order_by("rank")
+    # Build ordered species list from SightingSpecies (prefer taxon; fall back to SpeciesName)
+    sighting_species_qs = post.sighting_species.select_related("species", "taxon").order_by("rank")
     if sighting_species_qs.exists():
-        data["species_list"] = list(sighting_species_qs.values_list("species__name", flat=True))
+        species_list = []
+        for ss in sighting_species_qs:
+            if ss.taxon:
+                species_list.append(ss.taxon.preferred_common_name or ss.taxon.name)
+            elif ss.species:
+                species_list.append(ss.species.name)
+        data["species_list"] = species_list
+
+        taxa_list = []
+        for ss in sighting_species_qs:
+            if ss.taxon:
+                taxa_list.append(
+                    {
+                        "id": ss.taxon.id,
+                        "inat_id": ss.taxon.inat_id,
+                        "name": ss.taxon.name,
+                        "preferred_common_name": ss.taxon.preferred_common_name,
+                        "iconic_taxon_name": ss.taxon.iconic_taxon_name,
+                    }
+                )
+            else:
+                taxa_list.append(None)
+        data["taxa_list"] = taxa_list
+    elif post.taxon:
+        common = post.taxon.preferred_common_name or post.taxon.name
+        data["species_list"] = [common]
+        data["taxa_list"] = [
+            {
+                "id": post.taxon.id,
+                "inat_id": post.taxon.inat_id,
+                "name": post.taxon.name,
+                "preferred_common_name": post.taxon.preferred_common_name,
+                "iconic_taxon_name": post.taxon.iconic_taxon_name,
+            }
+        ]
     elif post.species:
         data["species_list"] = [post.species.name]
+        data["taxa_list"] = [None]
     else:
         data["species_list"] = []
+        data["taxa_list"] = []
 
     if include_quality_metrics:
         # Derived quality criteria — computed from post data, not user votes
@@ -664,7 +700,11 @@ class VoteQualityMetricView(APIView):
 
 
 class UpdateSightingSpeciesView(APIView):
-    """Replace the species list for a post. Restricted to staff and superusers."""
+    """Replace the species list for a post. Restricted to staff and superusers.
+
+    Accepts species by common name (Taxon.preferred_common_name) or scientific name
+    (Taxon.name). Falls back to legacy SpeciesName lookup for backward compatibility.
+    """
 
     authentication_classes = [authentication.TokenAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -678,14 +718,24 @@ class UpdateSightingSpeciesView(APIView):
                 {"error": "species_list must contain at least one species."}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Validate all species names exist
-        resolved = []
+        # Resolve each name: try Taxon first (common name, then scientific), then SpeciesName
+        resolved_taxa = []  # list of Taxon | None
+        resolved_species = []  # list of SpeciesName | None
         for name in species_names:
-            try:
-                sp = SpeciesName.objects.get(name=name)
-                resolved.append(sp)
-            except SpeciesName.DoesNotExist:
-                return Response({"error": f"Species not found: {name}"}, status=status.HTTP_400_BAD_REQUEST)
+            taxon = (
+                Taxon.objects.filter(preferred_common_name__iexact=name).first()
+                or Taxon.objects.filter(name__iexact=name).first()
+            )
+            if taxon:
+                resolved_taxa.append(taxon)
+                resolved_species.append(None)
+            else:
+                sp = SpeciesName.objects.filter(name__iexact=name).first()
+                if sp:
+                    resolved_taxa.append(None)
+                    resolved_species.append(sp)
+                else:
+                    return Response({"error": f"Species not found: {name}"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             post = MediaPost.objects.get(id=post_id)
@@ -694,14 +744,24 @@ class UpdateSightingSpeciesView(APIView):
 
         # Replace all SightingSpecies rows atomically
         SightingSpecies.objects.filter(post=post).delete()
-        for rank, sp in enumerate(resolved, start=1):
-            SightingSpecies.objects.create(post=post, species=sp, rank=rank)
+        for rank, (taxon, sp) in enumerate(zip(resolved_taxa, resolved_species), start=1):
+            SightingSpecies.objects.create(post=post, species=sp, taxon=taxon, rank=rank)
 
-        # Keep primary species FK on MediaPost in sync with rank-1 species
-        post.species = resolved[0]
-        post.save(update_fields=["species"])
+        # Keep primary FK on MediaPost in sync with rank-1
+        primary_taxon = resolved_taxa[0]
+        primary_species = resolved_species[0]
+        post.taxon = primary_taxon
+        post.species = primary_species
+        post.save(update_fields=["taxon", "species"])
 
-        return Response({"species_list": [sp.name for sp in resolved]}, status=status.HTTP_200_OK)
+        result_names = []
+        for taxon, sp in zip(resolved_taxa, resolved_species):
+            if taxon:
+                result_names.append(taxon.preferred_common_name or taxon.name)
+            else:
+                result_names.append(sp.name)
+
+        return Response({"species_list": result_names}, status=status.HTTP_200_OK)
 
 
 class UpdateLocationView(APIView):
