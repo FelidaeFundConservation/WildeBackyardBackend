@@ -7,7 +7,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
 
-from siteapps.species.models import SpeciesName
+from siteapps.species.models import SpeciesName, Taxon
 
 User = get_user_model()
 
@@ -75,6 +75,8 @@ class MediaPost(TextComment):
 
     # The species the user specified was sighted
     species = models.ForeignKey(SpeciesName, on_delete=models.SET_NULL, null=True, blank=True)
+    # iNaturalist-derived taxon FK — preferred over species FK for new sightings
+    taxon = models.ForeignKey(Taxon, on_delete=models.SET_NULL, null=True, blank=True, related_name="media_posts")
 
     ########################
     # Public Information
@@ -247,13 +249,16 @@ class SightingSpecies(TimeStampedModel):
     MAX_SPECIES = 5
 
     post = models.ForeignKey(MediaPost, related_name="sighting_species", on_delete=models.CASCADE)
-    species = models.ForeignKey(SpeciesName, on_delete=models.CASCADE)
+    species = models.ForeignKey(SpeciesName, on_delete=models.CASCADE, null=True, blank=True)
+    # iNaturalist-derived taxon FK — preferred for new sightings
+    taxon = models.ForeignKey(Taxon, on_delete=models.SET_NULL, null=True, blank=True, related_name="sighting_species")
 
     # 1 = primary identification, 2-5 = additional
     rank = models.PositiveSmallIntegerField(default=1)
 
     class Meta:
-        unique_together = [("post", "rank"), ("post", "species")]
+        # ("post", "taxon") uniqueness is enforced only when taxon is set
+        unique_together = [("post", "rank")]
         ordering = ["rank"]
 
 
