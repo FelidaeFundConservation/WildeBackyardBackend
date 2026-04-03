@@ -103,13 +103,12 @@ ADMIN_URL = "admin/"
 
 # EMAIL
 # ------------------------------------------------------------------------------
-# Use console backend for staging to avoid email errors
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Use SMTP backend (SendGrid) — inherited from base.py via EMAIL_HOST / EMAIL_HOST_PASSWORD.
+# Requires SENDGRID_API_KEY env var (set in app.yaml).
 
 # ALLAUTH
 # ------------------------------------------------------------------------------
-# Disable email verification for staging
-ACCOUNT_EMAIL_VERIFICATION = "optional"
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 
 # LOGGING
 # ------------------------------------------------------------------------------
