@@ -23,6 +23,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from siteapps.license_constants import LICENSE_CHOICES, LICENSE_REQUIRES_ATTRIBUTION, LICENSE_SHORT_LABELS, LICENSE_URLS
 from siteapps.species.models import SpeciesName, Taxon
 from siteapps.users.models import BannedEmail
 
@@ -141,6 +142,13 @@ def serialize_post(post, user=None, include_quality_metrics=False):
         "num_identification_agreements": post.num_identification_agreements,
         "num_identification_disagreements": post.num_identification_disagreements,
         "animal_count": post.animal_count,
+        "license": {
+            "code": post.license_code,
+            "label": LICENSE_SHORT_LABELS.get(post.license_code, post.license_code),
+            "url": LICENSE_URLS.get(post.license_code, ""),
+            "attribution": post.attribution_override or getattr(post.created_by, "name", "Anonymous"),
+            "requires_attribution": LICENSE_REQUIRES_ATTRIBUTION.get(post.license_code, True),
+        },
     }
 
     # Build ordered species list from SightingSpecies (prefer taxon; fall back to SpeciesName)
@@ -1274,6 +1282,14 @@ class PostViewValidation:
         if habitat_type is not None:
             kwargs["habitat_type"] = habitat_type
 
+        license_code = data.get("licenseCode")
+        attribution_override = data.get("attributionOverride")
+        valid_license_codes = {code for code, _ in LICENSE_CHOICES}
+        if license_code and license_code in valid_license_codes:
+            kwargs["license_code"] = license_code
+        if attribution_override is not None:
+            kwargs["attribution_override"] = attribution_override
+
     @staticmethod
     def validate_and_extract_data(data, request):
         # Extract required data
@@ -1420,6 +1436,10 @@ class CreatePostView(
         else:
             # For non-userId requests: use authenticated user if available, otherwise None for anonymous posts
             created_by_user = request.user if request.user.is_authenticated else None
+
+        # Apply user's default license if no explicit license was provided in kwargs
+        if "license_code" not in kwargs and created_by_user is not None:
+            kwargs["license_code"] = created_by_user.default_license
 
         # Finally, create the post object with given args, ignoring if a duplicate exists
         post, _ = MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)

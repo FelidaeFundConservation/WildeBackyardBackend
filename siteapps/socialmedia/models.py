@@ -7,6 +7,7 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
 
+from siteapps.license_constants import DEFAULT_LICENSE, LICENSE_CHOICES
 from siteapps.species.models import SpeciesName, Taxon
 
 User = get_user_model()
@@ -131,6 +132,24 @@ class MediaPost(TextComment):
     ##############################
     # Number of individual animals visible in the sighting
     animal_count = models.PositiveSmallIntegerField(default=1, help_text="Number of individual animals in the sighting")
+
+    ##############################
+    # Licensing and Attribution
+    ##############################
+    # The license under which this sighting's media and data are released
+    license_code = models.CharField(
+        max_length=32,
+        choices=LICENSE_CHOICES,
+        default=DEFAULT_LICENSE,
+        help_text="License for media and sighting data",
+    )
+    # Optional attribution text; if blank the poster's display name is used
+    attribution_override = models.CharField(
+        max_length=256,
+        blank=True,
+        default="",
+        help_text="Custom attribution name; leave blank to use poster's display name",
+    )
 
     ##############################
     # PostGIS Spatial Fields
