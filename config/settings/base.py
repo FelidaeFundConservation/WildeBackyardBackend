@@ -27,6 +27,11 @@ env_file = ROOT_DIR / ".env"
 
 LOGIN_URL = "/users/login"
 
+# URL of the web frontend — used to redirect users after email confirmation
+WEB_APP_URL = env.str("WEB_APP_URL", default="http://localhost:8001")
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = f"{WEB_APP_URL}/users/login/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"{WEB_APP_URL}/users/profile/"
+
 
 # Secrets
 
