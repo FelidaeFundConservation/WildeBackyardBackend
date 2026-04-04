@@ -8,6 +8,8 @@ from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
 
+from siteapps.license_constants import DEFAULT_LICENSE, LICENSE_CHOICES
+
 
 def generate_random_name():
     random_digits = "".join(secrets.choice(string.digits) for _ in range(6))
@@ -71,6 +73,14 @@ class User(AbstractUser, TimeStampedModel):
     )
     # Phone number if needed
     phone_number = models.CharField("Phone Number", max_length=25, blank=True)
+
+    # Default license applied to new sightings submitted by this user
+    default_license = models.CharField(
+        max_length=32,
+        choices=LICENSE_CHOICES,
+        default=DEFAULT_LICENSE,
+        help_text="Default license applied to new sightings and media",
+    )
 
     # History of model instance changes
     history = HistoricalRecords()
