@@ -164,6 +164,7 @@ def serialize_post(post, user=None, include_quality_metrics=False):
                         "name": ss.taxon.name,
                         "preferred_common_name": ss.taxon.preferred_common_name,
                         "iconic_taxon_name": ss.taxon.iconic_taxon_name,
+                        "default_photo_url": ss.taxon.default_photo_url,
                     }
                 )
             else:
@@ -179,6 +180,7 @@ def serialize_post(post, user=None, include_quality_metrics=False):
                 "name": post.taxon.name,
                 "preferred_common_name": post.taxon.preferred_common_name,
                 "iconic_taxon_name": post.taxon.iconic_taxon_name,
+                "default_photo_url": post.taxon.default_photo_url,
             }
         ]
     elif post.species:
