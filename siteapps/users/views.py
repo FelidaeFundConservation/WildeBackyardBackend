@@ -5,12 +5,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render
 from django.views.generic import TemplateView
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from siteapps.license_constants import LICENSE_CHOICES
 from siteapps.socialmedia.mixins import createResponse400
 from siteapps.socialmedia.models import MediaPost
 from siteapps.users.models import User
@@ -62,6 +63,7 @@ class UserProfileView(APIView):
             "sightings_count": MediaPost.objects.filter(created_by=request.user).count(),
             "is_staff": request.user.is_staff,
             "is_superuser": request.user.is_superuser,
+            "default_license": request.user.default_license,
         }
 
         return Response(status=status.HTTP_200_OK, data=data)
@@ -185,3 +187,33 @@ class EditStaffRoleView(APIView):
 
 class AccountVerifiedView(TemplateView):
     template_name = "account/email_confirm.html"
+
+
+@extend_schema(
+    summary="Update default sighting license",
+    description="Update the authenticated user's default license applied to new sightings and media.",
+    request=inline_serializer(
+        name="UpdateDefaultLicenseRequest",
+        fields={"licenseCode": serializers.ChoiceField(choices=[c[0] for c in LICENSE_CHOICES])},
+    ),
+    responses={200: None, 400: ApiErrorSerializer},
+    tags=["Users"],
+)
+class UpdateDefaultLicenseView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+        license_code = data.get("licenseCode")
+
+        valid_codes = {code for code, _ in LICENSE_CHOICES}
+        if not license_code or license_code not in valid_codes:
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"error": f"Invalid license code. Valid options are: {', '.join(sorted(valid_codes))}"},
+            )
+
+        request.user.default_license = license_code
+        request.user.save()
+        return Response(status=status.HTTP_200_OK)
