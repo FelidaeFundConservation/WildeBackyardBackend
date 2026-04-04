@@ -53,6 +53,7 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
             },
         ),
         ("Moderation", {"fields": ("warnings",)}),
+        ("Licensing", {"fields": ("default_license",)}),
         ("Important dates", {"fields": ("last_login", "created", "modified")}),
     )
 
