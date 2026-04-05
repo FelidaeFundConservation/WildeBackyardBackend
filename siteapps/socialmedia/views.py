@@ -1445,16 +1445,38 @@ class CreatePostView(
         post, _ = MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
 
         # Process multi-species list (up to MAX_SPECIES)
-        species_names = [s for s in (data.get("speciesList") or []) if s][: SightingSpecies.MAX_SPECIES]
+        species_names = [s.strip() for s in (data.get("speciesList") or []) if s and str(s).strip()][
+            : SightingSpecies.MAX_SPECIES
+        ]
         if species_names:
-            # Replace any existing SightingSpecies for this post
-            post.sighting_species.all().delete()
-            for rank, name in enumerate(species_names, start=1):
-                try:
-                    sp = SpeciesName.objects.get(name=name)
-                    SightingSpecies.objects.create(post=post, species=sp, rank=rank)
-                except SpeciesName.DoesNotExist:
-                    logging.error(f"Species not found when creating SightingSpecies: {name}")
+            # Resolve each name: try Taxon first (common name, then scientific), then SpeciesName
+            resolved_taxa = []
+            resolved_species = []
+            for name in species_names:
+                taxon = (
+                    Taxon.objects.filter(preferred_common_name__iexact=name).first()
+                    or Taxon.objects.filter(name__iexact=name).first()
+                )
+                if taxon:
+                    resolved_taxa.append(taxon)
+                    resolved_species.append(None)
+                else:
+                    sp = SpeciesName.objects.filter(name__iexact=name).first()
+                    if sp:
+                        resolved_taxa.append(None)
+                        resolved_species.append(sp)
+                    else:
+                        logging.error(f"Species not found when creating SightingSpecies: {name}")
+                        continue
+
+            if resolved_taxa or resolved_species:
+                post.sighting_species.all().delete()
+                for rank, (taxon, sp) in enumerate(zip(resolved_taxa, resolved_species), start=1):
+                    SightingSpecies.objects.create(post=post, species=sp, taxon=taxon, rank=rank)
+                # Keep primary FK on MediaPost in sync with rank-1
+                post.taxon = resolved_taxa[0] if resolved_taxa else None
+                post.species = resolved_species[0] if not resolved_taxa or not resolved_taxa[0] else None
+                post.save(update_fields=["taxon", "species"])
 
         return Response(status=status.HTTP_201_CREATED)
 
