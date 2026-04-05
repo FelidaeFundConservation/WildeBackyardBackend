@@ -218,3 +218,117 @@ class UpdateDefaultLicenseView(APIView):
         request.user.default_license = license_code
         request.user.save()
         return Response(status=status.HTTP_200_OK)
+
+
+# ── API Key management ────────────────────────────────────────────────────────
+
+
+@extend_schema(
+    summary="Create API key",
+    description=(
+        "Create a new API key linked to the authenticated user. "
+        "The raw key is returned **once** in this response and cannot be retrieved again."
+    ),
+    request=inline_serializer(
+        name="CreateAPIKeyRequest",
+        fields={"name": serializers.CharField(help_text="Human-readable label for this key")},
+    ),
+    responses={
+        201: inline_serializer(
+            name="CreateAPIKeyResponse",
+            fields={
+                "prefix": serializers.CharField(),
+                "name": serializers.CharField(),
+                "api_key": serializers.CharField(help_text="Raw key — store this securely, shown only once"),
+            },
+        ),
+        400: ApiErrorSerializer,
+    },
+    tags=["API Keys"],
+)
+class CreateUserAPIKeyView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from siteapps.users.models import UserAPIKey
+
+        data = json.loads(request.body)
+        name = data.get("name", "").strip()
+        if not name:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "A key name is required."})
+
+        api_key, key = UserAPIKey.objects.create_key(name=name, user=request.user)
+        return Response(
+            status=status.HTTP_201_CREATED,
+            data={"prefix": api_key.prefix, "name": api_key.name, "api_key": key},
+        )
+
+
+@extend_schema(
+    summary="List API keys",
+    description="List all API keys belonging to the authenticated user.",
+    responses={
+        200: inline_serializer(
+            name="APIKeyListItem",
+            fields={
+                "prefix": serializers.CharField(),
+                "name": serializers.CharField(),
+                "created": serializers.DateTimeField(),
+                "revoked": serializers.BooleanField(),
+                "expiry_date": serializers.DateTimeField(allow_null=True),
+            },
+            many=True,
+        )
+    },
+    tags=["API Keys"],
+)
+class ListUserAPIKeysView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from siteapps.users.models import UserAPIKey
+
+        keys = UserAPIKey.objects.filter(user=request.user).order_by("-created")
+        data = [
+            {
+                "prefix": k.prefix,
+                "name": k.name,
+                "created": k.created,
+                "revoked": k.revoked,
+                "expiry_date": k.expiry_date,
+            }
+            for k in keys
+        ]
+        return Response(status=status.HTTP_200_OK, data=data)
+
+
+@extend_schema(
+    summary="Revoke API key",
+    description="Revoke an API key owned by the authenticated user.",
+    responses={
+        200: None,
+        403: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+    tags=["API Keys"],
+)
+class RevokeUserAPIKeyView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, prefix: str):
+        from siteapps.users.models import UserAPIKey
+
+        try:
+            api_key = UserAPIKey.objects.get(prefix=prefix)
+        except UserAPIKey.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "API key not found."})
+
+        if api_key.user_id != request.user.pk:
+            return Response(status=status.HTTP_403_FORBIDDEN, data={"error": "You do not own this API key."})
+
+        api_key.revoked = True
+        api_key.save()
+        return Response(status=status.HTTP_200_OK)
