@@ -12,6 +12,7 @@ django-model-utils==4.4.0
 django-rest-passwordreset==1.4.1
 django-simple-history==3.5.0
 djangorestframework==3.14.0
+djangorestframework-api-key==3.1.0
 
 geopy==2.4.1
 
