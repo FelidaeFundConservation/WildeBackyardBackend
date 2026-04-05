@@ -6,8 +6,11 @@ from django.urls import path
 from .views import (
     AccountVerifiedView,
     ChangeUsernameView,
+    CreateUserAPIKeyView,
     DeleteAccountView,
     EditStaffRoleView,
+    ListUserAPIKeysView,
+    RevokeUserAPIKeyView,
     UpdateDefaultLicenseView,
     UserProfileView,
 )
@@ -22,4 +25,8 @@ urlpatterns = [
     path("profile/update-default-license/", UpdateDefaultLicenseView.as_view(), name="update_default_license"),
     path("delete_account", DeleteAccountView.as_view(), name="delete_account"),
     path("edit_staff", EditStaffRoleView.as_view(), name="edit_staff"),
+    # API key management
+    path("api-keys/", ListUserAPIKeysView.as_view(), name="list_api_keys"),
+    path("api-keys/create/", CreateUserAPIKeyView.as_view(), name="create_api_key"),
+    path("api-keys/<str:prefix>/revoke/", RevokeUserAPIKeyView.as_view(), name="revoke_api_key"),
 ]
