@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_api_key",
     "drf_spectacular",
     "dj_rest_auth",
     "dj_rest_auth.registration",
