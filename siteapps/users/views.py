@@ -58,6 +58,7 @@ class UserProfileView(APIView):
 
     def get(self, request):
         data = {
+            "id": str(request.user.id),
             "joined_date": request.user.created.strftime(settings.READABLE_DATE_FORMAT),
             "display_name": request.user.name,
             "sightings_count": MediaPost.objects.filter(created_by=request.user).count(),
