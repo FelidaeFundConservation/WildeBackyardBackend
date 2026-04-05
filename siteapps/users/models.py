@@ -75,6 +75,17 @@ class User(AbstractUser, TimeStampedModel):
     # Phone number if needed
     phone_number = models.CharField("Phone Number", max_length=25, blank=True)
 
+    # Developer role: grants programmatic/API access. Staff and superusers are always considered developers.
+    is_developer = models.BooleanField(
+        default=False,
+        help_text="Grants developer/API access. Staff and superusers are automatically considered developers.",
+    )
+
+    @property
+    def has_developer_access(self) -> bool:
+        """Returns True if this user has developer-level access (developer role, staff, or superuser)."""
+        return bool(self.is_developer or self.is_staff or self.is_superuser)
+
     # Default license applied to new sightings submitted by this user
     default_license = models.CharField(
         max_length=32,
