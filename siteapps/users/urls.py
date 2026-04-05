@@ -8,6 +8,7 @@ from .views import (
     ChangeUsernameView,
     CreateUserAPIKeyView,
     DeleteAccountView,
+    EditDeveloperRoleView,
     EditStaffRoleView,
     ListUserAPIKeysView,
     RevokeUserAPIKeyView,
@@ -25,6 +26,7 @@ urlpatterns = [
     path("profile/update-default-license/", UpdateDefaultLicenseView.as_view(), name="update_default_license"),
     path("delete_account", DeleteAccountView.as_view(), name="delete_account"),
     path("edit_staff", EditStaffRoleView.as_view(), name="edit_staff"),
+    path("edit_developer", EditDeveloperRoleView.as_view(), name="edit_developer"),
     # API key management
     path("api-keys/", ListUserAPIKeysView.as_view(), name="list_api_keys"),
     path("api-keys/create/", CreateUserAPIKeyView.as_view(), name="create_api_key"),
