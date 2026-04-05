@@ -26,13 +26,14 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
         "name",
         "is_staff",
         "is_superuser",
+        "is_developer",
         "is_active",
         "is_volunteer",
         "is_expert",
         "warnings",
         "created",
     )
-    list_filter = ("is_staff", "is_superuser", "is_active", "is_volunteer", "is_expert", "warnings")
+    list_filter = ("is_staff", "is_superuser", "is_developer", "is_active", "is_volunteer", "is_expert", "warnings")
     search_fields = ("email", "name")
     ordering = ("email",)
 
@@ -40,7 +41,7 @@ class UserAdmin(BaseUserAdmin, SimpleHistoryAdmin):
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Personal info", {"fields": ("name", "bio", "phone_number")}),
-        ("Roles", {"fields": ("is_volunteer", "is_expert")}),
+        ("Roles", {"fields": ("is_volunteer", "is_expert", "is_developer")}),
         (
             "Permissions",
             {

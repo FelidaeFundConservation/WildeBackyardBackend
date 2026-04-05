@@ -64,6 +64,7 @@ class UserProfileView(APIView):
             "sightings_count": MediaPost.objects.filter(created_by=request.user).count(),
             "is_staff": request.user.is_staff,
             "is_superuser": request.user.is_superuser,
+            "is_developer": request.user.has_developer_access,
             "default_license": request.user.default_license,
         }
 
@@ -188,6 +189,58 @@ class EditStaffRoleView(APIView):
 
 class AccountVerifiedView(TemplateView):
     template_name = "account/email_confirm.html"
+
+
+class EditDeveloperRoleSerializer(serializers.Serializer):
+    accountEmail = serializers.EmailField(help_text="Email of the account to modify")
+    setDeveloper = serializers.BooleanField(help_text="True to grant developer role, False to revoke")
+
+
+@extend_schema(
+    summary="Edit developer role",
+    description=(
+        "Grant or revoke the developer role for a user account. Only accessible by superusers. "
+        "Staff and superusers are always considered developers regardless of this flag."
+    ),
+    request=EditDeveloperRoleSerializer,
+    responses={
+        200: None,
+        400: ApiErrorSerializer,
+        403: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+    tags=["Admin"],
+)
+class EditDeveloperRoleView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        if not request.user.is_superuser:
+            return Response(
+                status=status.HTTP_403_FORBIDDEN,
+                data={"error": "This account is not allowed to perform this operation."},
+            )
+
+        data = json.loads(request.body)
+        account_email = data.get("accountEmail")
+        set_developer = data.get("setDeveloper")
+
+        if not account_email:
+            return createResponse400("The account email was not provided.")
+        if set_developer is None:
+            return createResponse400("setDeveloper was not provided.")
+
+        try:
+            user = User.objects.get(email=account_email)
+            user.is_developer = set_developer
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(
+                status=status.HTTP_404_NOT_FOUND,
+                data={"error": f"User with email {account_email} not found."},
+            )
 
 
 @extend_schema(
