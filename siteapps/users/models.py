@@ -79,6 +79,7 @@ class User(AbstractUser, TimeStampedModel):
         max_length=32,
         choices=LICENSE_CHOICES,
         default=DEFAULT_LICENSE,
+        db_default=DEFAULT_LICENSE,  # DB-level default prevents NULL from non-ORM inserts
         help_text="Default license applied to new sightings and media",
     )
 
