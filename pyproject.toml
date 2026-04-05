@@ -19,6 +19,7 @@ dependencies = [
     "django-simple-history==3.5.0",
     "django-storages[azure]",
     "djangorestframework==3.14.0",
+    "djangorestframework-api-key==3.1.0",
     "drf-spectacular==0.27.2",
     "pydantic[email]==2.9.2",
     "pydantic-settings==2.6.1",
