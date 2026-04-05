@@ -281,7 +281,8 @@ def serialize_post(post, user=None, include_quality_metrics=False):
             "distanceRadius": serializers.FloatField(required=False),
             "zipCode": serializers.CharField(required=False),
             "species": serializers.CharField(required=False),
-            "userId": serializers.IntegerField(required=False),
+            "userId": serializers.UUIDField(required=False),
+            "userDisplayName": serializers.CharField(required=False),
         },
     ),
     responses={200: inline_serializer(name="PostListResponse", fields={"results": serializers.ListField()})},
@@ -315,8 +316,8 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         # A user ID to filter by (for "my sightings")
         user_id = data.get("userId")
 
-        # A specific user ID to filter by
-        user_id = data.get("userId")
+        # A display name to filter by (for "another user")
+        user_display_name = data.get("userDisplayName")
 
         post_data = []
 
@@ -360,13 +361,13 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         if user_id is not None:
             media_posts = media_posts.filter(created_by__id=user_id)
 
+        # If a display name was provided, filter by that user's name
+        if user_display_name:
+            media_posts = media_posts.filter(created_by__name__icontains=user_display_name)
+
         # If a species was selected, only get posts of that species
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
-
-        # If a user ID was provided, only get posts by that user
-        if user_id is not None:
-            media_posts = media_posts.filter(created_by__id=user_id)
 
         # Apply pagination
         paginator = LimitOffsetPagination()
@@ -482,7 +483,10 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             "minLongitude": serializers.FloatField(required=True, help_text="Western longitude boundary"),
             "maxLongitude": serializers.FloatField(required=True, help_text="Eastern longitude boundary"),
             "species": serializers.CharField(required=False, help_text="Filter by species name"),
-            "userId": serializers.IntegerField(required=False, help_text="Filter by user ID"),
+            "userId": serializers.UUIDField(required=False, help_text="Filter by user UUID"),
+            "userDisplayName": serializers.CharField(
+                required=False, help_text="Filter by user display name (case-insensitive contains)"
+            ),
         },
     ),
     responses={200: inline_serializer(name="BoundingBoxPostListResponse", fields={"results": serializers.ListField()})},
@@ -509,6 +513,7 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
         # Optional filters
         species = data.get("species")
         user_id = data.get("userId")
+        user_display_name = data.get("userDisplayName")
 
         # Validate required parameters
         if min_latitude is None or max_latitude is None or min_longitude is None or max_longitude is None:
@@ -568,6 +573,9 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
         # Apply optional filters
         if user_id is not None:
             media_posts = media_posts.filter(created_by__id=user_id)
+
+        if user_display_name:
+            media_posts = media_posts.filter(created_by__name__icontains=user_display_name)
 
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
