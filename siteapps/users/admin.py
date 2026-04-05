@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from rest_framework_api_key.admin import APIKeyModelAdmin
 from simple_history.admin import SimpleHistoryAdmin
 
-from .models import BannedEmail, User
+from .models import BannedEmail, User, UserAPIKey
 
 # Unregister allauth's EmailAddress model from admin to avoid duplication
 # since email management is already handled in the User admin
@@ -87,3 +88,13 @@ class BannedEmailAdmin(admin.ModelAdmin):
     list_display = ("email", "ban_reason", "created")
     search_fields = ("email", "ban_reason")
     readonly_fields = ("created", "modified")
+
+
+@admin.register(UserAPIKey)
+class UserAPIKeyAdmin(APIKeyModelAdmin):
+    """Admin interface for UserAPIKey model"""
+
+    list_display = ("name", "user", "prefix", "created", "revoked", "expiry_date")
+    list_filter = ("revoked",)
+    search_fields = ("name", "prefix", "user__email", "user__name")
+    raw_id_fields = ("user",)

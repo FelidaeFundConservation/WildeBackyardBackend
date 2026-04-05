@@ -6,6 +6,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from model_utils.models import TimeStampedModel
+from rest_framework_api_key.models import AbstractAPIKey
 from simple_history.models import HistoricalRecords
 
 from siteapps.license_constants import DEFAULT_LICENSE, LICENSE_CHOICES
@@ -104,3 +105,20 @@ class BannedEmail(TimeStampedModel):
 
     email = models.EmailField("email address", unique=True)
     ban_reason = models.CharField(max_length=800, default="")
+
+
+class UserAPIKey(AbstractAPIKey):
+    """API key linked to a specific user account."""
+
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        related_name="api_keys",
+    )
+
+    class Meta(AbstractAPIKey.Meta):
+        verbose_name = "User API Key"
+        verbose_name_plural = "User API Keys"
+
+    def __str__(self):
+        return f"{self.name} ({self.user})"
