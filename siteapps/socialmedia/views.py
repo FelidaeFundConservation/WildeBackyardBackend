@@ -616,6 +616,161 @@ class GetPostsByBoundingBoxView(APIView, LatLngValidationMixin):
         return Response(response_data)
 
 
+class GetClustersByBoundingBoxView(APIView):
+    """Return clustered sighting locations for a bounding box + zoom level.
+
+    At low zoom levels (< 13) the response contains cluster features, each with
+    ``point_count`` and ``point_count_abbreviated`` properties.  At high zoom (>= 13)
+    individual point features are returned instead, with ``id``, ``title``,
+    ``species``, ``encounter_date``, and ``geocoded_location`` properties.
+
+    PostGIS ``ST_SnapToGrid`` is used for clustering so the result always reflects
+    the current database state with no Python-side caching required.
+    Private sightings are always excluded.
+    """
+
+    # Zoom level at which we switch from grid clusters → individual points.
+    _INDIVIDUAL_ZOOM = 13
+
+    # (min_zoom_inclusive, cell_size_degrees) — first matching entry wins.
+    _GRID_SIZES = [
+        (11, 0.1),
+        (9, 0.3),
+        (7, 1.0),
+        (5, 2.0),
+        (0, 5.0),
+    ]
+
+    def _cell_size(self, zoom: int) -> float:
+        for threshold, size in self._GRID_SIZES:
+            if zoom >= threshold:
+                return size
+        return 5.0
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+
+        min_lat = data.get("minLatitude")
+        max_lat = data.get("maxLatitude")
+        min_lng = data.get("minLongitude")
+        max_lng = data.get("maxLongitude")
+        zoom = int(data.get("zoom", 10))
+
+        if any(v is None for v in [min_lat, max_lat, min_lng, max_lng]):
+            return Response(
+                {"error": "minLatitude, maxLatitude, minLongitude, maxLongitude are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if zoom >= self._INDIVIDUAL_ZOOM:
+            features = self._individual_points(min_lat, max_lat, min_lng, max_lng)
+        else:
+            features = self._clustered(min_lat, max_lat, min_lng, max_lng, zoom)
+
+        total = sum(f["properties"].get("point_count", 1) for f in features)
+
+        return Response(
+            {
+                "type": "FeatureCollection",
+                "features": features,
+                "count": total,
+            }
+        )
+
+    def _individual_points(self, min_lat, max_lat, min_lng, max_lng):
+        from django.contrib.gis.geos import Polygon
+
+        bbox = Polygon.from_bbox((min_lng, min_lat, max_lng, max_lat))
+        posts = (
+            MediaPost.objects.filter(
+                true_location_spatial__isnull=False,
+                true_location_spatial__contained=bbox,
+            )
+            .exclude(geoprivacy__in=[settings.PRIVACY_SETTING_PRIVATE, "3"])
+            .select_related("species")[:2000]
+        )
+
+        features = []
+        for post in posts:
+            geoprivacy = _GEOPRIVACY_CODES.get(post.geoprivacy, post.geoprivacy)
+
+            if geoprivacy == settings.PRIVACY_SETTING_PUBLIC:
+                if not post.true_location_spatial:
+                    continue
+                lng = post.true_location_spatial.x
+                lat = post.true_location_spatial.y
+            elif geoprivacy == settings.PRIVACY_SETTING_OBSCURED:
+                if not post.true_location_spatial:
+                    continue
+                lat, lng = calculate_offset_coordinates(
+                    post.true_location_spatial.y,
+                    post.true_location_spatial.x,
+                    post.obfuscation_range_kilometers,
+                )
+            else:
+                continue
+
+            geocoded_location = ", ".join(filter(None, [post.geocoded_location_locality, post.geocoded_location_state]))
+
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [float(lng), float(lat)]},
+                    "properties": {
+                        "id": str(post.id),
+                        "title": post.title or "",
+                        "species": getattr(post.species, "name", "") or "",
+                        "encounter_date": post.encounter_datetime.isoformat() if post.encounter_datetime else "",
+                        "geocoded_location": geocoded_location,
+                    },
+                }
+            )
+
+        return features
+
+    def _clustered(self, min_lat, max_lat, min_lng, max_lng, zoom):
+        from django.db import connection
+
+        cell_size = self._cell_size(zoom)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    ST_AsGeoJSON(ST_Centroid(ST_Collect(true_location_spatial))),
+                    COUNT(*)::int
+                FROM socialmedia_mediapost
+                WHERE true_location_spatial && ST_MakeEnvelope(%s, %s, %s, %s, 4326)
+                  AND geoprivacy NOT IN ('private', '3')
+                  AND true_location_spatial IS NOT NULL
+                GROUP BY ST_SnapToGrid(true_location_spatial, %s)
+                """,
+                [min_lng, min_lat, max_lng, max_lat, cell_size],
+            )
+            rows = cursor.fetchall()
+
+        features = []
+        for geojson_str, count in rows:
+            if not geojson_str:
+                continue
+            count = int(count)
+            abbreviated = f"{count // 1000}k" if count >= 1000 else str(count)
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": json.loads(geojson_str),
+                    "properties": {
+                        "point_count": count,
+                        "point_count_abbreviated": abbreviated,
+                    },
+                }
+            )
+
+        return features
+
+
 @extend_schema(
     summary="Get a single post by ID",
     description="Retrieve a single wildlife sighting post by its UUID. Returns the same field set as the feed endpoints.",
