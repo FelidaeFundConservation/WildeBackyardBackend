@@ -33,8 +33,8 @@ echo "==> Preparing deployment..."
 # Get the short hash for versioning
 SHORT_HASH=$(git rev-parse --short HEAD)
 
-# Check for uncommitted changes
-if ! git diff-index --quiet HEAD --; then
+# Check for uncommitted changes (excluding version.py which was just updated)
+if ! git diff-index --quiet HEAD -- ':!config/version.py'; then
   echo "⚠️  Warning: You have uncommitted changes"
   echo "   Version $SHORT_HASH won't match your local changes"
   read -p "Continue anyway? (y/N) " -n 1 -r
