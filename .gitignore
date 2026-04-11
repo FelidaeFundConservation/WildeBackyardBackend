@@ -1,6 +1,7 @@
 # Custom ignore
 local/
 media/
+staticfiles/
 siteapps/static/css/main.css.map
 .ipynb_checkpoints/
 db.sqlite3
