@@ -13,6 +13,29 @@ from siteapps.species.models import SpeciesName, Taxon
 User = get_user_model()
 
 
+class SightingType(TimeStampedModel):
+    """Types of wildlife sightings (e.g., live sighting, camera trap, track/sign).
+
+    Allows admins to manage available sighting types via Django admin.
+    Uses integer primary key for simplicity and performance.
+    """
+
+    id = models.AutoField(primary_key=True)
+    code = models.CharField(max_length=50, unique=True, help_text="Unique code identifier (e.g., 'live_sighting')")
+    display_name = models.CharField(max_length=100, help_text="Display name (e.g., 'Live Sighting')")
+    description = models.TextField(blank=True, help_text="Optional description of this sighting type")
+    display_order = models.PositiveSmallIntegerField(default=100, help_text="Order for display in dropdowns")
+    is_active = models.BooleanField(default=True, help_text="Whether this type is available for selection")
+
+    class Meta:
+        ordering = ["display_order", "display_name"]
+        verbose_name = "Sighting Type"
+        verbose_name_plural = "Sighting Types"
+
+    def __str__(self):
+        return self.display_name
+
+
 # Images or videos
 class Media(TimeStampedModel):
     # UUID for the image
@@ -136,25 +159,14 @@ class MediaPost(TextComment):
     ##############################
     # Sighting Type
     ##############################
-    SIGHTING_TYPE_LIVE = "live_sighting"
-    SIGHTING_TYPE_CAMERA = "camera_trap"
-    SIGHTING_TYPE_TRACK = "track_sign"
-    SIGHTING_TYPE_KILLED = "killed"
-    SIGHTING_TYPE_UNKNOWN = "unknown"
-
-    SIGHTING_TYPE_CHOICES = [
-        (SIGHTING_TYPE_LIVE, "Live Sighting"),
-        (SIGHTING_TYPE_CAMERA, "Camera Trap or Security Camera"),
-        (SIGHTING_TYPE_TRACK, "Track or Sign"),
-        (SIGHTING_TYPE_KILLED, "Killed"),
-        (SIGHTING_TYPE_UNKNOWN, "Unknown"),
-    ]
-
-    sighting_type = models.CharField(
-        max_length=32,
-        choices=SIGHTING_TYPE_CHOICES,
-        default=SIGHTING_TYPE_UNKNOWN,
-        help_text="Type of wildlife sighting",
+    # Foreign key to SightingType model for admin-manageable sighting types
+    sighting_type = models.ForeignKey(
+        SightingType,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="posts",
+        help_text="Type of sighting (live, camera trap, track/sign, etc.)",
     )
 
     ##############################
