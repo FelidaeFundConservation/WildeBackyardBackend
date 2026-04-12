@@ -287,7 +287,14 @@ def serialize_post(post, user=None, include_quality_metrics=False):
             "userLatitude": serializers.FloatField(required=False),
             "userLongitude": serializers.FloatField(required=False),
             "distanceRadius": serializers.FloatField(required=False),
-            "zipCode": serializers.CharField(required=False),
+            "zipCode": serializers.CharField(required=False, help_text="ZIP/postal code (string match)"),
+            "zipCodeBoundary": serializers.CharField(required=False, help_text="ZIP code for spatial boundary query"),
+            "zipCodeCountry": serializers.CharField(
+                required=False, help_text="Country code (US/CA) for zipCodeBoundary"
+            ),
+            "placeName": serializers.CharField(required=False, help_text="Place name for geographic lookup"),
+            "placeCountry": serializers.CharField(required=False, help_text="Country code for place name lookup"),
+            "placeRadius": serializers.FloatField(required=False, help_text="Radius in km around place (default 10)"),
             "species": serializers.CharField(required=False),
             "userId": serializers.UUIDField(required=False),
             "userDisplayName": serializers.CharField(required=False),
@@ -315,8 +322,17 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         # The radius of the circle to check for posts updates
         distance_radius = data.get("distanceRadius")
 
-        # A specific zip code to look for posts in
+        # A specific zip code to look for posts in (string match on geocoded field)
         zip_code = data.get("zipCode")
+
+        # Spatial query parameters - ZIP code boundary polygon
+        zip_code_boundary = data.get("zipCodeBoundary")
+        zip_code_country = data.get("zipCodeCountry", "US").upper()
+
+        # Spatial query parameters - Place name lookup with radius
+        place_name = data.get("placeName")
+        place_country = data.get("placeCountry", "").upper()
+        place_radius = data.get("placeRadius", 10.0)  # Default 10km
 
         # A species to filter by
         species = data.get("species")
@@ -329,10 +345,133 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
 
         post_data = []
 
-        # Filter by zipcode
-        if zip_code:
+        # Filter by ZIP code boundary polygon (spatial containment)
+        if zip_code_boundary:
+            from django.db import connection as db_connection
+
+            # Normalize ZIP code
+            zip_lookup = zip_code_boundary.strip().upper()
+            if zip_code_country == "US":
+                zip_lookup = zip_lookup.replace("-", "")[:5]
+
+            # Look up ZIP code boundary in postal_codes table
+            with db_connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT boundary, latitude, longitude, place_name
+                    FROM postal_codes
+                    WHERE postal_code = %s AND country = %s AND boundary IS NOT NULL
+                    LIMIT 1
+                    """,
+                    [zip_lookup, zip_code_country],
+                )
+                zip_row = cursor.fetchone()
+
+            if not zip_row:
+                return Response(
+                    {
+                        "error": f"ZIP/postal code '{zip_code_boundary}' not found in {zip_code_country} or has no boundary data. Try using 'zipCode' parameter for string matching instead."
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Filter sightings within ZIP code boundary using PostGIS ST_Contains
+            media_posts = (
+                MediaPost.objects.filter(
+                    true_location_spatial__isnull=False,
+                )
+                .extra(
+                    where=[
+                        """
+                        ST_Contains(
+                            (SELECT boundary FROM postal_codes
+                             WHERE postal_code = %s AND country = %s LIMIT 1),
+                            true_location_spatial
+                        )
+                        """
+                    ],
+                    params=[zip_lookup, zip_code_country],
+                )
+                .order_by("-created")
+            )
+
+            logger.info(
+                "Filtering by ZIP boundary",
+                zip_code=zip_lookup,
+                country=zip_code_country,
+                place_name=zip_row[3],
+            )
+
+        # Filter by place name (lookup in geonames, then radius search)
+        elif place_name:
+            from django.contrib.gis.db.models.functions import Distance
+            from django.contrib.gis.geos import Point
+            from django.contrib.gis.measure import D
+            from django.db import connection as db_connection
+
+            # Look up place in geonames table
+            with db_connection.cursor() as cursor:
+                if place_country:
+                    cursor.execute(
+                        """
+                        SELECT geonameid, name, latitude, longitude, admin1, country, population
+                        FROM geonames
+                        WHERE name ILIKE %s AND country = %s
+                        ORDER BY population DESC NULLS LAST
+                        LIMIT 1
+                        """,
+                        [place_name, place_country],
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT geonameid, name, latitude, longitude, admin1, country, population
+                        FROM geonames
+                        WHERE name ILIKE %s
+                        ORDER BY population DESC NULLS LAST
+                        LIMIT 1
+                        """,
+                        [place_name],
+                    )
+                place_row = cursor.fetchone()
+
+            if not place_row:
+                country_msg = f" in {place_country}" if place_country else ""
+                return Response(
+                    {
+                        "error": f"Place name '{place_name}' not found{country_msg}. Please check spelling or try a nearby city."
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            place_lat = float(place_row[2])
+            place_lon = float(place_row[3])
+            place_point = Point(place_lon, place_lat, srid=4326)
+
+            # Use radius search around the place
+            media_posts = (
+                MediaPost.objects.filter(
+                    true_location_spatial__isnull=False,
+                )
+                .annotate(distance=Distance("true_location_spatial", place_point, spheroid=True))
+                .filter(distance__lte=D(km=place_radius))
+                .order_by("distance")
+            )
+
+            logger.info(
+                "Filtering by place name",
+                place_name=place_row[1],
+                geonameid=place_row[0],
+                lat=place_lat,
+                lon=place_lon,
+                radius_km=place_radius,
+                country=place_row[5],
+            )
+
+        # Filter by zipcode (legacy string match)
+        elif zip_code:
             media_posts = MediaPost.objects.filter(geocoded_location_zip_code=zip_code).order_by("-created")
-        # Filter by distance
+        # Filter by distance (user-provided coordinates)
         elif user_latitude or user_longitude or distance_radius:
             # Argument validation
             errors = [

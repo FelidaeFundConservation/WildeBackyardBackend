@@ -254,3 +254,16 @@ test_sightings_ids.json
 .env.*
 *.xlsx
 distance_test_results.txt
+
+# GeoNames and postal code data files (large downloads)
+data/geonames/*.zip
+data/geonames/*.txt
+data/postal_codes/*.zip
+data/postal_codes/*.txt
+data/postal_codes/*.shp
+data/postal_codes/*.shx
+data/postal_codes/*.dbf
+data/postal_codes/*.prj
+data/postal_codes/*.cpg
+data/postal_codes/*.xml
+data/iucn_habitatclassification_code_ver003/*.tif
