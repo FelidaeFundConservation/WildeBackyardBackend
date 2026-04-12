@@ -38,4 +38,5 @@ urlpatterns = [
     path("v1/socialmedia/", include(("socialmedia.urls", "socialmedia"), namespace="socialmedia")),
     path("v1/species/", include(("species.urls", "species"), namespace="species")),
     path("v1/mapbox/", include(("mapbox.urls", "mapbox"), namespace="mapbox")),
+    path("v1/habitat/", include(("siteapps.habitat.urls", "habitat"), namespace="habitat")),
 ]
