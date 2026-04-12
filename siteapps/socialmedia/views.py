@@ -29,7 +29,15 @@ from siteapps.users.models import BannedEmail
 
 from .geo_utils import calculate_offset_coordinates, get_continental_us_center
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
-from .models import InappropriateContentReport, Media, MediaPost, PostQualityMetric, SightingSpecies, TextComment
+from .models import (
+    InappropriateContentReport,
+    Media,
+    MediaPost,
+    PostQualityMetric,
+    SightingSpecies,
+    TextComment,
+    UserSightingLocation,
+)
 
 User = get_user_model()
 
@@ -1445,6 +1453,14 @@ class PostViewValidation:
         if habitat_type is not None:
             kwargs["habitat_type"] = habitat_type
 
+        # Sighting type
+        sighting_type = data.get("sightingType")
+        if sighting_type is not None:
+            # Validate it's a valid choice
+            valid_sighting_types = {choice[0] for choice in MediaPost.SIGHTING_TYPE_CHOICES}
+            if sighting_type in valid_sighting_types:
+                kwargs["sighting_type"] = sighting_type
+
         license_code = data.get("licenseCode")
         attribution_override = data.get("attributionOverride")
         valid_license_codes = {code for code, _ in LICENSE_CHOICES}
@@ -1536,6 +1552,10 @@ class PostViewValidation:
             ),
             "animalCount": serializers.IntegerField(
                 required=False, help_text="Number of individual animals in the sighting"
+            ),
+            "sightingType": serializers.CharField(
+                required=False,
+                help_text="Type of sighting: live_sighting, camera_trap, track_sign, killed, or unknown",
             ),
             "postBody": serializers.CharField(required=False),
             "mediaBytes": serializers.CharField(required=False),
@@ -1640,6 +1660,52 @@ class CreatePostView(
                 post.taxon = resolved_taxa[0] if resolved_taxa else None
                 post.species = resolved_species[0] if not resolved_taxa or not resolved_taxa[0] else None
                 post.save(update_fields=["taxon", "species"])
+
+        # Process multiple media files (mediaList)
+        media_list = data.get("mediaList", [])
+        if media_list and isinstance(media_list, list):
+            # Limit to MAX_MEDIA_PER_SIGHTING
+            from siteapps.socialmedia.models import SightingMedia
+
+            media_list = media_list[: SightingMedia.MAX_MEDIA_PER_SIGHTING]
+
+            # Clear existing SightingMedia entries for this post
+            SightingMedia.objects.filter(post=post).delete()
+
+            # Process each media file in the list
+            for idx, media_item in enumerate(media_list):
+                media_bytes_base64 = media_item.get("mediaBytes")
+                is_video = media_item.get("isVideo", False)
+                display_order = media_item.get("displayOrder", idx + 1)
+
+                if not media_bytes_base64:
+                    continue
+
+                try:
+                    # Convert and process media
+                    media_bytes = convert_base64_bytes(media_bytes_base64, is_video=is_video)
+                    content_hash = hashlib.sha256(media_bytes).hexdigest()
+
+                    # Check if Media object already exists
+                    media_obj = Media.objects.filter(content_hash=content_hash).first()
+                    if not media_obj:
+                        # Create new Media object
+                        media_obj = create_media(media_bytes, content_hash, request, is_video=is_video)
+
+                    # Link media to post via SightingMedia
+                    SightingMedia.objects.create(post=post, media=media_obj, display_order=display_order)
+
+                    # Set the first media as the primary media FK on MediaPost
+                    if idx == 0:
+                        post.media = media_obj
+                        post.save(update_fields=["media"])
+
+                    logging.info(
+                        f"Created SightingMedia entry {idx + 1} for post {post.id}, display_order={display_order}"
+                    )
+                except Exception as e:
+                    logging.error(f"Error processing media item {idx + 1}: {e}")
+                    # Continue processing other media files even if one fails
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -1809,3 +1875,178 @@ class EditPostView(
         MediaPost.objects.filter(id=data.get("postId")).update(**kwargs)
 
         return Response(status=status.HTTP_200_OK)
+
+
+# ==========================================
+# User Sighting Location CRUD Endpoints
+# ==========================================
+
+
+@extend_schema(
+    summary="List user's saved sighting locations",
+    description="Retrieve all saved sighting locations for the authenticated user.",
+    responses={200: None, 401: None},
+    tags=["User Locations"],
+)
+class ListUserLocationsView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        locations = UserSightingLocation.objects.filter(user=request.user).order_by("name")
+        data = [
+            {
+                "id": str(loc.id),
+                "name": loc.name,
+                "description": loc.description,
+                "latitude": loc.latitude,
+                "longitude": loc.longitude,
+                "created": loc.created.isoformat(),
+            }
+            for loc in locations
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    summary="Create a new sighting location",
+    description="Save a new named location for quick sighting submission.",
+    request=inline_serializer(
+        name="CreateLocationRequest",
+        fields={
+            "name": serializers.CharField(help_text="Location name (e.g., 'Backyard')"),
+            "description": serializers.CharField(required=False, help_text="Optional description"),
+            "latitude": serializers.FloatField(),
+            "longitude": serializers.FloatField(),
+        },
+    ),
+    responses={201: None, 400: None, 401: None},
+    tags=["User Locations"],
+)
+class CreateUserLocationView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+
+        name = data.get("name", "").strip()
+        description = data.get("description", "").strip()
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+
+        if not name:
+            return Response({"error": "Location name is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not latitude or not longitude:
+            return Response({"error": "Latitude and longitude are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            latitude = float(latitude)
+            longitude = float(longitude)
+        except (ValueError, TypeError):
+            return Response({"error": "Invalid latitude or longitude."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+            return Response({"error": "Latitude or longitude out of valid range."}, status=status.HTTP_400_BAD_REQUEST)
+
+        location = UserSightingLocation.objects.create(
+            user=request.user, name=name, description=description, latitude=latitude, longitude=longitude
+        )
+
+        return Response(
+            {
+                "id": str(location.id),
+                "name": location.name,
+                "description": location.description,
+                "latitude": location.latitude,
+                "longitude": location.longitude,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(
+    summary="Update a sighting location",
+    description="Update an existing saved location.",
+    request=inline_serializer(
+        name="UpdateLocationRequest",
+        fields={
+            "name": serializers.CharField(required=False),
+            "description": serializers.CharField(required=False),
+            "latitude": serializers.FloatField(required=False),
+            "longitude": serializers.FloatField(required=False),
+        },
+    ),
+    responses={200: None, 400: None, 401: None, 403: None, 404: None},
+    tags=["User Locations"],
+)
+class UpdateUserLocationView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, location_id):
+        try:
+            location = UserSightingLocation.objects.get(id=location_id)
+        except UserSightingLocation.DoesNotExist:
+            return Response({"error": "Location not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if location.user != request.user:
+            return Response(
+                {"error": "You do not have permission to edit this location."}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        data = json.loads(request.body)
+
+        if "name" in data:
+            location.name = data["name"].strip()
+        if "description" in data:
+            location.description = data["description"].strip()
+        if "latitude" in data:
+            try:
+                location.latitude = float(data["latitude"])
+            except (ValueError, TypeError):
+                return Response({"error": "Invalid latitude."}, status=status.HTTP_400_BAD_REQUEST)
+        if "longitude" in data:
+            try:
+                location.longitude = float(data["longitude"])
+            except (ValueError, TypeError):
+                return Response({"error": "Invalid longitude."}, status=status.HTTP_400_BAD_REQUEST)
+
+        location.save()
+
+        return Response(
+            {
+                "id": str(location.id),
+                "name": location.name,
+                "description": location.description,
+                "latitude": location.latitude,
+                "longitude": location.longitude,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    summary="Delete a sighting location",
+    description="Delete a saved sighting location.",
+    responses={204: None, 401: None, 403: None, 404: None},
+    tags=["User Locations"],
+)
+class DeleteUserLocationView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, location_id):
+        try:
+            location = UserSightingLocation.objects.get(id=location_id)
+        except UserSightingLocation.DoesNotExist:
+            return Response({"error": "Location not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if location.user != request.user:
+            return Response(
+                {"error": "You do not have permission to delete this location."}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        location.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
