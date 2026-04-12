@@ -86,28 +86,94 @@ class HabitatTypeByCoordinateView(APIView):
         return Response(habitat_data, status=status.HTTP_200_OK)
 
     def _get_habitat_level1_name(self, code):
-        """Map level 1 habitat code to name."""
-        # Based on IUCN habitat classification scheme
-        # TODO: Complete this mapping based on actual codes in the raster
+        """Map level 1 habitat code to name.
+
+        Based on official IUCN habitat classification scheme codes
+        from iucn_habitatclassification_composite_lvl1_ver003.tif
+        """
         level1_names = {
-            1: "Forest",
-            2: "Savanna",
-            3: "Shrubland",
-            4: "Grassland",
-            5: "Wetlands",
-            6: "Rocky areas",
-            7: "Caves and subterranean habitats",
-            8: "Desert",
-            9: "Marine",
-            10: "Artificial/Terrestrial",
-            11: "Artificial/Aquatic",
-            12: "Introduced vegetation",
-            13: "Other",
+            0: "Water",
+            100: "Forest",
+            200: "Savanna",
+            300: "Shrubland",
+            400: "Grassland",
+            500: "Wetlands (inland)",
+            600: "Rocky Areas",
+            800: "Desert",
+            1400: "Artificial - Terrestrial",
+            1700: "Unknown",
         }
-        return level1_names.get(code, f"Unknown ({code})")
+        return level1_names.get(code, f"Unknown habitat code ({code})")
 
     def _get_habitat_level2_name(self, code):
-        """Map level 2 habitat code to name."""
-        # TODO: Complete this mapping based on actual codes in the raster
-        # Level 2 has many more subdivisions
-        return f"Habitat code {code}"
+        """Map level 2 habitat code to name.
+
+        Based on official IUCN habitat classification scheme codes
+        from iucn_habitatclassification_composite_lvl2_ver003.tif
+        """
+        level2_names = {
+            0: "Water",
+            100: "Forest",
+            101: "Forest - Boreal",
+            102: "Forest - Subarctic",
+            103: "Forest - Subantarctic",
+            104: "Forest - Temperate",
+            105: "Forest - Subtropical-tropical dry",
+            106: "Forest - Subtropical-tropical moist lowland",
+            107: "Forest - Subtropical-tropical mangrove vegetation",
+            108: "Forest - Subtropical-tropical swamp",
+            109: "Forest - Subtropical-tropical moist montane",
+            200: "Savanna",
+            201: "Savanna - Dry",
+            202: "Savanna - Moist",
+            300: "Shrubland",
+            301: "Shrubland - Subarctic",
+            302: "Shrubland - Subantarctic",
+            303: "Shrubland - Boreal",
+            304: "Shrubland - Temperate",
+            305: "Shrubland - Subtropical-tropical dry",
+            306: "Shrubland - Subtropical-tropical moist",
+            307: "Shrubland - Subtropical-tropical high altitude",
+            308: "Shrubland - Mediterranean-type",
+            400: "Grassland",
+            401: "Grassland - Tundra",
+            402: "Grassland - Subarctic",
+            403: "Grassland - Subantarctic",
+            404: "Grassland - Temperate",
+            405: "Grassland - Subtropical-tropical dry",
+            406: "Grassland - Subtropical-tropical seasonally wet or flooded",
+            407: "Grassland - Subtropical-tropical high altitude",
+            500: "Wetlands (inland)",
+            501: "Wetlands (inland) - Permanent rivers streams creeks",
+            502: "Wetlands (inland) - Seasonal/intermittent/irregular rivers/streams/creeks",
+            503: "Wetlands (inland) - Shrub dominated wetlands",
+            504: "Wetlands (inland) - Bogs/marshes/swamps/fens/peatlands",
+            505: "Wetlands (inland) - Permanent freshwater lakes",
+            506: "Wetlands (inland) - Seasonal/intermittent freshwater lakes (over 8 ha)",
+            507: "Wetlands (inland) - Permanent freshwater marshes/pools (under 8 ha)",
+            508: "Wetlands (inland) - Seasonal/intermittent freshwater marshes/pools (under 8 ha)",
+            509: "Wetlands (inland) - Freshwater springs and oases",
+            510: "Wetlands (inland) - Tundra wetlands",
+            511: "Wetlands (inland) - Alpine wetlands",
+            512: "Wetlands (inland) - Geothermal wetlands",
+            513: "Wetlands (inland) - Permanent inland deltas",
+            514: "Wetlands (inland) - Permanent saline brackish or alkaline lakes",
+            515: "Wetlands (inland) - Seasonal/intermittent saline brackish or alkaline lakes and flats",
+            516: "Wetlands (inland) - Permanent /saline / brackish or alkaline marshes/pools",
+            517: "Wetlands (inland) - Seasonal/intermittent /saline / brackish or alkaline marshes/pools",
+            518: "Wetlands (inland) / Karst and other subterranean hydrological systems",
+            600: "Rocky Areas",
+            800: "Desert",
+            801: "Desert - Hot",
+            802: "Desert - Temperate",
+            803: "Desert - Cold",
+            1400: "Artificial - Terrestrial",
+            1401: "Arable land",
+            1402: "Pastureland",
+            1403: "Plantations",
+            1404: "Rural Gardens",
+            1405: "Urban Areas",
+            1406: "Subtropical/Tropical Heavily Degraded Former Forest",
+            1700: "Unknown",
+        }
+        return level2_names.get(code, f"Unknown habitat code ({code})")
