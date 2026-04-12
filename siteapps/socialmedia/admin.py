@@ -6,7 +6,31 @@ from django.utils.safestring import mark_safe
 
 from siteapps.users.models import BannedEmail
 
-from .models import InappropriateContentReport, Media, MediaPost, PostQualityMetric, SightingSpecies, TextComment
+from .models import (
+    InappropriateContentReport,
+    Media,
+    MediaPost,
+    PostQualityMetric,
+    SightingSpecies,
+    SightingType,
+    TextComment,
+)
+
+
+@admin.register(SightingType)
+class SightingTypeAdmin(admin.ModelAdmin):
+    list_display = ("display_name", "code", "display_order", "is_active", "created")
+    list_filter = ("is_active",)
+    search_fields = ("code", "display_name", "description")
+    list_editable = ("display_order", "is_active")
+    ordering = ("display_order", "display_name")
+    readonly_fields = ("id", "created", "modified")
+
+    fieldsets = (
+        (None, {"fields": ("code", "display_name", "description")}),
+        ("Display Settings", {"fields": ("display_order", "is_active")}),
+        ("Metadata", {"fields": ("id", "created", "modified"), "classes": ("collapse",)}),
+    )
 
 
 @admin.register(SightingSpecies)

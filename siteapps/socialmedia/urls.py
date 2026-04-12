@@ -21,6 +21,7 @@ from siteapps.socialmedia.views import (
     GetRecentPostsView,
     LikeCommentView,
     LikePostView,
+    ListSightingTypesView,
     ListUserLocationsView,
     UpdateAnimalCountView,
     UpdateLocationView,
@@ -50,6 +51,8 @@ urlpatterns = [
     path("api/posts/reports/clear", ClearReportView.as_view(), name="clear_report"),
     path("api/posts/reports/warn", IssueWarningView.as_view(), name="issue_warning"),
     path("api/posts/reports/ban", BanUserView.as_view(), name="ban_user"),
+    # Sighting types
+    path("api/sighting-types/", ListSightingTypesView.as_view(), name="list_sighting_types"),
     # User sighting locations
     path("api/locations/", ListUserLocationsView.as_view(), name="list_user_locations"),
     path("api/locations/create/", CreateUserLocationView.as_view(), name="create_user_location"),
