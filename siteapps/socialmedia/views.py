@@ -1878,6 +1878,33 @@ class EditPostView(
 
 
 # ==========================================
+# Sighting Type Endpoints
+# ==========================================
+
+
+class ListSightingTypesView(APIView):
+    """List all active sighting types for dropdown selection."""
+
+    authentication_classes = []
+    permission_classes = []  # Public endpoint
+
+    def get(self, request):
+        from siteapps.socialmedia.models import SightingType
+
+        types = SightingType.objects.filter(is_active=True).order_by("display_order", "display_name")
+        data = [
+            {
+                "id": str(stype.id),
+                "code": stype.code,
+                "displayName": stype.display_name,
+                "description": stype.description,
+            }
+            for stype in types
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+# ==========================================
 # User Sighting Location CRUD Endpoints
 # ==========================================
 
