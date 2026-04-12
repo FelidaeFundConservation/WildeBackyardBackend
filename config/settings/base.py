@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     "siteapps.socialmedia",
     "siteapps.species",
     "siteapps.mapbox",
+    "siteapps.habitat",
 ]
 
 MIDDLEWARE = [
