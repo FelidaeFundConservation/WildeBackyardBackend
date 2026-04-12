@@ -10,6 +10,8 @@ from siteapps.socialmedia.moderation import (
 from siteapps.socialmedia.views import (
     CreateCommentView,
     CreatePostView,
+    CreateUserLocationView,
+    DeleteUserLocationView,
     EditPostView,
     GetClustersByBoundingBoxView,
     GetPostByIdView,
@@ -19,9 +21,11 @@ from siteapps.socialmedia.views import (
     GetRecentPostsView,
     LikeCommentView,
     LikePostView,
+    ListUserLocationsView,
     UpdateAnimalCountView,
     UpdateLocationView,
     UpdateSightingSpeciesView,
+    UpdateUserLocationView,
     VoteQualityMetricView,
 )
 
@@ -46,4 +50,9 @@ urlpatterns = [
     path("api/posts/reports/clear", ClearReportView.as_view(), name="clear_report"),
     path("api/posts/reports/warn", IssueWarningView.as_view(), name="issue_warning"),
     path("api/posts/reports/ban", BanUserView.as_view(), name="ban_user"),
+    # User sighting locations
+    path("api/locations/", ListUserLocationsView.as_view(), name="list_user_locations"),
+    path("api/locations/create/", CreateUserLocationView.as_view(), name="create_user_location"),
+    path("api/locations/<uuid:location_id>/", UpdateUserLocationView.as_view(), name="update_user_location"),
+    path("api/locations/<uuid:location_id>/delete/", DeleteUserLocationView.as_view(), name="delete_user_location"),
 ]

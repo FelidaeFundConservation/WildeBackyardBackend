@@ -134,6 +134,30 @@ class MediaPost(TextComment):
     animal_count = models.PositiveSmallIntegerField(default=1, help_text="Number of individual animals in the sighting")
 
     ##############################
+    # Sighting Type
+    ##############################
+    SIGHTING_TYPE_LIVE = "live_sighting"
+    SIGHTING_TYPE_CAMERA = "camera_trap"
+    SIGHTING_TYPE_TRACK = "track_sign"
+    SIGHTING_TYPE_KILLED = "killed"
+    SIGHTING_TYPE_UNKNOWN = "unknown"
+
+    SIGHTING_TYPE_CHOICES = [
+        (SIGHTING_TYPE_LIVE, "Live Sighting"),
+        (SIGHTING_TYPE_CAMERA, "Camera Trap or Security Camera"),
+        (SIGHTING_TYPE_TRACK, "Track or Sign"),
+        (SIGHTING_TYPE_KILLED, "Killed"),
+        (SIGHTING_TYPE_UNKNOWN, "Unknown"),
+    ]
+
+    sighting_type = models.CharField(
+        max_length=32,
+        choices=SIGHTING_TYPE_CHOICES,
+        default=SIGHTING_TYPE_UNKNOWN,
+        help_text="Type of wildlife sighting",
+    )
+
+    ##############################
     # Licensing and Attribution
     ##############################
     # The license under which this sighting's media and data are released
@@ -279,6 +303,66 @@ class SightingSpecies(TimeStampedModel):
         # ("post", "taxon") uniqueness is enforced only when taxon is set
         unique_together = [("post", "rank")]
         ordering = ["rank"]
+
+
+class SightingMedia(TimeStampedModel):
+    """Links multiple media files (up to 5) to a single sighting/post.
+
+    This allows users to attach multiple photos/videos to one sighting.
+    The MediaPost.media FK is kept for backwards compatibility and represents
+    the primary/first media item.
+    """
+
+    MAX_MEDIA_PER_SIGHTING = 5
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    post = models.ForeignKey(MediaPost, related_name="additional_media", on_delete=models.CASCADE)
+    media = models.ForeignKey(Media, on_delete=models.CASCADE)
+
+    # Order of media within the sighting (1 = primary, 2-5 = additional)
+    display_order = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        unique_together = [("post", "media")]
+        ordering = ["display_order"]
+
+
+class UserSightingLocation(TimeStampedModel):
+    """User-defined named locations for quick sighting submission.
+
+    Allows users to save frequently used locations (e.g., "Backyard", "Front Trail")
+    for reuse when creating sightings.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(User, related_name="sighting_locations", on_delete=models.CASCADE)
+    name = models.CharField(max_length=100, help_text="Name for this location (e.g., 'Backyard', 'North Trail')")
+    description = models.TextField(max_length=500, blank=True, help_text="Optional description of the location")
+
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+
+    # Optional: use PostGIS for spatial indexing
+    location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["user", "name"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.latitude}, {self.longitude})"
+
+    def save(self, *args, **kwargs):
+        # Automatically populate spatial field from lat/lng
+        if self.latitude and self.longitude:
+            from django.contrib.gis.geos import Point
+
+            self.location_spatial = Point(self.longitude, self.latitude, srid=4326)
+        super().save(*args, **kwargs)
 
 
 # Model to handle reports for inappropriate content
