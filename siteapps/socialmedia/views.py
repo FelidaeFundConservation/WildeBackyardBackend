@@ -349,6 +349,9 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         # A display name to filter by (for "another user")
         user_display_name = data.get("userDisplayName")
 
+        # Verification filter: "verified" (>=2 agreements), "unverified" (<2), or "all" (default)
+        verification_filter = data.get("verificationFilter", "all")
+
         post_data = []
 
         # Filter by ZIP code boundary polygon (spatial containment)
@@ -518,6 +521,12 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         if user_display_name:
             media_posts = media_posts.filter(created_by__name__icontains=user_display_name)
 
+        # Verification filter based on species agreement count
+        if verification_filter == "verified":
+            media_posts = media_posts.filter(num_identification_agreements__gte=2)
+        elif verification_filter == "unverified":
+            media_posts = media_posts.filter(num_identification_agreements__lt=2)
+
         # If a species was selected, only get posts of that species
         if species is not None:
             media_posts = media_posts.filter(species__name=species)
@@ -542,15 +551,13 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "camera_deployment_date": post.camera_deployment_date,
                 "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
                 "habitat_type": post.habitat_type,
-                "iucn_habitat_lvl1_code": post.iucn_habitat_lvl1_code,
-                "iucn_habitat_lvl1_name": (
-                    post.iucn_habitat_lvl1.name if post.iucn_habitat_lvl1 else post.iucn_habitat_lvl1_name
+                "iucn_habitat_lvl1_code": post.iucn_habitat_lvl1.code if post.iucn_habitat_lvl1 else None,
+                "iucn_habitat_lvl1_name": post.iucn_habitat_lvl1.name if post.iucn_habitat_lvl1 else None,
+                "iucn_habitat_lvl2_code": post.iucn_habitat_lvl2.code if post.iucn_habitat_lvl2 else None,
+                "iucn_habitat_lvl2_name": post.iucn_habitat_lvl2.name if post.iucn_habitat_lvl2 else None,
+                "iucn_habitat_level_used": (
+                    "level2" if post.iucn_habitat_lvl2 else ("level1" if post.iucn_habitat_lvl1 else None)
                 ),
-                "iucn_habitat_lvl2_code": post.iucn_habitat_lvl2_code,
-                "iucn_habitat_lvl2_name": (
-                    post.iucn_habitat_lvl2.name if post.iucn_habitat_lvl2 else post.iucn_habitat_lvl2_name
-                ),
-                "iucn_habitat_level_used": post.iucn_habitat_level_used,
             }
 
             media_data = None
@@ -1184,11 +1191,6 @@ class UpdateLocationView(APIView):
                 lvl1_code = habitat_data.get("iucn_habitat_lvl1_code")
                 lvl2_code = habitat_data.get("iucn_habitat_lvl2_code")
 
-                update_kwargs["iucn_habitat_lvl1_code"] = lvl1_code
-                update_kwargs["iucn_habitat_lvl1_name"] = habitat_data.get("iucn_habitat_lvl1_name")
-                update_kwargs["iucn_habitat_lvl2_code"] = lvl2_code
-                update_kwargs["iucn_habitat_lvl2_name"] = habitat_data.get("iucn_habitat_lvl2_name")
-
                 # Set FK relationships if classification records exist
                 if lvl1_code is not None:
                     try:
@@ -1594,11 +1596,6 @@ class PostViewValidation:
                     lvl1_code = habitat_data.get("iucn_habitat_lvl1_code")
                     lvl2_code = habitat_data.get("iucn_habitat_lvl2_code")
 
-                    kwargs["iucn_habitat_lvl1_code"] = lvl1_code
-                    kwargs["iucn_habitat_lvl1_name"] = habitat_data.get("iucn_habitat_lvl1_name")
-                    kwargs["iucn_habitat_lvl2_code"] = lvl2_code
-                    kwargs["iucn_habitat_lvl2_name"] = habitat_data.get("iucn_habitat_lvl2_name")
-
                     # Set FK relationships if classification records exist
                     if lvl1_code is not None:
                         try:
@@ -1889,16 +1886,10 @@ class CreatePostView(
                         # Look up the IUCNHabitatClassification record
                         try:
                             habitat = IUCNHabitatClassification.objects.get(level="level1", code=habitat_code)
-                            post.iucn_habitat_lvl1_code = habitat_code
                             post.iucn_habitat_lvl1 = habitat
-                            post.iucn_habitat_lvl1_name = habitat.name  # Keep for backward compatibility
-                            post.iucn_habitat_level_used = "level1"
                             post.save(
                                 update_fields=[
-                                    "iucn_habitat_lvl1_code",
                                     "iucn_habitat_lvl1",
-                                    "iucn_habitat_lvl1_name",
-                                    "iucn_habitat_level_used",
                                 ]
                             )
                         except IUCNHabitatClassification.DoesNotExist:
@@ -1921,16 +1912,10 @@ class CreatePostView(
                         # Look up the IUCNHabitatClassification record
                         try:
                             habitat = IUCNHabitatClassification.objects.get(level="level2", code=habitat_code)
-                            post.iucn_habitat_lvl2_code = habitat_code
                             post.iucn_habitat_lvl2 = habitat
-                            post.iucn_habitat_lvl2_name = habitat.name  # Keep for backward compatibility
-                            post.iucn_habitat_level_used = "level2"
                             post.save(
                                 update_fields=[
-                                    "iucn_habitat_lvl2_code",
                                     "iucn_habitat_lvl2",
-                                    "iucn_habitat_lvl2_name",
-                                    "iucn_habitat_level_used",
                                 ]
                             )
                         except IUCNHabitatClassification.DoesNotExist:
