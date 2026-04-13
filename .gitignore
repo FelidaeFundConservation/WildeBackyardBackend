@@ -267,3 +267,4 @@ data/postal_codes/*.prj
 data/postal_codes/*.cpg
 data/postal_codes/*.xml
 data/iucn_habitatclassification_code_ver003/*.tif
+habitat_exports/
