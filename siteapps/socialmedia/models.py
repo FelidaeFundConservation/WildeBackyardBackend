@@ -36,6 +36,94 @@ class SightingType(TimeStampedModel):
         return self.display_name
 
 
+class SiteConfiguration(TimeStampedModel):
+    """Site-wide configuration settings.
+
+    Singleton model - only one instance should exist.
+    Allows admins to configure various site parameters via Django admin.
+    """
+
+    HABITAT_LEVEL_1 = "level1"
+    HABITAT_LEVEL_2 = "level2"
+
+    HABITAT_LEVEL_CHOICES = [
+        (HABITAT_LEVEL_1, "Level 1 (Broad classification)"),
+        (HABITAT_LEVEL_2, "Level 2 (Detailed classification)"),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    max_sighting_images = models.PositiveSmallIntegerField(
+        default=5, help_text="Maximum number of images that can be attached to a single sighting"
+    )
+
+    habitat_classification_level = models.CharField(
+        max_length=10,
+        choices=HABITAT_LEVEL_CHOICES,
+        default=HABITAT_LEVEL_1,
+        help_text="Which IUCN habitat classification level to use for automatic habitat lookup",
+    )
+
+    class Meta:
+        verbose_name = "Site Configuration"
+        verbose_name_plural = "Site Configuration"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one instance exists (singleton pattern)."""
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """Prevent deletion of the configuration."""
+        pass
+
+    @classmethod
+    def load(cls):
+        """Load the singleton instance, creating it if necessary."""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @classmethod
+    def get_instance(cls):
+        """Alias for load() - get the singleton instance."""
+        return cls.load()
+
+    def __str__(self):
+        return "Site Configuration"
+
+
+class IUCNHabitatClassification(models.Model):
+    """IUCN habitat classification lookup table.
+
+    Stores the official IUCN habitat codes and their corresponding names
+    for both Level 1 (broad) and Level 2 (detailed) classifications.
+    """
+
+    LEVEL_1 = "level1"
+    LEVEL_2 = "level2"
+
+    LEVEL_CHOICES = [
+        (LEVEL_1, "Level 1"),
+        (LEVEL_2, "Level 2"),
+    ]
+
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, help_text="Classification level (broad or detailed)")
+    code = models.IntegerField(help_text="IUCN numeric habitat code (e.g., 100=Forest, 400=Grassland)")
+    name = models.CharField(max_length=128, help_text="Human-readable habitat name")
+    description = models.TextField(blank=True, help_text="Optional detailed description of this habitat type")
+
+    class Meta:
+        verbose_name = "IUCN Habitat Classification"
+        verbose_name_plural = "IUCN Habitat Classifications"
+        unique_together = [["level", "code"]]
+        ordering = ["level", "code"]
+        indexes = [
+            models.Index(fields=["level", "code"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_level_display()}, code={self.code})"
+
+
 # Images or videos
 class Media(TimeStampedModel):
     # UUID for the image
@@ -124,6 +212,58 @@ class MediaPost(TextComment):
     camera_timestamp_offset_error_details = models.CharField(max_length=512, null=True)
 
     habitat_type = models.CharField(max_length=64, null=True)
+
+    ##############################
+    # IUCN Habitat Classification
+    ##############################
+    # Automatically populated from IUCN habitat raster data based on sighting location
+    iucn_habitat_lvl1_code = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="IUCN Level 1 habitat classification code (e.g., 400=Temperate Forest, 1400=Wetlands)",
+    )
+    iucn_habitat_lvl1 = models.ForeignKey(
+        "IUCNHabitatClassification",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="media_posts_lvl1",
+        limit_choices_to={"level": "level1"},
+        help_text="Level 1 IUCN habitat classification (broad categories)",
+    )
+    iucn_habitat_lvl1_name = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="DEPRECATED: Use iucn_habitat_lvl1 FK instead. Human-readable name for Level 1 habitat classification",
+    )
+    iucn_habitat_lvl2_code = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="IUCN Level 2 habitat classification code (more granular than Level 1)",
+    )
+    iucn_habitat_lvl2 = models.ForeignKey(
+        "IUCNHabitatClassification",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="media_posts_lvl2",
+        limit_choices_to={"level": "level2"},
+        help_text="Level 2 IUCN habitat classification (detailed categories)",
+    )
+    iucn_habitat_lvl2_name = models.CharField(
+        max_length=128,
+        null=True,
+        blank=True,
+        help_text="DEPRECATED: Use iucn_habitat_lvl2 FK instead. Human-readable name for Level 2 habitat classification",
+    )
+    iucn_habitat_level_used = models.CharField(
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=[("level1", "Level 1"), ("level2", "Level 2")],
+        help_text="Tracks which IUCN habitat level was used when this sighting's habitat was last updated",
+    )
 
     ##############################
     # Identification Quality Fields
