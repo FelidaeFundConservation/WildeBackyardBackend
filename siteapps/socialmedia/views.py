@@ -126,15 +126,10 @@ def serialize_post(post, user=None, include_quality_metrics=False):
         "camera_deployment_date": post.camera_deployment_date,
         "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
         "habitat_type": post.habitat_type,
-        "iucn_habitat_lvl1_code": post.iucn_habitat_lvl1_code,
-        "iucn_habitat_lvl1_name": (
-            post.iucn_habitat_lvl1.name if post.iucn_habitat_lvl1 else post.iucn_habitat_lvl1_name
-        ),
-        "iucn_habitat_lvl2_code": post.iucn_habitat_lvl2_code,
-        "iucn_habitat_lvl2_name": (
-            post.iucn_habitat_lvl2.name if post.iucn_habitat_lvl2 else post.iucn_habitat_lvl2_name
-        ),
-        "iucn_habitat_level_used": post.iucn_habitat_level_used,
+        "iucn_habitat_lvl1_code": post.iucn_habitat_lvl1.code if post.iucn_habitat_lvl1 else None,
+        "iucn_habitat_lvl1_name": post.iucn_habitat_lvl1.name if post.iucn_habitat_lvl1 else None,
+        "iucn_habitat_lvl2_code": post.iucn_habitat_lvl2.code if post.iucn_habitat_lvl2 else None,
+        "iucn_habitat_lvl2_name": post.iucn_habitat_lvl2.name if post.iucn_habitat_lvl2 else None,
     }
 
     media_data = None
@@ -1178,6 +1173,47 @@ class UpdateLocationView(APIView):
         if accuracy_ring_radius_meters is not None:
             update_kwargs["accuracy_ring_radius_meters"] = accuracy_ring_radius_meters
 
+        # Update IUCN habitat classification when location changes
+        # ALWAYS populate both Level 1 AND Level 2 habitat codes
+        try:
+            from siteapps.socialmedia.iucn_habitat_utils import get_iucn_habitat_codes
+            from siteapps.socialmedia.models import IUCNHabitatClassification
+
+            habitat_data = get_iucn_habitat_codes(latitude, longitude)
+            if habitat_data:
+                lvl1_code = habitat_data.get("iucn_habitat_lvl1_code")
+                lvl2_code = habitat_data.get("iucn_habitat_lvl2_code")
+
+                update_kwargs["iucn_habitat_lvl1_code"] = lvl1_code
+                update_kwargs["iucn_habitat_lvl1_name"] = habitat_data.get("iucn_habitat_lvl1_name")
+                update_kwargs["iucn_habitat_lvl2_code"] = lvl2_code
+                update_kwargs["iucn_habitat_lvl2_name"] = habitat_data.get("iucn_habitat_lvl2_name")
+
+                # Set FK relationships if classification records exist
+                if lvl1_code is not None:
+                    try:
+                        update_kwargs["iucn_habitat_lvl1"] = IUCNHabitatClassification.objects.get(
+                            code=lvl1_code, level="level1"
+                        )
+                    except IUCNHabitatClassification.DoesNotExist:
+                        update_kwargs["iucn_habitat_lvl1"] = None
+                        logging.warning(f"No IUCNHabitatClassification found for level1 code {lvl1_code}")
+                else:
+                    update_kwargs["iucn_habitat_lvl1"] = None
+
+                if lvl2_code is not None:
+                    try:
+                        update_kwargs["iucn_habitat_lvl2"] = IUCNHabitatClassification.objects.get(
+                            code=lvl2_code, level="level2"
+                        )
+                    except IUCNHabitatClassification.DoesNotExist:
+                        update_kwargs["iucn_habitat_lvl2"] = None
+                        logging.warning(f"No IUCNHabitatClassification found for level2 code {lvl2_code}")
+                else:
+                    update_kwargs["iucn_habitat_lvl2"] = None
+        except Exception as e:
+            logging.error(f"Failed to lookup IUCN habitat classification on location update: {str(e)}")
+
         for field, value in update_kwargs.items():
             setattr(post, field, value)
         post.save(update_fields=list(update_kwargs.keys()))
@@ -1547,15 +1583,38 @@ class PostViewValidation:
             kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
 
             # Auto-populate IUCN habitat classification from PostGIS raster data
+            # ALWAYS populate both Level 1 AND Level 2 habitat codes
             try:
                 from siteapps.socialmedia.iucn_habitat_utils import get_iucn_habitat_codes
+                from siteapps.socialmedia.models import IUCNHabitatClassification
 
                 habitat_data = get_iucn_habitat_codes(latitude, longitude)
                 if habitat_data:
-                    kwargs["iucn_habitat_lvl1_code"] = habitat_data.get("iucn_habitat_lvl1_code")
+                    # Store both level 1 and level 2 codes
+                    lvl1_code = habitat_data.get("iucn_habitat_lvl1_code")
+                    lvl2_code = habitat_data.get("iucn_habitat_lvl2_code")
+
+                    kwargs["iucn_habitat_lvl1_code"] = lvl1_code
                     kwargs["iucn_habitat_lvl1_name"] = habitat_data.get("iucn_habitat_lvl1_name")
-                    kwargs["iucn_habitat_lvl2_code"] = habitat_data.get("iucn_habitat_lvl2_code")
+                    kwargs["iucn_habitat_lvl2_code"] = lvl2_code
                     kwargs["iucn_habitat_lvl2_name"] = habitat_data.get("iucn_habitat_lvl2_name")
+
+                    # Set FK relationships if classification records exist
+                    if lvl1_code is not None:
+                        try:
+                            kwargs["iucn_habitat_lvl1"] = IUCNHabitatClassification.objects.get(
+                                code=lvl1_code, level="level1"
+                            )
+                        except IUCNHabitatClassification.DoesNotExist:
+                            logging.warning(f"No IUCNHabitatClassification found for level1 code {lvl1_code}")
+
+                    if lvl2_code is not None:
+                        try:
+                            kwargs["iucn_habitat_lvl2"] = IUCNHabitatClassification.objects.get(
+                                code=lvl2_code, level="level2"
+                            )
+                        except IUCNHabitatClassification.DoesNotExist:
+                            logging.warning(f"No IUCNHabitatClassification found for level2 code {lvl2_code}")
             except Exception as e:
                 # Log but don't fail the entire request if habitat lookup fails
                 logging.error(f"Failed to lookup IUCN habitat classification: {str(e)}")
