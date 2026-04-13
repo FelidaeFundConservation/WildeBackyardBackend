@@ -8,11 +8,13 @@ from siteapps.users.models import BannedEmail
 
 from .models import (
     InappropriateContentReport,
+    IUCNHabitatClassification,
     Media,
     MediaPost,
     PostQualityMetric,
     SightingSpecies,
     SightingType,
+    SiteConfiguration,
     TextComment,
 )
 
@@ -22,15 +24,78 @@ class SightingTypeAdmin(admin.ModelAdmin):
     list_display = ("display_name", "code", "display_order", "is_active", "created")
     list_filter = ("is_active",)
     search_fields = ("code", "display_name", "description")
-    list_editable = ("display_order", "is_active")
     ordering = ("display_order", "display_name")
-    readonly_fields = ("id", "created", "modified")
-
     fieldsets = (
         (None, {"fields": ("code", "display_name", "description")}),
-        ("Display Settings", {"fields": ("display_order", "is_active")}),
-        ("Metadata", {"fields": ("id", "created", "modified"), "classes": ("collapse",)}),
+        ("Display Options", {"fields": ("display_order", "is_active")}),
     )
+
+
+@admin.register(IUCNHabitatClassification)
+class IUCNHabitatClassificationAdmin(admin.ModelAdmin):
+    """Admin interface for IUCN habitat classification lookup table."""
+
+    list_display = ("code", "name", "level", "id")
+    list_filter = ("level",)
+    search_fields = ("code", "name", "description")
+    ordering = ("level", "code")
+
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": ("level", "code", "name"),
+            },
+        ),
+        (
+            "Additional Information",
+            {
+                "fields": ("description",),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of habitat classifications to maintain data integrity."""
+        return False
+
+
+@admin.register(SiteConfiguration)
+class SiteConfigurationAdmin(admin.ModelAdmin):
+    """Admin interface for site-wide configuration settings.
+
+    Singleton pattern - only allows editing the single configuration instance.
+    """
+
+    list_display = ("__str__", "max_sighting_images", "habitat_classification_level", "modified")
+    readonly_fields = ("created", "modified")
+
+    fieldsets = (
+        (
+            "Sighting Settings",
+            {
+                "fields": ("max_sighting_images",),
+                "description": "Configure limits for wildlife sighting submissions.",
+            },
+        ),
+        (
+            "IUCN Habitat Settings",
+            {
+                "fields": ("habitat_classification_level",),
+                "description": "Configure which IUCN habitat classification level to use for automatic habitat type lookup when users submit sightings with GPS coordinates.",
+            },
+        ),
+        ("Metadata", {"fields": ("created", "modified"), "classes": ("collapse",)}),
+    )
+
+    def has_add_permission(self, request):
+        """Prevent adding multiple instances."""
+        return not SiteConfiguration.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of the configuration."""
+        return False
 
 
 @admin.register(SightingSpecies)
