@@ -217,11 +217,6 @@ class MediaPost(TextComment):
     # IUCN Habitat Classification
     ##############################
     # Automatically populated from IUCN habitat raster data based on sighting location
-    iucn_habitat_lvl1_code = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="IUCN Level 1 habitat classification code (e.g., 400=Temperate Forest, 1400=Wetlands)",
-    )
     iucn_habitat_lvl1 = models.ForeignKey(
         "IUCNHabitatClassification",
         on_delete=models.SET_NULL,
@@ -231,17 +226,6 @@ class MediaPost(TextComment):
         limit_choices_to={"level": "level1"},
         help_text="Level 1 IUCN habitat classification (broad categories)",
     )
-    iucn_habitat_lvl1_name = models.CharField(
-        max_length=128,
-        null=True,
-        blank=True,
-        help_text="DEPRECATED: Use iucn_habitat_lvl1 FK instead. Human-readable name for Level 1 habitat classification",
-    )
-    iucn_habitat_lvl2_code = models.IntegerField(
-        null=True,
-        blank=True,
-        help_text="IUCN Level 2 habitat classification code (more granular than Level 1)",
-    )
     iucn_habitat_lvl2 = models.ForeignKey(
         "IUCNHabitatClassification",
         on_delete=models.SET_NULL,
@@ -250,19 +234,6 @@ class MediaPost(TextComment):
         related_name="media_posts_lvl2",
         limit_choices_to={"level": "level2"},
         help_text="Level 2 IUCN habitat classification (detailed categories)",
-    )
-    iucn_habitat_lvl2_name = models.CharField(
-        max_length=128,
-        null=True,
-        blank=True,
-        help_text="DEPRECATED: Use iucn_habitat_lvl2 FK instead. Human-readable name for Level 2 habitat classification",
-    )
-    iucn_habitat_level_used = models.CharField(
-        max_length=10,
-        null=True,
-        blank=True,
-        choices=[("level1", "Level 1"), ("level2", "Level 2")],
-        help_text="Tracks which IUCN habitat level was used when this sighting's habitat was last updated",
     )
 
     ##############################
