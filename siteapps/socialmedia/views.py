@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
-from django.db import models
+from django.db import connection, models
 from django.db.models import Func, Q
 from drf_spectacular.utils import extend_schema, inline_serializer
 from google.cloud import storage as gcs_storage
@@ -31,10 +31,12 @@ from .geo_utils import calculate_offset_coordinates, get_continental_us_center
 from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
 from .models import (
     InappropriateContentReport,
+    IUCNHabitatClassification,
     Media,
     MediaPost,
     PostQualityMetric,
     SightingSpecies,
+    SiteConfiguration,
     TextComment,
     UserSightingLocation,
 )
@@ -124,6 +126,15 @@ def serialize_post(post, user=None, include_quality_metrics=False):
         "camera_deployment_date": post.camera_deployment_date,
         "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
         "habitat_type": post.habitat_type,
+        "iucn_habitat_lvl1_code": post.iucn_habitat_lvl1_code,
+        "iucn_habitat_lvl1_name": (
+            post.iucn_habitat_lvl1.name if post.iucn_habitat_lvl1 else post.iucn_habitat_lvl1_name
+        ),
+        "iucn_habitat_lvl2_code": post.iucn_habitat_lvl2_code,
+        "iucn_habitat_lvl2_name": (
+            post.iucn_habitat_lvl2.name if post.iucn_habitat_lvl2 else post.iucn_habitat_lvl2_name
+        ),
+        "iucn_habitat_level_used": post.iucn_habitat_level_used,
     }
 
     media_data = None
@@ -536,6 +547,15 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "camera_deployment_date": post.camera_deployment_date,
                 "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
                 "habitat_type": post.habitat_type,
+                "iucn_habitat_lvl1_code": post.iucn_habitat_lvl1_code,
+                "iucn_habitat_lvl1_name": (
+                    post.iucn_habitat_lvl1.name if post.iucn_habitat_lvl1 else post.iucn_habitat_lvl1_name
+                ),
+                "iucn_habitat_lvl2_code": post.iucn_habitat_lvl2_code,
+                "iucn_habitat_lvl2_name": (
+                    post.iucn_habitat_lvl2.name if post.iucn_habitat_lvl2 else post.iucn_habitat_lvl2_name
+                ),
+                "iucn_habitat_level_used": post.iucn_habitat_level_used,
             }
 
             media_data = None
@@ -1526,6 +1546,20 @@ class PostViewValidation:
         if latitude is not None and longitude is not None:
             kwargs["true_location_spatial"] = Point(longitude, latitude, srid=4326)
 
+            # Auto-populate IUCN habitat classification from PostGIS raster data
+            try:
+                from siteapps.socialmedia.iucn_habitat_utils import get_iucn_habitat_codes
+
+                habitat_data = get_iucn_habitat_codes(latitude, longitude)
+                if habitat_data:
+                    kwargs["iucn_habitat_lvl1_code"] = habitat_data.get("iucn_habitat_lvl1_code")
+                    kwargs["iucn_habitat_lvl1_name"] = habitat_data.get("iucn_habitat_lvl1_name")
+                    kwargs["iucn_habitat_lvl2_code"] = habitat_data.get("iucn_habitat_lvl2_code")
+                    kwargs["iucn_habitat_lvl2_name"] = habitat_data.get("iucn_habitat_lvl2_name")
+            except Exception as e:
+                # Log but don't fail the entire request if habitat lookup fails
+                logging.error(f"Failed to lookup IUCN habitat classification: {str(e)}")
+
         # Set geoprivacy-specific keyword args
         if privacy_setting == settings.PRIVACY_SETTING_PUBLIC:
             kwargs["public_location_latitude"] = latitude
@@ -1766,6 +1800,83 @@ class CreatePostView(
         # Finally, create the post object with given args, ignoring if a duplicate exists
         post, _ = MediaPost.objects.get_or_create(**kwargs, created_by=created_by_user)
 
+        # Auto-populate IUCN habitat classification if coordinates provided
+        if "location_latitude" in kwargs and "location_longitude" in kwargs:
+            lat = kwargs["location_latitude"]
+            lon = kwargs["location_longitude"]
+
+            # Get site configuration to determine which habitat level to use
+            site_config = SiteConfiguration.get_instance()
+            habitat_level = site_config.habitat_classification_level
+
+            # Query the appropriate IUCN habitat raster
+            point_wkt = f"POINT({lon} {lat})"
+
+            with connection.cursor() as cursor:
+                if habitat_level == SiteConfiguration.HABITAT_LEVEL_1:
+                    # Query level 1 habitat
+                    cursor.execute(
+                        """
+                        SELECT ST_Value(rast, ST_SetSRID(ST_GeomFromText(%s), 4326)) AS habitat_code
+                        FROM iucn_habitat_lvl1
+                        WHERE ST_Intersects(rast, ST_SetSRID(ST_GeomFromText(%s), 4326))
+                        LIMIT 1
+                        """,
+                        [point_wkt, point_wkt],
+                    )
+                    result = cursor.fetchone()
+                    if result and result[0] is not None:
+                        habitat_code = int(result[0])
+                        # Look up the IUCNHabitatClassification record
+                        try:
+                            habitat = IUCNHabitatClassification.objects.get(level="level1", code=habitat_code)
+                            post.iucn_habitat_lvl1_code = habitat_code
+                            post.iucn_habitat_lvl1 = habitat
+                            post.iucn_habitat_lvl1_name = habitat.name  # Keep for backward compatibility
+                            post.iucn_habitat_level_used = "level1"
+                            post.save(
+                                update_fields=[
+                                    "iucn_habitat_lvl1_code",
+                                    "iucn_habitat_lvl1",
+                                    "iucn_habitat_lvl1_name",
+                                    "iucn_habitat_level_used",
+                                ]
+                            )
+                        except IUCNHabitatClassification.DoesNotExist:
+                            logging.warning(f"No IUCN Level 1 habitat found for code {habitat_code}")
+
+                else:  # HABITAT_LEVEL_2
+                    # Query level 2 habitat
+                    cursor.execute(
+                        """
+                        SELECT ST_Value(rast, ST_SetSRID(ST_GeomFromText(%s), 4326)) AS habitat_code
+                        FROM iucn_habitat_lvl2
+                        WHERE ST_Intersects(rast, ST_SetSRID(ST_GeomFromText(%s), 4326))
+                        LIMIT 1
+                        """,
+                        [point_wkt, point_wkt],
+                    )
+                    result = cursor.fetchone()
+                    if result and result[0] is not None:
+                        habitat_code = int(result[0])
+                        # Look up the IUCNHabitatClassification record
+                        try:
+                            habitat = IUCNHabitatClassification.objects.get(level="level2", code=habitat_code)
+                            post.iucn_habitat_lvl2_code = habitat_code
+                            post.iucn_habitat_lvl2 = habitat
+                            post.iucn_habitat_lvl2_name = habitat.name  # Keep for backward compatibility
+                            post.iucn_habitat_level_used = "level2"
+                            post.save(
+                                update_fields=[
+                                    "iucn_habitat_lvl2_code",
+                                    "iucn_habitat_lvl2",
+                                    "iucn_habitat_lvl2_name",
+                                    "iucn_habitat_level_used",
+                                ]
+                            )
+                        except IUCNHabitatClassification.DoesNotExist:
+                            logging.warning(f"No IUCN Level 2 habitat found for code {habitat_code}")
+
         # Process multi-species list (up to MAX_SPECIES)
         species_names = [s.strip() for s in (data.get("speciesList") or []) if s and str(s).strip()][
             : SightingSpecies.MAX_SPECIES
@@ -1847,6 +1958,97 @@ class CreatePostView(
                     # Continue processing other media files even if one fails
 
         return Response(status=status.HTTP_201_CREATED)
+
+    def _get_habitat_level1_name(self, code):
+        """Map level 1 habitat code to name.
+
+        Based on official IUCN habitat classification scheme codes.
+        """
+        level1_names = {
+            0: "Water",
+            100: "Forest",
+            200: "Savanna",
+            300: "Shrubland",
+            400: "Grassland",
+            500: "Wetlands (inland)",
+            600: "Rocky Areas",
+            800: "Desert",
+            1400: "Artificial - Terrestrial",
+            1700: "Unknown",
+        }
+        return level1_names.get(code, f"Unknown habitat code ({code})")
+
+    def _get_habitat_level2_name(self, code):
+        """Map level 2 habitat code to name.
+
+        Based on official IUCN habitat classification scheme codes.
+        """
+        level2_names = {
+            0: "Water",
+            100: "Forest",
+            101: "Forest - Boreal",
+            102: "Forest - Subarctic",
+            103: "Forest - Subantarctic",
+            104: "Forest - Temperate",
+            105: "Forest - Subtropical-tropical dry",
+            106: "Forest - Subtropical-tropical moist lowland",
+            107: "Forest - Subtropical-tropical mangrove vegetation",
+            108: "Forest - Subtropical-tropical swamp",
+            109: "Forest - Subtropical-tropical moist montane",
+            200: "Savanna",
+            201: "Savanna - Dry",
+            202: "Savanna - Moist",
+            300: "Shrubland",
+            301: "Shrubland - Subarctic",
+            302: "Shrubland - Subantarctic",
+            303: "Shrubland - Boreal",
+            304: "Shrubland - Temperate",
+            305: "Shrubland - Subtropical-tropical dry",
+            306: "Shrubland - Subtropical-tropical moist",
+            307: "Shrubland - Subtropical-tropical high altitude",
+            308: "Shrubland - Mediterranean-type",
+            400: "Grassland",
+            401: "Grassland - Tundra",
+            402: "Grassland - Subarctic",
+            403: "Grassland - Subantarctic",
+            404: "Grassland - Temperate",
+            405: "Grassland - Subtropical-tropical dry",
+            406: "Grassland - Subtropical-tropical seasonally wet or flooded",
+            407: "Grassland - Subtropical-tropical high altitude",
+            500: "Wetlands (inland)",
+            501: "Wetlands (inland) - Permanent rivers streams creeks",
+            502: "Wetlands (inland) - Seasonal/intermittent/irregular rivers/streams/creeks",
+            503: "Wetlands (inland) - Shrub dominated wetlands",
+            504: "Wetlands (inland) - Bogs/marshes/swamps/fens/peatlands",
+            505: "Wetlands (inland) - Permanent freshwater lakes",
+            506: "Wetlands (inland) - Seasonal/intermittent freshwater lakes (over 8 ha)",
+            507: "Wetlands (inland) - Permanent freshwater marshes/pools (under 8 ha)",
+            508: "Wetlands (inland) - Seasonal/intermittent freshwater marshes/pools (under 8 ha)",
+            509: "Wetlands (inland) - Freshwater springs and oases",
+            510: "Wetlands (inland) - Tundra wetlands",
+            511: "Wetlands (inland) - Alpine wetlands",
+            512: "Wetlands (inland) - Geothermal wetlands",
+            513: "Wetlands (inland) - Permanent inland deltas",
+            514: "Wetlands (inland) - Permanent saline brackish or alkaline lakes",
+            515: "Wetlands (inland) - Seasonal/intermittent saline brackish or alkaline lakes and flats",
+            516: "Wetlands (inland) - Permanent /saline / brackish or alkaline marshes/pools",
+            517: "Wetlands (inland) - Seasonal/intermittent /saline / brackish or alkaline marshes/pools",
+            518: "Wetlands (inland) / Karst and other subterranean hydrological systems",
+            600: "Rocky Areas",
+            800: "Desert",
+            801: "Desert - Hot",
+            802: "Desert - Temperate",
+            803: "Desert - Cold",
+            1400: "Artificial - Terrestrial",
+            1401: "Arable land",
+            1402: "Pastureland",
+            1403: "Plantations",
+            1404: "Rural Gardens",
+            1405: "Urban Areas",
+            1406: "Subtropical/Tropical Heavily Degraded Former Forest",
+            1700: "Unknown",
+        }
+        return level2_names.get(code, f"Unknown habitat code ({code})")
 
 
 def convert_base64_bytes(media_bytes_base64, is_video=False):
@@ -2040,6 +2242,22 @@ class ListSightingTypesView(APIView):
             }
             for stype in types
         ]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class GetSiteConfigurationView(APIView):
+    """Get site-wide configuration settings."""
+
+    authentication_classes = []
+    permission_classes = []  # Public endpoint
+
+    def get(self, request):
+        from siteapps.socialmedia.models import SiteConfiguration
+
+        config = SiteConfiguration.load()
+        data = {
+            "maxSightingImages": config.max_sighting_images,
+        }
         return Response(data, status=status.HTTP_200_OK)
 
 
