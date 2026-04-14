@@ -1685,10 +1685,13 @@ class PostViewValidation:
         # Sighting type
         sighting_type = data.get("sightingType")
         if sighting_type is not None:
-            # Validate it's a valid choice
-            valid_sighting_types = {choice[0] for choice in MediaPost.SIGHTING_TYPE_CHOICES}
-            if sighting_type in valid_sighting_types:
-                kwargs["sighting_type"] = sighting_type
+            from siteapps.socialmedia.models import SightingType
+
+            try:
+                sighting_type_obj = SightingType.objects.get(code=sighting_type, is_active=True)
+                kwargs["sighting_type"] = sighting_type_obj
+            except SightingType.DoesNotExist:
+                pass
 
         license_code = data.get("licenseCode")
         attribution_override = data.get("attributionOverride")
