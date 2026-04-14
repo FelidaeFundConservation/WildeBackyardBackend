@@ -64,13 +64,13 @@ class Migration(migrations.Migration):
                 (
                     "name",
                     models.CharField(
-                        help_text="Short name of feature type", max_length=200
+                        blank=True, help_text="Short name of feature type", max_length=200, null=True
                     ),
                 ),
                 (
                     "description",
                     models.TextField(
-                        blank=True, help_text="Detailed description of feature type"
+                        blank=True, help_text="Detailed description of feature type", null=True
                     ),
                 ),
             ],
@@ -94,12 +94,12 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "name",
-                    models.CharField(help_text="Name in UTF-8 format", max_length=200),
+                    models.CharField(blank=True, help_text="Name in UTF-8 format", max_length=200, null=True),
                 ),
                 (
                     "asciiname",
                     models.CharField(
-                        help_text="Name in ASCII characters", max_length=200
+                        blank=True, help_text="Name in ASCII characters", max_length=200, null=True
                     ),
                 ),
                 (
@@ -108,48 +108,57 @@ class Migration(migrations.Migration):
                         blank=True,
                         help_text="Comma-separated alternate names",
                         max_length=10000,
+                        null=True,
                     ),
                 ),
                 (
                     "latitude",
                     models.DecimalField(
+                        blank=True,
                         decimal_places=7,
                         help_text="Latitude in decimal degrees",
                         max_digits=10,
+                        null=True,
                     ),
                 ),
                 (
                     "longitude",
                     models.DecimalField(
+                        blank=True,
                         decimal_places=7,
                         help_text="Longitude in decimal degrees",
                         max_digits=10,
+                        null=True,
                     ),
                 ),
                 (
                     "fclass",
                     models.CharField(
+                        blank=True,
                         help_text="Feature class (A=admin, P=populated place, H=water, etc)",
                         max_length=1,
+                        null=True,
                     ),
                 ),
                 (
                     "fcode",
                     models.CharField(
+                        blank=True,
                         help_text="Feature code (detailed classification)",
                         max_length=10,
+                        null=True,
                     ),
                 ),
                 (
                     "country",
                     models.CharField(
-                        help_text="ISO-3166 2-letter country code", max_length=2
+                        blank=True, help_text="ISO-3166 2-letter country code", max_length=2, null=True
                     ),
                 ),
                 (
                     "cc2",
                     models.CharField(
-                        blank=True, help_text="Alternate country codes", max_length=200
+                        blank=True, help_text="Alternate country codes", max_length=200, null=True
                     ),
                 ),
                 (
@@ -158,6 +167,7 @@ class Migration(migrations.Migration):
                         blank=True,
                         help_text="State/province code (FIPS)",
                         max_length=20,
+                        null=True,
                     ),
                 ),
                 (
@@ -166,18 +176,19 @@ class Migration(migrations.Migration):
                         blank=True,
                         help_text="County/second-level admin code",
                         max_length=80,
+                        null=True,
                     ),
                 ),
                 (
                     "admin3",
                     models.CharField(
-                        blank=True, help_text="Third-level admin code", max_length=20
+                        blank=True, help_text="Third-level admin code", max_length=20, null=True
                     ),
                 ),
                 (
                     "admin4",
                     models.CharField(
-                        blank=True, help_text="Fourth-level admin code", max_length=20
+                        blank=True, help_text="Fourth-level admin code", max_length=20, null=True
                     ),
                 ),
                 (
@@ -208,13 +219,17 @@ class Migration(migrations.Migration):
                         blank=True,
                         help_text="Timezone (e.g., America/Los_Angeles)",
                         max_length=40,
+                        null=True,
                     ),
                 ),
-                ("moddate", models.DateField(help_text="Date of last modification")),
+                (
+                    "moddate",
+                    models.DateField(blank=True, help_text="Date of last modification", null=True),
+                ),
                 (
                     "geom",
                     django.contrib.gis.db.models.fields.PointField(
-                        help_text="PostGIS Point geometry (WGS84)", srid=4326
+                        blank=True, help_text="PostGIS Point geometry (WGS84)", null=True, srid=4326
                     ),
                 ),
             ],
@@ -271,44 +286,46 @@ class Migration(migrations.Migration):
                 (
                     "place_name",
                     models.CharField(
+                        blank=True,
                         help_text="Place name associated with postal code",
                         max_length=180,
+                        null=True,
                     ),
                 ),
                 (
                     "admin1_name",
                     models.CharField(
-                        blank=True, help_text="State/province name", max_length=100
+                        blank=True, help_text="State/province name", max_length=100, null=True
                     ),
                 ),
                 (
                     "admin1_code",
                     models.CharField(
-                        blank=True, help_text="State/province code", max_length=20
+                        blank=True, help_text="State/province code", max_length=20, null=True
                     ),
                 ),
                 (
                     "admin2_name",
                     models.CharField(
-                        blank=True, help_text="County/district name", max_length=100
+                        blank=True, help_text="County/district name", max_length=100, null=True
                     ),
                 ),
                 (
                     "admin2_code",
                     models.CharField(
-                        blank=True, help_text="County/district code", max_length=20
+                        blank=True, help_text="County/district code", max_length=20, null=True
                     ),
                 ),
                 (
                     "admin3_name",
                     models.CharField(
-                        blank=True, help_text="Community name", max_length=100
+                        blank=True, help_text="Community name", max_length=100, null=True
                     ),
                 ),
                 (
                     "admin3_code",
                     models.CharField(
-                        blank=True, help_text="Community code", max_length=20
+                        blank=True, help_text="Community code", max_length=20, null=True
                     ),
                 ),
                 (
@@ -338,7 +355,9 @@ class Migration(migrations.Migration):
                 (
                     "geom",
                     django.contrib.gis.db.models.fields.PointField(
+                        blank=True,
                         help_text="PostGIS Point geometry for centroid (WGS84)",
+                        null=True,
                         srid=4326,
                     ),
                 ),
