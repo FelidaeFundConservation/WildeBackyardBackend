@@ -4,7 +4,7 @@ This file is automatically updated by the deployment script.
 """
 
 VERSION = {
-    "commit_hash": "f12c159",
+    "commit_hash": "d4a907f",
     "release_tag": "dev",
     "branch": "main",
 }
