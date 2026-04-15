@@ -1,6 +1,8 @@
 from allauth.account.views import PasswordChangeView
 from dj_rest_auth.registration.views import RegisterView, ResendEmailVerificationView
-from dj_rest_auth.views import LoginView, LogoutView, UserDetailsView
+from dj_rest_auth.views import LoginView, LogoutView
+from dj_rest_auth.views import PasswordChangeView as RestPasswordChangeView
+from dj_rest_auth.views import UserDetailsView
 from django.urls import path
 
 from .views import (
@@ -23,6 +25,7 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="rest_logout"),
     path("profile/", UserProfileView.as_view(), name="user_profile"),
     path("profile/change_username", ChangeUsernameView.as_view(), name="change_username"),
+    path("profile/change-password/", RestPasswordChangeView.as_view(), name="change_password"),
     path("profile/update-default-license/", UpdateDefaultLicenseView.as_view(), name="update_default_license"),
     path("delete_account", DeleteAccountView.as_view(), name="delete_account"),
     path("edit_staff", EditStaffRoleView.as_view(), name="edit_staff"),
