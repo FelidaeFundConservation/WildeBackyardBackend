@@ -253,6 +253,7 @@ ACCOUNT_SESSION_REMEMBER = True
 # ------------------------------------------------------------------------------
 REST_AUTH = {
     "REGISTER_SERIALIZER": "siteapps.users.serializers.RegisterSerializer",
+    "OLD_PASSWORD_FIELD_ENABLED": True,
 }
 
 
