@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.gis.db import models as gis_models
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from model_utils.models import TimeStampedModel
 from simple_history.models import HistoricalRecords
@@ -307,6 +308,21 @@ class MediaPost(TextComment):
     # Privacy transformations are applied during data retrieval, not storage
     true_location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
 
+    ##############################
+    # ML Prediction Data
+    ##############################
+    # SpeciesNet prediction payload for the sighting image (populated during bulk upload)
+    speciesnet_predictions = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="SpeciesNet ML prediction payload for the sighting image",
+    )
+
+    class Meta:
+        indexes = [
+            GinIndex(fields=["speciesnet_predictions"], name="mediapost_speciesnet_gin"),
+        ]
+
     def recompute_quality_grade(self):
         """Recompute quality_grade, num_identification_agreements, and
         num_identification_disagreements from current votes and save the post.
@@ -469,6 +485,12 @@ class UserSightingLocation(TimeStampedModel):
 
     # Optional: use PostGIS for spatial indexing
     location_spatial = gis_models.PointField(srid=4326, null=True, blank=True, spatial_index=True)
+
+    # Camera trap fields (optional — only relevant for camera trap deployments)
+    camera_model = models.CharField(max_length=64, null=True, blank=True)
+    camera_serial_number = models.CharField(max_length=64, null=True, blank=True)
+    camera_deployment_date = models.CharField(max_length=32, null=True, blank=True)
+    camera_timestamp_offset_error_details = models.CharField(max_length=512, null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
