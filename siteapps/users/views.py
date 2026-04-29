@@ -65,6 +65,7 @@ class UserProfileView(APIView):
             "is_staff": request.user.is_staff,
             "is_superuser": request.user.is_superuser,
             "is_developer": request.user.has_developer_access,
+            "is_expert": request.user.is_expert,
             "default_license": request.user.default_license,
         }
 
