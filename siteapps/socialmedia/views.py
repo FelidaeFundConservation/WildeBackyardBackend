@@ -1641,7 +1641,7 @@ class PostViewValidation:
         geocoded_location_zip_code = data.get("geocodedLocationZipCode")
 
         # The brand and type of camera used to take the media (if any)
-        camera_model = data.get("cameraModel")
+        camera_model = (data.get("cameraModel") or "").replace("\x00", "") or None
         camera_deployment_date = data.get("cameraDeploymentDate")
         camera_timestamp_offset_error_details = data.get("timestampOffsetErrorDetails")
 
@@ -1701,6 +1701,10 @@ class PostViewValidation:
         if attribution_override is not None:
             kwargs["attribution_override"] = attribution_override
 
+        speciesnet_predictions = data.get("speciesnetPredictions")
+        if speciesnet_predictions is not None:
+            kwargs["speciesnet_predictions"] = speciesnet_predictions
+
     @staticmethod
     def validate_and_extract_data(data, request):
         # Extract required data
@@ -1708,7 +1712,7 @@ class PostViewValidation:
         privacy_setting = data.get("privacySetting")
         accuracy_meters = data.get("accuracyMeters")
         geocoded_location_country = data.get("geocodedLocationCountry")
-        post_title = data.get("postTitle")
+        post_title = (data.get("postTitle") or "").replace("\x00", "") or None
 
         # Validate arguments
         errors = [
@@ -2333,6 +2337,10 @@ class ListUserLocationsView(APIView):
                 "latitude": loc.latitude,
                 "longitude": loc.longitude,
                 "created": loc.created.isoformat(),
+                "camera_model": loc.camera_model,
+                "camera_serial_number": loc.camera_serial_number,
+                "camera_deployment_date": loc.camera_deployment_date,
+                "camera_timestamp_offset_error_details": loc.camera_timestamp_offset_error_details,
             }
             for loc in locations
         ]
@@ -2359,17 +2367,17 @@ class CreateUserLocationView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        data = json.loads(request.body)
+        data = request.data
 
-        name = data.get("name", "").strip()
-        description = data.get("description", "").strip()
+        name = (data.get("name") or "").strip()
+        description = (data.get("description") or "").strip()
         latitude = data.get("latitude")
         longitude = data.get("longitude")
 
         if not name:
             return Response({"error": "Location name is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not latitude or not longitude:
+        if latitude is None or longitude is None:
             return Response({"error": "Latitude and longitude are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -2381,8 +2389,23 @@ class CreateUserLocationView(APIView):
         if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
             return Response({"error": "Latitude or longitude out of valid range."}, status=status.HTTP_400_BAD_REQUEST)
 
+        camera_model = (data.get("camera_model") or "").strip() or None
+        camera_serial_number = (data.get("camera_serial_number") or "").strip() or None
+        camera_deployment_date = (data.get("camera_deployment_date") or "").strip() or None
+        camera_timestamp_offset_error_details = (
+            data.get("camera_timestamp_offset_error_details") or ""
+        ).strip() or None
+
         location = UserSightingLocation.objects.create(
-            user=request.user, name=name, description=description, latitude=latitude, longitude=longitude
+            user=request.user,
+            name=name,
+            description=description,
+            latitude=latitude,
+            longitude=longitude,
+            camera_model=camera_model,
+            camera_serial_number=camera_serial_number,
+            camera_deployment_date=camera_deployment_date,
+            camera_timestamp_offset_error_details=camera_timestamp_offset_error_details,
         )
 
         return Response(
@@ -2392,6 +2415,10 @@ class CreateUserLocationView(APIView):
                 "description": location.description,
                 "latitude": location.latitude,
                 "longitude": location.longitude,
+                "camera_model": location.camera_model,
+                "camera_serial_number": location.camera_serial_number,
+                "camera_deployment_date": location.camera_deployment_date,
+                "camera_timestamp_offset_error_details": location.camera_timestamp_offset_error_details,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -2427,12 +2454,12 @@ class UpdateUserLocationView(APIView):
                 {"error": "You do not have permission to edit this location."}, status=status.HTTP_403_FORBIDDEN
             )
 
-        data = json.loads(request.body)
+        data = request.data
 
         if "name" in data:
-            location.name = data["name"].strip()
+            location.name = (data["name"] or "").strip()
         if "description" in data:
-            location.description = data["description"].strip()
+            location.description = (data["description"] or "").strip()
         if "latitude" in data:
             try:
                 location.latitude = float(data["latitude"])
@@ -2443,6 +2470,16 @@ class UpdateUserLocationView(APIView):
                 location.longitude = float(data["longitude"])
             except (ValueError, TypeError):
                 return Response({"error": "Invalid longitude."}, status=status.HTTP_400_BAD_REQUEST)
+        if "camera_model" in data:
+            location.camera_model = (data["camera_model"] or "").strip() or None
+        if "camera_serial_number" in data:
+            location.camera_serial_number = (data["camera_serial_number"] or "").strip() or None
+        if "camera_deployment_date" in data:
+            location.camera_deployment_date = (data["camera_deployment_date"] or "").strip() or None
+        if "camera_timestamp_offset_error_details" in data:
+            location.camera_timestamp_offset_error_details = (
+                data["camera_timestamp_offset_error_details"] or ""
+            ).strip() or None
 
         location.save()
 
@@ -2453,6 +2490,10 @@ class UpdateUserLocationView(APIView):
                 "description": location.description,
                 "latitude": location.latitude,
                 "longitude": location.longitude,
+                "camera_model": location.camera_model,
+                "camera_serial_number": location.camera_serial_number,
+                "camera_deployment_date": location.camera_deployment_date,
+                "camera_timestamp_offset_error_details": location.camera_timestamp_offset_error_details,
             },
             status=status.HTTP_200_OK,
         )
