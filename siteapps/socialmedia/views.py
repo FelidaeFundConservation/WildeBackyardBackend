@@ -517,6 +517,11 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
         if user_id is not None:
             media_posts = media_posts.filter(created_by__id=user_id)
 
+        # If a list of specific post IDs was provided, filter to those posts only
+        post_ids = data.get("postIds")
+        if post_ids:
+            media_posts = media_posts.filter(id__in=post_ids)
+
         # If a display name was provided, filter by that user's name
         if user_display_name:
             media_posts = media_posts.filter(created_by__name__icontains=user_display_name)
@@ -1054,6 +1059,7 @@ class UpdateSightingSpeciesView(APIView):
     def post(self, request, post_id):
         species_names = [s.strip() for s in (request.data.get("species_list") or []) if s and s.strip()]
         species_names = species_names[: SightingSpecies.MAX_SPECIES]
+        update_title = bool(request.data.get("update_title", False))
 
         if not species_names:
             return Response(
@@ -1084,6 +1090,17 @@ class UpdateSightingSpeciesView(APIView):
         except MediaPost.DoesNotExist:
             return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Capture the old primary species name before replacing (used for title update)
+        if update_title:
+            old_taxon = post.taxon
+            old_species = post.species
+            if old_taxon:
+                old_primary_species_name = old_taxon.preferred_common_name or old_taxon.name
+            elif old_species:
+                old_primary_species_name = old_species.name
+            else:
+                old_primary_species_name = None
+
         # Replace all SightingSpecies rows atomically
         SightingSpecies.objects.filter(post=post).delete()
         for rank, (taxon, sp) in enumerate(zip(resolved_taxa, resolved_species), start=1):
@@ -1095,6 +1112,19 @@ class UpdateSightingSpeciesView(APIView):
         post.taxon = primary_taxon
         post.species = primary_species
         post.save(update_fields=["taxon", "species"])
+
+        # If requested, replace the old primary species name in the post title
+        if update_title and old_primary_species_name:
+            if primary_taxon:
+                new_primary_name = primary_taxon.preferred_common_name or primary_taxon.name
+            elif primary_species:
+                new_primary_name = primary_species.name
+            else:
+                new_primary_name = None
+            if new_primary_name and old_primary_species_name != new_primary_name:
+                updated_title = post.title.replace(old_primary_species_name, new_primary_name, 1)
+                if updated_title != post.title:
+                    MediaPost.objects.filter(id=post.id).update(title=updated_title)
 
         result_names = []
         for taxon, sp in zip(resolved_taxa, resolved_species):
@@ -2008,7 +2038,7 @@ class CreatePostView(
                     logging.error(f"Error processing media item {idx + 1}: {e}")
                     # Continue processing other media files even if one fails
 
-        return Response(status=status.HTTP_201_CREATED)
+        return Response({"status": "success", "post_id": str(post.id)}, status=status.HTTP_201_CREATED)
 
     def _get_habitat_level1_name(self, code):
         """Map level 1 habitat code to name.
