@@ -163,6 +163,7 @@ def serialize_post(post, user=None, include_quality_metrics=False):
             "attribution": post.attribution_override or getattr(post.created_by, "name", "Anonymous"),
             "requires_attribution": LICENSE_REQUIRES_ATTRIBUTION.get(post.license_code, True),
         },
+        "speciesnet_predictions": post.speciesnet_predictions,
     }
 
     # Build ordered species list from SightingSpecies (prefer taxon; fall back to SpeciesName)
@@ -1260,6 +1261,27 @@ class UpdateLocationView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class UpdatePostTitleView(APIView):
+    """Update the title of a post. Restricted to staff and superusers."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, post_id):
+        title = (request.data.get("title") or "").replace("\x00", "").strip()
+        if not title:
+            return Response({"error": "'title' is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        post.title = title
+        post.save(update_fields=["title"])
+        return Response({"title": post.title}, status=status.HTTP_200_OK)
 
 
 class UpdateAnimalCountView(APIView):
