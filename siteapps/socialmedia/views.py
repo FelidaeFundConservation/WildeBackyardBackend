@@ -2574,3 +2574,157 @@ class DeleteUserLocationView(APIView):
 
         location.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ==========================================
+# Bulk Upload Session Endpoints
+# ==========================================
+
+
+class BulkUploadSessionCreateView(APIView):
+    """Create a new bulk upload session."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        name = (request.data.get("name") or "Bulk Upload").strip()
+        image_count = int(request.data.get("image_count", 0))
+        session = BulkUploadSession.objects.create(
+            created_by=request.user,
+            name=name,
+            image_count=image_count,
+        )
+        return Response(
+            {"id": str(session.id), "name": session.name, "image_count": session.image_count},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BulkUploadSessionListView(APIView):
+    """List the current user's bulk upload sessions, newest first."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        sessions = BulkUploadSession.objects.filter(created_by=request.user).order_by("-created")
+        data = [
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "image_count": s.image_count,
+                "post_count": len(s.post_ids),
+                "created": s.created.isoformat(),
+            }
+            for s in sessions
+        ]
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class BulkUploadSessionDetailView(APIView):
+    """Return a single bulk upload session including post_ids and gpx_track."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, session_id):
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        try:
+            session = BulkUploadSession.objects.get(id=session_id, created_by=request.user)
+        except BulkUploadSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize gpx_track as [[lng, lat], ...] for GeoJSON / MapLibre consumption
+        gpx_coords = []
+        if session.gpx_track:
+            gpx_coords = list(session.gpx_track.coords)  # LineString.coords → ((lng, lat), ...)
+
+        return Response(
+            {
+                "id": str(session.id),
+                "name": session.name,
+                "image_count": session.image_count,
+                "post_ids": session.post_ids,
+                "gpx_track": gpx_coords,
+                "created": session.created.isoformat(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class BulkUploadSessionAddPostView(APIView):
+    """Append a MediaPost UUID to a bulk upload session's post_ids list."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        try:
+            session = BulkUploadSession.objects.get(id=session_id, created_by=request.user)
+        except BulkUploadSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        post_id = request.data.get("post_id")
+        if not post_id:
+            return Response({"error": "post_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        post_id_str = str(post_id)
+        if post_id_str not in session.post_ids:
+            session.post_ids.append(post_id_str)
+            session.save(update_fields=["post_ids"])
+
+        return Response({"post_ids": session.post_ids}, status=status.HTTP_200_OK)
+
+
+class BulkUploadSessionGPXView(APIView):
+    """Accept a multipart GPX file upload, parse to PostGIS LineString, and store on the session."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        import re as _re
+        import xml.etree.ElementTree as ET
+
+        from django.contrib.gis.geos import LineString
+
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        try:
+            session = BulkUploadSession.objects.get(id=session_id, created_by=request.user)
+        except BulkUploadSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        gpx_file = request.FILES.get("gpx_file")
+        if not gpx_file:
+            return Response({"error": "gpx_file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tree = ET.parse(gpx_file)
+            root = tree.getroot()
+            ns_match = _re.match(r"\{[^}]*\}", root.tag)
+            ns = ns_match.group(0) if ns_match else ""
+            coords = []
+            for trkpt in root.iter(f"{ns}trkpt"):
+                coords.append((float(trkpt.get("lon")), float(trkpt.get("lat"))))
+        except Exception as e:
+            return Response({"error": f"Failed to parse GPX file: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(coords) < 2:
+            return Response(
+                {"error": "GPX file must contain at least 2 track points."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        session.gpx_track = LineString(coords, srid=4326)
+        session.save(update_fields=["gpx_track"])
+
+        return Response({"point_count": len(coords)}, status=status.HTTP_200_OK)

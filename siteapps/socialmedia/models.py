@@ -533,3 +533,29 @@ class InappropriateContentReport(TimeStampedModel):
 
     # Describes the offense the user was warned for (if any)
     warning_notes = models.CharField(max_length=800, default="")
+
+
+class BulkUploadSession(TimeStampedModel):
+    """Tracks a user's bulk upload walk session, including optional GPX track.
+
+    Created by the web frontend at the start of a bulk upload.  Post IDs are
+    appended as each sighting is submitted.  An optional GPX track (LineString)
+    is stored in PostGIS for spatial queries and map display.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bulk_upload_sessions")
+    name = models.CharField(max_length=255)
+    image_count = models.PositiveIntegerField(default=0)
+
+    # Post UUIDs submitted as part of this session
+    post_ids = models.JSONField(default=list, blank=True)
+
+    # Parsed GPX walk track stored as a PostGIS LineString (SRID 4326)
+    gpx_track = gis_models.LineStringField(srid=4326, null=True, blank=True, spatial_index=True)
+
+    class Meta:
+        ordering = ["-created"]
+
+    def __str__(self):
+        return f"{self.name} ({self.image_count} images) — {self.created:%Y-%m-%d %H:%M}"
