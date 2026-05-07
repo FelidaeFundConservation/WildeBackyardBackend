@@ -1309,6 +1309,31 @@ class UpdateAnimalCountView(APIView):
         return Response({"animal_count": post.animal_count}, status=status.HTTP_200_OK)
 
 
+class UpdatePostDescriptionView(APIView):
+    """Update the text description of a post. Restricted to the post owner."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        description = (request.data.get("description") or "").strip()
+
+        try:
+            post = MediaPost.objects.get(id=post_id)
+        except MediaPost.DoesNotExist:
+            return Response({"error": "Post not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if post.created_by != request.user:
+            return Response(
+                {"error": "You do not have permission to edit this post."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        post.text_content = description
+        post.save(update_fields=["text_content"])
+        return Response({"description": post.text_content}, status=status.HTTP_200_OK)
+
+
 def check_post_is_liked_by(media_post_obj, user):
     return media_post_obj.upvoted_by.filter(id=user.id).exists()
 
@@ -2656,6 +2681,24 @@ class BulkUploadSessionDetailView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+    def patch(self, request, session_id):
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        try:
+            session = BulkUploadSession.objects.get(id=session_id, user=request.user)
+        except BulkUploadSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        new_name = request.data.get("name", "").strip()
+        if not new_name:
+            return Response({"error": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(new_name) > 255:
+            return Response({"error": "name must be 255 characters or fewer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        session.name = new_name
+        session.save(update_fields=["name"])
+        return Response({"id": str(session.id), "name": session.name}, status=status.HTTP_200_OK)
 
 
 class BulkUploadSessionAddPostView(APIView):
