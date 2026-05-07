@@ -2593,7 +2593,7 @@ class BulkUploadSessionCreateView(APIView):
         name = (request.data.get("name") or "Bulk Upload").strip()
         image_count = int(request.data.get("image_count", 0))
         session = BulkUploadSession.objects.create(
-            created_by=request.user,
+            user=request.user,
             name=name,
             image_count=image_count,
         )
@@ -2612,7 +2612,7 @@ class BulkUploadSessionListView(APIView):
     def get(self, request):
         from siteapps.socialmedia.models import BulkUploadSession
 
-        sessions = BulkUploadSession.objects.filter(created_by=request.user).order_by("-created")
+        sessions = BulkUploadSession.objects.filter(user=request.user).order_by("-created")
         data = [
             {
                 "id": str(s.id),
@@ -2636,7 +2636,7 @@ class BulkUploadSessionDetailView(APIView):
         from siteapps.socialmedia.models import BulkUploadSession
 
         try:
-            session = BulkUploadSession.objects.get(id=session_id, created_by=request.user)
+            session = BulkUploadSession.objects.get(id=session_id, user=request.user)
         except BulkUploadSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2668,7 +2668,7 @@ class BulkUploadSessionAddPostView(APIView):
         from siteapps.socialmedia.models import BulkUploadSession
 
         try:
-            session = BulkUploadSession.objects.get(id=session_id, created_by=request.user)
+            session = BulkUploadSession.objects.get(id=session_id, user=request.user)
         except BulkUploadSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2699,7 +2699,7 @@ class BulkUploadSessionGPXView(APIView):
         from siteapps.socialmedia.models import BulkUploadSession
 
         try:
-            session = BulkUploadSession.objects.get(id=session_id, created_by=request.user)
+            session = BulkUploadSession.objects.get(id=session_id, user=request.user)
         except BulkUploadSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
