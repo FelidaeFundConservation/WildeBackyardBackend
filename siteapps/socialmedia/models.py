@@ -554,6 +554,9 @@ class BulkUploadSession(TimeStampedModel):
     # Parsed GPX walk track stored as a PostGIS LineString (SRID 4326)
     gpx_track = gis_models.LineStringField(srid=4326, null=True, blank=True, spatial_index=True)
 
+    # GeoJSON FeatureCollection of bird call point features from audio analysis
+    bird_calls = models.JSONField(null=True, blank=True)
+
     class Meta:
         ordering = ["-created"]
 
