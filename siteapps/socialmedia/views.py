@@ -2677,6 +2677,7 @@ class BulkUploadSessionDetailView(APIView):
                 "image_count": session.image_count,
                 "post_ids": session.post_ids,
                 "gpx_track": gpx_coords,
+                "bird_calls": session.bird_calls,
                 "created": session.created.isoformat(),
             },
             status=status.HTTP_200_OK,
@@ -2771,3 +2772,52 @@ class BulkUploadSessionGPXView(APIView):
         session.save(update_fields=["gpx_track"])
 
         return Response({"point_count": len(coords)}, status=status.HTTP_200_OK)
+
+
+class BulkUploadSessionBirdCallsView(APIView):
+    """Accept a GeoJSON FeatureCollection of bird call Point features and store on the session."""
+
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        import json as _json
+
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        try:
+            session = BulkUploadSession.objects.get(id=session_id, user=request.user)
+        except BulkUploadSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        geojson_file = request.FILES.get("bird_calls_file")
+        if not geojson_file:
+            return Response({"error": "bird_calls_file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            data = _json.loads(geojson_file.read())
+        except (ValueError, UnicodeDecodeError) as exc:
+            return Response({"error": f"Invalid JSON: {exc}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if data.get("type") not in ("FeatureCollection", "Feature"):
+            return Response(
+                {"error": "GeoJSON must be a FeatureCollection or Feature."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Normalise to FeatureCollection
+        if data["type"] == "Feature":
+            data = {"type": "FeatureCollection", "features": [data]}
+
+        # Validate that all features are Points
+        for f in data.get("features", []):
+            if f.get("geometry", {}).get("type") != "Point":
+                return Response(
+                    {"error": "All features must be Point geometry."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        session.bird_calls = data
+        session.save(update_fields=["bird_calls"])
+
+        return Response({"feature_count": len(data.get("features", []))}, status=status.HTTP_200_OK)
