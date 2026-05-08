@@ -9,6 +9,7 @@ from siteapps.socialmedia.moderation import (
 )
 from siteapps.socialmedia.views import (
     BulkUploadSessionAddPostView,
+    BulkUploadSessionBirdCallsView,
     BulkUploadSessionCreateView,
     BulkUploadSessionDetailView,
     BulkUploadSessionGPXView,
@@ -83,5 +84,10 @@ urlpatterns = [
         "api/bulk-upload/<uuid:session_id>/gpx/",
         BulkUploadSessionGPXView.as_view(),
         name="bulk_upload_gpx",
+    ),
+    path(
+        "api/bulk-upload/<uuid:session_id>/bird-calls/",
+        BulkUploadSessionBirdCallsView.as_view(),
+        name="bulk_upload_bird_calls",
     ),
 ]
