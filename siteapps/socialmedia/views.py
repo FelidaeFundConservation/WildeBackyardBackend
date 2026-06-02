@@ -2701,6 +2701,57 @@ class BulkUploadSessionDetailView(APIView):
         session.save(update_fields=["name"])
         return Response({"id": str(session.id), "name": session.name}, status=status.HTTP_200_OK)
 
+    def delete(self, request, session_id):
+        """Delete a bulk upload session and safely remove non-shared associated posts.
+
+        A post linked to this session is deleted only if no other bulk upload
+        session references that same post ID.
+        """
+        from uuid import UUID
+
+        from siteapps.socialmedia.models import BulkUploadSession
+
+        try:
+            session = BulkUploadSession.objects.get(id=session_id, user=request.user)
+        except BulkUploadSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Normalize current session IDs to strings for set operations.
+        session_post_ids = {str(pid) for pid in (session.post_ids or []) if pid}
+
+        # Collect all IDs referenced by any other bulk upload session.
+        shared_post_ids = set()
+        for other in BulkUploadSession.objects.exclude(id=session.id).only("post_ids"):
+            shared_post_ids.update(str(pid) for pid in (other.post_ids or []) if pid)
+
+        # Delete only posts that are unique to this session.
+        deletable_ids = session_post_ids - shared_post_ids
+        normalized_deletable_ids = []
+        for pid in deletable_ids:
+            try:
+                normalized_deletable_ids.append(str(UUID(pid)))
+            except (TypeError, ValueError, AttributeError):
+                continue
+
+        deleted_post_count = 0
+        if normalized_deletable_ids:
+            posts_qs = MediaPost.objects.filter(id__in=normalized_deletable_ids, created_by=request.user)
+            deleted_post_count = posts_qs.count()
+            posts_qs.delete()
+
+        retained_shared_post_count = len(session_post_ids & shared_post_ids)
+
+        session.delete()
+
+        return Response(
+            {
+                "deleted_post_count": deleted_post_count,
+                "retained_shared_post_count": retained_shared_post_count,
+                "deleted_session_id": str(session_id),
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
 class BulkUploadSessionAddPostView(APIView):
     """Append a MediaPost UUID to a bulk upload session's post_ids list."""
