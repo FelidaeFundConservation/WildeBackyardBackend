@@ -87,106 +87,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-core"
-version = "1.38.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/1b/e503e08e755ea94e7d3419c9242315f888fc664211c90d032e40479022bf/azure_core-1.38.0.tar.gz", hash = "sha256:8194d2682245a3e4e3151a667c686464c3786fed7918b394d035bdcd61bb5993", size = 363033, upload-time = "2026-01-12T17:03:05.535Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/d8/b8fcba9464f02b121f39de2db2bf57f0b216fe11d014513d666e8634380d/azure_core-1.38.0-py3-none-any.whl", hash = "sha256:ab0c9b2cd71fecb1842d52c965c95285d3cfb38902f6766e4a471f1cd8905335", size = 217825, upload-time = "2026-01-12T17:03:07.291Z" },
-]
-
-[[package]]
-name = "azure-identity"
-version = "1.15.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "cryptography" },
-    { name = "msal" },
-    { name = "msal-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/74/02/a0545eaa3fb83a6b6c413de4a65e06a02ce887f874a2e74a1240b2169140/azure-identity-1.15.0.tar.gz", hash = "sha256:4c28fc246b7f9265610eb5261d65931183d019a23d4b0e99357facb2e6c227c8", size = 229694, upload-time = "2023-10-26T15:24:57.071Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/10/5dbf755b368d10a28d55b06ac1f12512a13e88874a23db82defdea9a8cd9/azure_identity-1.15.0-py3-none-any.whl", hash = "sha256:a14b1f01c7036f11f148f22cd8c16e05035293d714458d6b44ddf534d93eb912", size = 164667, upload-time = "2023-10-26T15:24:59.503Z" },
-]
-
-[[package]]
-name = "azure-keyvault"
-version = "4.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-keyvault-certificates" },
-    { name = "azure-keyvault-keys" },
-    { name = "azure-keyvault-secrets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4e/8a/63cbc6b580d82ceb8e5f1fc740d5e85248110fcc3b1df02bc73ee19bd115/azure-keyvault-4.2.0.zip", hash = "sha256:731add108a3e29ab4fd501a3c477256c286c34d0996b383fb6a3945462933761", size = 13376, upload-time = "2022-03-29T18:48:49.419Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/a1/38e3c3ed438fbe8b486e2a4b9c1be586eed9206319d995f8b304ea2501f4/azure_keyvault-4.2.0-py2.py3-none-any.whl", hash = "sha256:16b29039244cbe8b940c98a0d795626d76d2a579cb9b8c559983ad208082c0de", size = 4334, upload-time = "2022-03-29T18:48:47.525Z" },
-]
-
-[[package]]
-name = "azure-keyvault-certificates"
-version = "4.10.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/bc/07497d7118178729f59043153083bcdfdfc9629a365cbc5bc5690b4ff21b/azure_keyvault_certificates-4.10.0.tar.gz", hash = "sha256:004ff47a73152f9f40f678e5a07719b753a3ca86f0460bfeaaf6a23304872e05", size = 179157, upload-time = "2025-06-16T22:52:24.547Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/03/71cfb1ee68a625ca1c211a3b18e1051a4dd9fe8774329e48bb3c67afcf86/azure_keyvault_certificates-4.10.0-py3-none-any.whl", hash = "sha256:fa76cbc329274cb5f4ab61b0ed7d209d44377df4b4d6be2fd01e741c2fbb83a9", size = 155683, upload-time = "2025-06-16T22:52:26.02Z" },
-]
-
-[[package]]
-name = "azure-keyvault-keys"
-version = "4.11.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "cryptography" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/69/ed/450c9389d76be1a95a056528ec2b832a3721858dd47b1f4eb12dab7060a1/azure_keyvault_keys-4.11.0.tar.gz", hash = "sha256:f257b1917a2c3a88983e3f5675a6419449eb262318888d5b51e1cb3bed79779a", size = 241309, upload-time = "2025-06-16T22:52:04.296Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/ac/fa42e6b316712604a63bf7b3cb60d619d92890e038b87e1b4bba7437bc36/azure_keyvault_keys-4.11.0-py3-none-any.whl", hash = "sha256:fa5febd5805f0fed4c0a1d13c9096081c72a6fa36ccae1299a137f34280eda53", size = 191303, upload-time = "2025-06-16T22:52:06.1Z" },
-]
-
-[[package]]
-name = "azure-keyvault-secrets"
-version = "4.10.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/97/e5/3074e581b6e8923c4a1f2e42192ea6f390bb52de3600c68baaaed529ef05/azure_keyvault_secrets-4.10.0.tar.gz", hash = "sha256:666fa42892f9cee749563e551a90f060435ab878977c95265173a8246d546a36", size = 129695, upload-time = "2025-06-16T22:52:20.986Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/94/7c902e966b28e7cb5080a8e0dd6bffc22ba44bc907f09c4c633d2b7c4f6a/azure_keyvault_secrets-4.10.0-py3-none-any.whl", hash = "sha256:9dbde256077a4ee1a847646671580692e3f9bea36bcfc189c3cf2b9a94eb38b9", size = 125237, upload-time = "2025-06-16T22:52:22.489Z" },
-]
-
-[[package]]
-name = "azure-storage-blob"
-version = "12.19.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "cryptography" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bd/a2/b1c1d6d8e3709bd949a18969ae8c1c61bd77d54f2b896e8574ef53053df5/azure-storage-blob-12.19.1.tar.gz", hash = "sha256:13e16ba42fc54ac2c7e8f976062173a5c82b9ec0594728e134aac372965a11b0", size = 551615, upload-time = "2024-03-06T00:22:12.832Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/96/c0964ea207da669fb6c51a370aef647269c4a21608112a1057440dda8aea/azure_storage_blob-12.19.1-py3-none-any.whl", hash = "sha256:c5530dc51c21c9564e4eb706cd499befca8819b10dd89716d3fc90d747556243", size = 394464, upload-time = "2024-03-06T00:22:15.736Z" },
-]
-
-[[package]]
 name = "certifi"
 version = "2026.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -450,24 +350,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/cf/f2/31e587ad8ce0c67234d45cc9c4ef921655bbaea0600e012e970fe9ae4623/django-simple-history-3.5.0.tar.gz", hash = "sha256:eef2943d7c846270f11c8136f38a3ba00de2bebd7b1b89037de5d9b148ed677a", size = 569458, upload-time = "2024-02-23T22:10:18.635Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3e/a2/c4fa2fe83e32237c2232fff6b6f4eec548473e8d119ad9f71d5030818ed8/django_simple_history-3.5.0-py3-none-any.whl", hash = "sha256:0030b3bb5ed219d6453320213e75cfa00dab7a381946124df9411729101c8874", size = 125537, upload-time = "2024-02-23T22:12:23.636Z" },
-]
-
-[[package]]
-name = "django-storages"
-version = "1.14.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "django" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/d6/2e50e378fff0408d558f36c4acffc090f9a641fd6e084af9e54d45307efa/django_storages-1.14.6.tar.gz", hash = "sha256:7a25ce8f4214f69ac9c7ce87e2603887f7ae99326c316bc8d2d75375e09341c9", size = 87587, upload-time = "2025-04-02T02:34:55.103Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1f/21/3cedee63417bc5553eed0c204be478071c9ab208e5e259e97287590194f1/django_storages-1.14.6-py3-none-any.whl", hash = "sha256:11b7b6200e1cb5ffcd9962bd3673a39c7d6a6109e8096f0e03d46fab3d3aabd9", size = 33095, upload-time = "2025-04-02T02:34:53.291Z" },
-]
-
-[package.optional-dependencies]
-azure = [
-    { name = "azure-core" },
-    { name = "azure-storage-blob" },
 ]
 
 [[package]]
@@ -866,15 +748,6 @@ wheels = [
 ]
 
 [[package]]
-name = "isodate"
-version = "0.7.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz", hash = "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6", size = 29705, upload-time = "2024-10-08T23:04:11.5Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/15/aa/0aca39a37d3c7eb941ba736ede56d689e7be91cab5d9ca846bde3999eba6/isodate-0.7.2-py3-none-any.whl", hash = "sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15", size = 22320, upload-time = "2024-10-08T23:04:09.501Z" },
-]
-
-[[package]]
 name = "jsonschema"
 version = "4.26.0"
 source = { registry = "https://pypi.org/simple" }
@@ -899,32 +772,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/19/74/a633ee74eb36c44aa6d1095e7cc5569bebf04342ee146178e2d36600708b/jsonschema_specifications-2025.9.1.tar.gz", hash = "sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d", size = 32855, upload-time = "2025-09-08T01:34:59.186Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/45/1a4ed80516f02155c51f51e8cedb3c1902296743db0bbc66608a0db2814f/jsonschema_specifications-2025.9.1-py3-none-any.whl", hash = "sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe", size = 18437, upload-time = "2025-09-08T01:34:57.871Z" },
-]
-
-[[package]]
-name = "msal"
-version = "1.34.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography" },
-    { name = "pyjwt", extra = ["crypto"] },
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/0e/c857c46d653e104019a84f22d4494f2119b4fe9f896c92b4b864b3b045cc/msal-1.34.0.tar.gz", hash = "sha256:76ba83b716ea5a6d75b0279c0ac353a0e05b820ca1f6682c0eb7f45190c43c2f", size = 153961, upload-time = "2025-09-22T23:05:48.989Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/dc/18d48843499e278538890dc709e9ee3dea8375f8be8e82682851df1b48b5/msal-1.34.0-py3-none-any.whl", hash = "sha256:f669b1644e4950115da7a176441b0e13ec2975c29528d8b9e81316023676d6e1", size = 116987, upload-time = "2025-09-22T23:05:47.294Z" },
-]
-
-[[package]]
-name = "msal-extensions"
-version = "1.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "msal" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/01/99/5d239b6156eddf761a636bded1118414d161bd6b7b37a9335549ed159396/msal_extensions-1.3.1.tar.gz", hash = "sha256:c5b0fd10f65ef62b5f1d62f4251d51cbcaf003fcedae8c91b040a488614be1a4", size = 23315, upload-time = "2025-03-14T23:51:03.902Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/75/bd9b7bb966668920f06b200e84454c8f3566b102183bc55c5473d96cb2b9/msal_extensions-1.3.1-py3-none-any.whl", hash = "sha256:96d3de4d034504e969ac5e85bae8106c8373b5c6568e4c8fa7af2eca9dbe6bca", size = 20583, upload-time = "2025-03-14T23:51:03.016Z" },
 ]
 
 [[package]]
@@ -1627,9 +1474,6 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
-    { name = "azure-identity" },
-    { name = "azure-keyvault" },
-    { name = "azure-storage-blob" },
     { name = "dj-rest-auth" },
     { name = "django" },
     { name = "django-allauth" },
@@ -1638,7 +1482,6 @@ dependencies = [
     { name = "django-model-utils" },
     { name = "django-rest-passwordreset" },
     { name = "django-simple-history" },
-    { name = "django-storages", extra = ["azure"] },
     { name = "djangorestframework" },
     { name = "djangorestframework-api-key" },
     { name = "drf-spectacular" },
@@ -1661,9 +1504,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "argon2-cffi", specifier = "==23.1.0" },
-    { name = "azure-identity", specifier = "==1.15.0" },
-    { name = "azure-keyvault", specifier = "==4.2.0" },
-    { name = "azure-storage-blob", specifier = "==12.19.1" },
     { name = "dj-rest-auth", specifier = "==5.0.2" },
     { name = "django", specifier = "==5.0.2" },
     { name = "django-allauth", specifier = "==0.61.1" },
@@ -1672,7 +1512,6 @@ requires-dist = [
     { name = "django-model-utils", specifier = "==4.4.0" },
     { name = "django-rest-passwordreset", specifier = "==1.4.1" },
     { name = "django-simple-history", specifier = "==3.5.0" },
-    { name = "django-storages", extras = ["azure"] },
     { name = "djangorestframework", specifier = "==3.14.0" },
     { name = "djangorestframework-api-key", specifier = "==3.1.0" },
     { name = "drf-spectacular", specifier = "==0.27.2" },

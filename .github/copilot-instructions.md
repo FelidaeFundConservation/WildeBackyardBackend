@@ -30,7 +30,7 @@ This is a Django 5.0.2 REST API backend for the Wilde Backyard wildlife conserva
 - **gcp_deployment/** - Google Cloud Platform deployment scripts and documentation
 - **staticfiles/** - Collected static files (generated, do not edit directly)
 - **.github/workflows/** - CI/CD workflows
-  - **main_wildebackyard.yml** - Azure deployment workflow (runs on push to main)
+  - *(no active workflow file; deployment is done via GCP tools)*
 
 ### Key Configuration Files
 
@@ -272,13 +272,9 @@ git push origin feature/your-feature-name
 
 ## CI/CD Pipeline
 
-The repository has Azure CI/CD configured via `.github/workflows/main_wildebackyard.yml`:
-- Triggers on push to main branch
-- Uses Python 3.12 for build (note: project requires 3.10+)
-- Installs dependencies from requirements.txt
-- Creates zip artifact and deploys to Azure App Service
+The project uses Google Cloud App Engine for deployment. There is no automated CI/CD pipeline currently configured; deployments are performed manually via GCP tools.
 
-**Important:** Tests are not currently automated in CI (see comment in workflow file). Run tests locally before pushing.
+**Important:** Tests are not currently automated in CI. Run tests locally before pushing.
 
 ## Deployment
 
