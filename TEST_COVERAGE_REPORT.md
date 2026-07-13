@@ -204,7 +204,7 @@ class ModelTestCase(TestCase):
    - Some error handling returns 500 instead of 400
 
 ### Improvements:
-1. Add mock objects for external API calls (Mapbox, Azure)
+1. Add mock objects for external API calls (Mapbox, GCS)
 2. Implement missing API endpoints
 3. Add integration tests
 4. Add performance tests

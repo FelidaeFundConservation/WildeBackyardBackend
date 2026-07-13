@@ -22,9 +22,5 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 # Email backend for testing
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-# Disable Azure Storage for tests
-AZURE_STORAGE_ACCOUNT_NAME = "test-account"
-AZURE_STORAGE_CONTAINER_NAME = "test-container"
-
 # GCS bucket name for tests (tests use mocks, so this won't access real GCS)
 GCS_BUCKET_NAME = "test-wildepod-backyard"
