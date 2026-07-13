@@ -238,7 +238,6 @@ nohup.out
 !/manage.py
 
 /*.yaml
-.azure
 telemetry
 infra
 experimentation

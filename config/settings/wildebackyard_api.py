@@ -8,12 +8,7 @@ import environ
 # Initialize environ first, before importing base
 env = environ.Env(DEBUG=(bool, False))
 
-# Override to prevent Azure Key Vault lookup in base.py
-# Set a dummy file path to trigger env file read path instead of Azure
-
 ROOT_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
-env_file = ROOT_DIR / ".env.gcp_dummy"
-# Create a minimal env dict to prevent Azure lookup
 os.environ.setdefault("DJANGO_SECRET_KEY", "temp-change-me-in-secret-manager")
 
 # Import Google Cloud Logging
