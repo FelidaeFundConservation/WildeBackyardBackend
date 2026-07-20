@@ -122,6 +122,7 @@ def serialize_post(post, user=None, include_quality_metrics=False):
     geocoded_location = ", ".join(filter(None, location_info_fields))
 
     additional_data = {
+        "device_type": post.device_type,
         "camera_model": post.camera_model,
         "camera_deployment_date": post.camera_deployment_date,
         "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
@@ -554,6 +555,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
             geocoded_location = ", ".join(filter(None, location_info_fields))
 
             additional_data = {
+                "device_type": post.device_type,
                 "camera_model": post.camera_model,
                 "camera_deployment_date": post.camera_deployment_date,
                 "camera_timestamp_offset_error_details": post.camera_timestamp_offset_error_details,
@@ -1721,6 +1723,13 @@ class PostViewValidation:
         # geocoded_location_country = data.get("geocodedLocationCountry")
         geocoded_location_zip_code = data.get("geocodedLocationZipCode")
 
+        # How the media was captured — ignored unless it matches a known choice,
+        # so an unrecognized client value never reaches the DB.
+        device_type = data.get("deviceType") or None
+        if device_type is not None and device_type not in dict(MediaPost.DEVICE_TYPE_CHOICES):
+            logging.warning(f"Ignoring unknown deviceType {device_type!r} on post creation.")
+            device_type = None
+
         # The brand and type of camera used to take the media (if any)
         camera_model = (data.get("cameraModel") or "").replace("\x00", "") or None
         camera_deployment_date = data.get("cameraDeploymentDate")
@@ -1754,6 +1763,8 @@ class PostViewValidation:
             except (ValueError, TypeError):
                 pass
 
+        if device_type is not None:
+            kwargs["device_type"] = device_type
         if camera_model is not None:
             kwargs["camera_model"] = camera_model
         if camera_deployment_date is not None:
