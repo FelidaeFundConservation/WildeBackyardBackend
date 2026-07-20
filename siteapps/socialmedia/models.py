@@ -208,6 +208,21 @@ class MediaPost(TextComment):
     geocoded_location_zip_code = models.CharField(max_length=64, null=True)
 
     # Supplementary info to understand the submission
+    DEVICE_TYPE_CAMERA = "camera"
+    DEVICE_TYPE_PHONE = "phone"
+    DEVICE_TYPE_HOME_CAMERA = "home_camera"
+    DEVICE_TYPE_TRAIL_CAMERA = "trail_camera"
+    DEVICE_TYPE_CHOICES = [
+        (DEVICE_TYPE_CAMERA, "Camera"),
+        (DEVICE_TYPE_PHONE, "Phone"),
+        (DEVICE_TYPE_HOME_CAMERA, "Home Camera"),
+        (DEVICE_TYPE_TRAIL_CAMERA, "Trail Camera"),
+    ]
+
+    # How the media was captured. Not derivable from camera_model alone — a home
+    # security camera and a trail camera can report the same make/model string.
+    device_type = models.CharField(max_length=16, choices=DEVICE_TYPE_CHOICES, null=True, blank=True)
+
     camera_model = models.CharField(max_length=64, null=True)
     camera_deployment_date = models.CharField(max_length=32, null=True)
     camera_timestamp_offset_error_details = models.CharField(max_length=512, null=True)
