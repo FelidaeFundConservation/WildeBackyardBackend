@@ -146,6 +146,7 @@ def serialize_post(post, user=None, include_quality_metrics=False):
         "id": post.id,
         "geoprivacy": post.geoprivacy,
         "created_by": getattr(post.created_by, "name", "Deleted User"),
+        "created": post.created,
         "encounter_datetime": post.encounter_datetime,
         "species": getattr(post.species, "name", None),
         "media": media_data,
@@ -582,6 +583,7 @@ class GetRecentPostsView(APIView, LatLngValidationMixin):
                 "id": post.id,
                 "geoprivacy": post.geoprivacy,
                 "created_by": getattr(post.created_by, "name", "Deleted User"),
+                "created": post.created,
                 "encounter_datetime": post.encounter_datetime,
                 "species": getattr(post.species, "name", None),
                 "media": media_data,
@@ -1630,8 +1632,12 @@ class PostViewValidation:
                 logging.info(f"[VIDEO DEBUG] Converted base64, bytes size: {len(media_bytes)}")
                 content_hash = hashlib.sha256(media_bytes).hexdigest()
                 logging.info(f"[VIDEO DEBUG] Content hash: {content_hash}")
-                # Check if the file already exists
-                if not Media.objects.filter(content_hash=content_hash).exists():
+                # Check if the file already exists. Use .first() rather than .get() —
+                # content_hash has no DB-level uniqueness constraint, so concurrent
+                # uploads of identical bytes can race past the .exists() check above
+                # and create more than one Media row for the same hash.
+                media_obj = Media.objects.filter(content_hash=content_hash).first()
+                if media_obj is None:
                     logging.info("[VIDEO DEBUG] No existing media, creating new...")
                     media_obj = create_media(
                         media_bytes=media_bytes,
@@ -1639,8 +1645,6 @@ class PostViewValidation:
                         request=request,
                         is_video=is_video,
                     )
-                else:
-                    media_obj = Media.objects.get(content_hash=content_hash)
             except ValueError as e:
                 # Re-raise validation errors (e.g., file too large)
                 raise e
