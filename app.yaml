@@ -9,8 +9,8 @@ env_variables:
   WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_prod"
   # Mailgun SMTP — required for password reset and email verification emails.
   MAILGUN_SMTP_PASSWORD: "REMOVED_MAILGUN_SMTP_PASSWORD"
-  # Web frontend URL — used for email confirmation redirect after account verification
-  WEB_APP_URL: "https://wildebackyard-web-dot-wildepod-339517.wl.r.appspot.com"
+  # Web frontend URL — used for email verification links and post-confirmation redirects
+  WEB_APP_URL: "https://wildebackyard.com"
 
 # Cloud SQL configuration for flexible environment
 beta_settings:
