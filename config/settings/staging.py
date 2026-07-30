@@ -1,4 +1,30 @@
 from .base import *  # noqa
+from urllib.parse import quote
+
+from google.cloud import secretmanager
+
+
+def _get_staging_db_url_from_secret() -> str:
+    """Build a Cloud SQL PostgreSQL URL from a Secret Manager password value."""
+    secret_id = env.str("STAGING_DB_PASSWORD_SECRET_ID", default="")
+    if not secret_id:
+        return ""
+
+    project_id = env.str("GOOGLE_CLOUD_PROJECT", default=env.str("GCP_PROJECT", default=""))
+    if not project_id:
+        raise RuntimeError("STAGING_DB_PASSWORD_SECRET_ID is set but project id is missing.")
+
+    secret_version = env.str("STAGING_DB_PASSWORD_SECRET_VERSION", default="latest")
+    secret_name = f"projects/{project_id}/secrets/{secret_id}/versions/{secret_version}"
+
+    client = secretmanager.SecretManagerServiceClient()
+    response = client.access_secret_version(request={"name": secret_name})
+    password = response.payload.data.decode("utf-8").strip()
+
+    db_user = env.str("CLOUD_SQL_DATABASE_USER_STAGING", default="wildepod_wildebackyard_api_user")
+    db_name = env.str("CLOUD_SQL_DATABASE_NAME_STAGING", default="wildebackyard_api_staging")
+    encoded_password = quote(password, safe="")
+    return f"postgres://{db_user}:{encoded_password}@/{db_name}"
 
 # HOSTS CONFIG
 # ------------------------------------------------------------------------------
@@ -22,8 +48,12 @@ WSGI_APPLICATION = "config.wsgi.staging.application"
 # Use PostgreSQL for GCP Cloud SQL deployment
 # For GCP deployment, use CLOUD_SQL_DATABASE_URL_STAGING environment variable
 # For local development, use individual DB_* environment variables
-if env.str("CLOUD_SQL_DATABASE_URL_STAGING", default=""):
-    DATABASES = {"default": env.db("CLOUD_SQL_DATABASE_URL_STAGING")}
+staging_db_url = env.str("CLOUD_SQL_DATABASE_URL_STAGING", default="")
+if not staging_db_url:
+    staging_db_url = _get_staging_db_url_from_secret()
+
+if staging_db_url:
+    DATABASES = {"default": env.db_url_config(staging_db_url)}
 
     # Cloud SQL connection configuration
     DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-339517:us-west2:wildepoddb")
