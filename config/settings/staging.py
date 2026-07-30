@@ -33,6 +33,15 @@ def _get_staging_db_url_from_secret() -> str:
 # Always allow all hosts for staging to prevent "disallowed host" errors with versioned URLs
 ALLOWED_HOSTS = ["*"]
 
+# CSRF protection for App Engine staging domains (including versioned URLs).
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=[
+        "https://wildebackyard-api-staging-dot-wildepod-339517.wl.r.appspot.com",
+        "https://*.wl.r.appspot.com",
+    ],
+)
+
 
 # DEBUG MODE
 # ------------------------------------------------------------------------------
@@ -56,11 +65,13 @@ if staging_db_url:
     DATABASES = {"default": env.db_url_config(staging_db_url)}
 
     # Cloud SQL connection configuration
-    DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="wildepod-339517:us-west2:wildepoddb")
+    DB_CONNECTION_NAME = env.str("CLOUD_SQL_CONNECTION_NAME", default="")
 
-    # Enable Cloud SQL connection when deployed to App Engine
-    if os.getenv("GAE_APPLICATION", None):
+    # If a Cloud SQL instance is configured, force Unix socket host explicitly.
+    # This avoids accidental fallback to local /var/run/postgresql sockets.
+    if DB_CONNECTION_NAME:
         DATABASES["default"]["HOST"] = f"/cloudsql/{DB_CONNECTION_NAME}"
+        DATABASES["default"]["PORT"] = ""
         # Remove any host setting from OPTIONS to avoid conflicts with HOST
         # (django-environ may have parsed it from DATABASE_URL query string)
         if "OPTIONS" in DATABASES["default"] and "host" in DATABASES["default"]["OPTIONS"]:
