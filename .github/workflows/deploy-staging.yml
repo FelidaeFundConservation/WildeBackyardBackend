@@ -42,6 +42,8 @@ env:
   PYTHON_VERSION: '3.10'
   DJANGO_SETTINGS_MODULE: config.settings.wildebackyard_api
   WEBSITE_HOSTNAME: ${{ secrets.WEBSITE_HOSTNAME }}
+  STAGING_API_SERVICE: staging-api
+  STAGING_SQL_INSTANCE: wildepod-staging-db
 
 jobs:
   # Job 1: Run tests and quality checks using reusable workflow
@@ -105,20 +107,20 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Validate app.yaml
+      - name: Validate staging.yaml
         run: |
-          if [ ! -f "app.yaml" ]; then
-            echo "Error: app.yaml not found"
+          if [ ! -f "staging.yaml" ]; then
+            echo "Error: staging.yaml not found"
             exit 1
           fi
 
           # Basic YAML validation
-          python -c "import yaml; yaml.safe_load(open('app.yaml'))"
-          echo "✓ app.yaml is valid"
+          python -c "import yaml; yaml.safe_load(open('staging.yaml'))"
+          echo "✓ staging.yaml is valid"
 
       - name: Check Cloud SQL instance
         run: |
-          if gcloud sql instances describe wildepod-staging-db --project=$GCP_PROJECT_ID &> /dev/null; then
+          if gcloud sql instances describe ${STAGING_SQL_INSTANCE} --project=$GCP_PROJECT_ID &> /dev/null; then
             echo "✓ Cloud SQL instance exists"
           else
             echo "Warning: Cloud SQL instance not found"
@@ -209,14 +211,14 @@ jobs:
         continue-on-error: true
         env:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-          WILDEBACKYARD_API_DATABASE_URL: "postgres://dummy:dummy@localhost/dummy"
+          CLOUD_SQL_DATABASE_URL_STAGING: "postgres://dummy:dummy@localhost/dummy"
         run: |
           # Attempt to collect static files (dummy DB URL not needed for collectstatic)
-          python manage.py collectstatic --noinput --settings=config.settings.wildebackyard_api || echo "Static collection skipped"
+          python manage.py collectstatic --noinput --settings=config.settings.staging || echo "Static collection skipped"
 
       - name: Deploy to App Engine
         run: |
-          gcloud app deploy app.yaml \
+          gcloud app deploy staging.yaml \
             --project=$GCP_PROJECT_ID \
             --verbosity=debug \
             --no-promote \
@@ -226,7 +228,7 @@ jobs:
         id: deployment
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          URL="https://${VERSION}-dot-wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
+          URL="https://${VERSION}-dot-${STAGING_API_SERVICE}-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -291,10 +293,10 @@ jobs:
           DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         run: |
           # Get database password from Google Secret Manager
-          DB_PASSWORD=$(gcloud secrets versions access latest --secret="wildebackyard_api_db_password" --project=$GCP_PROJECT_ID)
+          DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
           
           # Get Cloud SQL connection name
-          CONNECTION_NAME=$(gcloud sql instances describe wildepoddb --project=$GCP_PROJECT_ID --format="value(connectionName)")
+          CONNECTION_NAME=$(gcloud sql instances describe ${STAGING_SQL_INSTANCE} --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           # Start Cloud SQL Proxy in background
           ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
@@ -324,7 +326,7 @@ jobs:
           # Get database password from Google Secret Manager
           DB_PASSWORD=$(gcloud secrets versions access latest --secret="staging_db_password" --project=$GCP_PROJECT_ID)
           
-          CONNECTION_NAME=$(gcloud sql instances describe wildepoddb --project=$GCP_PROJECT_ID --format="value(connectionName)")
+          CONNECTION_NAME=$(gcloud sql instances describe ${STAGING_SQL_INSTANCE} --project=$GCP_PROJECT_ID --format="value(connectionName)")
 
           ./cloud_sql_proxy -instances=${CONNECTION_NAME}=tcp:5440 &
           PROXY_PID=$!
@@ -355,7 +357,7 @@ jobs:
       - name: Check application health
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          URL="https://${VERSION}-dot-wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
+          URL="https://${VERSION}-dot-${STAGING_API_SERVICE}-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
 
           # Check if site is up
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL || echo "000")
@@ -393,7 +395,7 @@ jobs:
       - name: Promote version
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          gcloud app services set-traffic wildebackyard-api \
+          gcloud app services set-traffic ${STAGING_API_SERVICE} \
             --splits=${VERSION}=1 \
             --project=$GCP_PROJECT_ID \
             --quiet
@@ -410,7 +412,7 @@ jobs:
         run: |
           if [ "${{ needs.smoke-test.result }}" = "success" ]; then
             echo "✅ Deployment to staging successful!"
-            echo "URL: https://wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
+            echo "URL: https://${STAGING_API_SERVICE}-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
           else
             echo "❌ Deployment failed or was skipped"
             exit 1
