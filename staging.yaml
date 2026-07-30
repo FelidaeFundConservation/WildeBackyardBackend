@@ -1,5 +1,5 @@
 runtime: python310
-service: staging-api
+service: wildebackyard-api-staging
 instance_class: F2
 entrypoint: gunicorn -t 2400 -b :$PORT config.wsgi.staging:application
 
@@ -9,7 +9,11 @@ beta_settings:
 env_variables:
   DJANGO_SETTINGS_MODULE: "config.settings.staging"
   PYTHON_ENV: "production"
-  CLOUD_SQL_DATABASE_URL_STAGING: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_staging"
+  GOOGLE_CLOUD_PROJECT: "wildepod-339517"
+  STAGING_DB_PASSWORD_SECRET_ID: "staging_db_password"
+  STAGING_DB_PASSWORD_SECRET_VERSION: "latest"
+  CLOUD_SQL_DATABASE_USER_STAGING: "wildepod_wildebackyard_api_user"
+  CLOUD_SQL_DATABASE_NAME_STAGING: "wildebackyard_api_staging"
   CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
 
 automatic_scaling:
