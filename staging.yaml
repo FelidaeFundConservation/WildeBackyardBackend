@@ -1,5 +1,5 @@
 runtime: python310
-service: wildebackyard-api
+service: staging-api
 instance_class: F2
 entrypoint: gunicorn -t 2400 -b :$PORT config.wsgi.staging:application
 
