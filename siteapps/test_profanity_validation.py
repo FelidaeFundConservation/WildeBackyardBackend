@@ -3,15 +3,16 @@ Tests for profanity validation across models and API views.
 """
 
 import json
+import uuid
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
-from django.utils import timezone
 
 from django.contrib.auth import get_user_model
-from siteapps.socialmedia.models import MediaPost, TextComment
+from siteapps.socialmedia.models import MediaPost, TextComment, UserSightingLocation, BulkUploadSession
 from siteapps.validators import validate_no_profanity
 
 User = get_user_model()
@@ -161,3 +162,133 @@ class ChangeUsernameProfanityAPITestCase(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
+
+
+class UserSightingLocationProfanityModelTestCase(TestCase):
+    """Tests that profanity validator is applied to UserSightingLocation.name and .description."""
+
+    def setUp(self):
+        self.user = User.objects.create(email="location_tester@example.com")
+
+    def test_location_name_validator_profane(self):
+        """UserSightingLocation.name field validator should raise ValidationError for profane text."""
+        location = UserSightingLocation(
+            user=self.user, name=PROFANE_TEXT, latitude=45.0, longitude=-122.0
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            location.full_clean()
+        self.assertIn("name", ctx.exception.message_dict)
+
+    def test_location_description_validator_profane(self):
+        """UserSightingLocation.description field validator should raise ValidationError for profane text."""
+        location = UserSightingLocation(
+            user=self.user, name="My Backyard", description=PROFANE_TEXT, latitude=45.0, longitude=-122.0
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            location.full_clean()
+        self.assertIn("description", ctx.exception.message_dict)
+
+
+class BulkUploadSessionProfanityModelTestCase(TestCase):
+    """Tests that profanity validator is applied to BulkUploadSession.name."""
+
+    def setUp(self):
+        self.user = User.objects.create(email="bulk_tester@example.com")
+
+    def test_session_name_validator_profane(self):
+        """BulkUploadSession.name field validator should raise ValidationError for profane text."""
+        session = BulkUploadSession(user=self.user, name=PROFANE_TEXT)
+        with self.assertRaises(ValidationError) as ctx:
+            session.full_clean()
+        self.assertIn("name", ctx.exception.message_dict)
+
+
+class UpdatePostDescriptionProfanityAPITestCase(TestCase):
+    """Tests that UpdatePostDescriptionView rejects profane descriptions."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create(email="postowner@example.com", name="PostOwner")
+        self.user.set_password("testpassword")
+        self.user.save()
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")
+        self.post = MediaPost.objects.create(
+            created_by=self.user,
+            title="Nice Post",
+            encounter_datetime=timezone.now(),
+            geoprivacy="public",
+        )
+
+    def test_profane_description_rejected(self):
+        """API should return 400 when trying to set a profane post description."""
+        response = self.client.post(
+            f"/v1/socialmedia/api/posts/{self.post.id}/description/",
+            data={"description": PROFANE_TEXT},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_clean_description_accepted(self):
+        """API should accept a clean description."""
+        response = self.client.post(
+            f"/v1/socialmedia/api/posts/{self.post.id}/description/",
+            data={"description": CLEAN_TEXT},
+        )
+        self.assertEqual(response.status_code, 200)
+
+
+class CreateUserLocationProfanityAPITestCase(TestCase):
+    """Tests that CreateUserLocationView rejects profane location names/descriptions."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create(email="locuser@example.com", name="LocUser")
+        self.user.set_password("testpassword")
+        self.user.save()
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")
+
+    def test_profane_name_rejected(self):
+        """API should return 400 when location name contains profanity."""
+        response = self.client.post(
+            "/v1/socialmedia/api/locations/create/",
+            data={"name": PROFANE_TEXT, "latitude": 45.0, "longitude": -122.0},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_profane_description_rejected(self):
+        """API should return 400 when location description contains profanity."""
+        response = self.client.post(
+            "/v1/socialmedia/api/locations/create/",
+            data={"name": "My Backyard", "description": PROFANE_TEXT, "latitude": 45.0, "longitude": -122.0},
+        )
+        self.assertEqual(response.status_code, 400)
+
+
+class BulkUploadSessionProfanityAPITestCase(TestCase):
+    """Tests that bulk upload session endpoints reject profane session names."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create(email="bulkuser@example.com", name="BulkUser")
+        self.user.set_password("testpassword")
+        self.user.save()
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")
+
+    def test_profane_session_name_on_create_rejected(self):
+        """API should return 400 when session name contains profanity on creation."""
+        response = self.client.post(
+            "/v1/socialmedia/api/bulk-upload/",
+            data={"name": PROFANE_TEXT},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_profane_session_name_on_rename_rejected(self):
+        """API should return 400 when renaming session with profane name."""
+        session = BulkUploadSession.objects.create(user=self.user, name="Good Name")
+        response = self.client.patch(
+            f"/v1/socialmedia/api/bulk-upload/{session.id}/",
+            data={"name": PROFANE_TEXT},
+        )
+        self.assertEqual(response.status_code, 400)

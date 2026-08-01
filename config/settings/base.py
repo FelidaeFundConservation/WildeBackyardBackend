@@ -27,6 +27,11 @@ env_file = ROOT_DIR / ".env"
 
 LOGIN_URL = "/users/login"
 
+# URL of the web frontend — used to redirect users after email confirmation
+WEB_APP_URL = env.str("WEB_APP_URL", default="http://localhost:8001")
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = f"{WEB_APP_URL}/users/login/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"{WEB_APP_URL}/users/profile/"
+
 
 # Secrets
 
@@ -85,6 +90,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_api_key",
     "drf_spectacular",
     "dj_rest_auth",
     "dj_rest_auth.registration",
@@ -97,6 +103,7 @@ INSTALLED_APPS = [
     "siteapps.socialmedia",
     "siteapps.species",
     "siteapps.mapbox",
+    "siteapps.habitat",
 ]
 
 MIDDLEWARE = [
@@ -246,6 +253,7 @@ ACCOUNT_SESSION_REMEMBER = True
 # ------------------------------------------------------------------------------
 REST_AUTH = {
     "REGISTER_SERIALIZER": "siteapps.users.serializers.RegisterSerializer",
+    "OLD_PASSWORD_FIELD_ENABLED": True,
 }
 
 
@@ -283,11 +291,10 @@ SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 EMAIL_SUBJECT_PREFIX = "[Wilde Backyard]"
 ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
 
-# Sendgrid email settings (optional)
-SENDGRID_API_KEY = env.str("SENDGRID_API_KEY", default=SECRETS.get("SENDGRID-API-KEY", None))
-EMAIL_HOST = "smtp.sendgrid.net"
-EMAIL_HOST_USER = "apikey"
-EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
+# Mailgun SMTP settings
+EMAIL_HOST = "smtp.mailgun.org"
+EMAIL_HOST_USER = "noreply@wildepod.org"
+EMAIL_HOST_PASSWORD = env.str("MAILGUN_SMTP_PASSWORD", default="")
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 

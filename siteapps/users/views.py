@@ -5,12 +5,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import render
 from django.views.generic import TemplateView
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from siteapps.license_constants import LICENSE_CHOICES
 from siteapps.socialmedia.mixins import check_profanity, createResponse400
 from siteapps.socialmedia.models import MediaPost
 from siteapps.users.models import User
@@ -57,11 +58,15 @@ class UserProfileView(APIView):
 
     def get(self, request):
         data = {
+            "id": str(request.user.id),
             "joined_date": request.user.created.strftime(settings.READABLE_DATE_FORMAT),
             "display_name": request.user.name,
             "sightings_count": MediaPost.objects.filter(created_by=request.user).count(),
             "is_staff": request.user.is_staff,
             "is_superuser": request.user.is_superuser,
+            "is_developer": request.user.has_developer_access,
+            "is_expert": request.user.is_expert,
+            "default_license": request.user.default_license,
         }
 
         return Response(status=status.HTTP_200_OK, data=data)
@@ -189,3 +194,199 @@ class EditStaffRoleView(APIView):
 
 class AccountVerifiedView(TemplateView):
     template_name = "account/email_confirm.html"
+
+
+class EditDeveloperRoleSerializer(serializers.Serializer):
+    accountEmail = serializers.EmailField(help_text="Email of the account to modify")
+    setDeveloper = serializers.BooleanField(help_text="True to grant developer role, False to revoke")
+
+
+@extend_schema(
+    summary="Edit developer role",
+    description=(
+        "Grant or revoke the developer role for a user account. Only accessible by superusers. "
+        "Staff and superusers are always considered developers regardless of this flag."
+    ),
+    request=EditDeveloperRoleSerializer,
+    responses={
+        200: None,
+        400: ApiErrorSerializer,
+        403: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+    tags=["Admin"],
+)
+class EditDeveloperRoleView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        if not request.user.is_superuser:
+            return Response(
+                status=status.HTTP_403_FORBIDDEN,
+                data={"error": "This account is not allowed to perform this operation."},
+            )
+
+        data = json.loads(request.body)
+        account_email = data.get("accountEmail")
+        set_developer = data.get("setDeveloper")
+
+        if not account_email:
+            return createResponse400("The account email was not provided.")
+        if set_developer is None:
+            return createResponse400("setDeveloper was not provided.")
+
+        try:
+            user = User.objects.get(email=account_email)
+            user.is_developer = set_developer
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response(
+                status=status.HTTP_404_NOT_FOUND,
+                data={"error": f"User with email {account_email} not found."},
+            )
+
+
+@extend_schema(
+    summary="Update default sighting license",
+    description="Update the authenticated user's default license applied to new sightings and media.",
+    request=inline_serializer(
+        name="UpdateDefaultLicenseRequest",
+        fields={"licenseCode": serializers.ChoiceField(choices=[c[0] for c in LICENSE_CHOICES])},
+    ),
+    responses={200: None, 400: ApiErrorSerializer},
+    tags=["Users"],
+)
+class UpdateDefaultLicenseView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data = json.loads(request.body)
+        license_code = data.get("licenseCode")
+
+        valid_codes = {code for code, _ in LICENSE_CHOICES}
+        if not license_code or license_code not in valid_codes:
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST,
+                data={"error": f"Invalid license code. Valid options are: {', '.join(sorted(valid_codes))}"},
+            )
+
+        request.user.default_license = license_code
+        request.user.save()
+        return Response(status=status.HTTP_200_OK)
+
+
+# ── API Key management ────────────────────────────────────────────────────────
+
+
+@extend_schema(
+    summary="Create API key",
+    description=(
+        "Create a new API key linked to the authenticated user. "
+        "The raw key is returned **once** in this response and cannot be retrieved again."
+    ),
+    request=inline_serializer(
+        name="CreateAPIKeyRequest",
+        fields={"name": serializers.CharField(help_text="Human-readable label for this key")},
+    ),
+    responses={
+        201: inline_serializer(
+            name="CreateAPIKeyResponse",
+            fields={
+                "prefix": serializers.CharField(),
+                "name": serializers.CharField(),
+                "api_key": serializers.CharField(help_text="Raw key — store this securely, shown only once"),
+            },
+        ),
+        400: ApiErrorSerializer,
+    },
+    tags=["API Keys"],
+)
+class CreateUserAPIKeyView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from siteapps.users.models import UserAPIKey
+
+        data = json.loads(request.body)
+        name = data.get("name", "").strip()
+        if not name:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": "A key name is required."})
+
+        api_key, key = UserAPIKey.objects.create_key(name=name, user=request.user)
+        return Response(
+            status=status.HTTP_201_CREATED,
+            data={"prefix": api_key.prefix, "name": api_key.name, "api_key": key},
+        )
+
+
+@extend_schema(
+    summary="List API keys",
+    description="List all API keys belonging to the authenticated user.",
+    responses={
+        200: inline_serializer(
+            name="APIKeyListItem",
+            fields={
+                "prefix": serializers.CharField(),
+                "name": serializers.CharField(),
+                "created": serializers.DateTimeField(),
+                "revoked": serializers.BooleanField(),
+                "expiry_date": serializers.DateTimeField(allow_null=True),
+            },
+            many=True,
+        )
+    },
+    tags=["API Keys"],
+)
+class ListUserAPIKeysView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from siteapps.users.models import UserAPIKey
+
+        keys = UserAPIKey.objects.filter(user=request.user).order_by("-created")
+        data = [
+            {
+                "prefix": k.prefix,
+                "name": k.name,
+                "created": k.created,
+                "revoked": k.revoked,
+                "expiry_date": k.expiry_date,
+            }
+            for k in keys
+        ]
+        return Response(status=status.HTTP_200_OK, data=data)
+
+
+@extend_schema(
+    summary="Revoke API key",
+    description="Revoke an API key owned by the authenticated user.",
+    responses={
+        200: None,
+        403: ApiErrorSerializer,
+        404: ApiErrorSerializer,
+    },
+    tags=["API Keys"],
+)
+class RevokeUserAPIKeyView(APIView):
+    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, prefix: str):
+        from siteapps.users.models import UserAPIKey
+
+        try:
+            api_key = UserAPIKey.objects.get(prefix=prefix)
+        except UserAPIKey.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND, data={"error": "API key not found."})
+
+        if api_key.user_id != request.user.pk:
+            return Response(status=status.HTTP_403_FORBIDDEN, data={"error": "You do not own this API key."})
+
+        api_key.revoked = True
+        api_key.save()
+        return Response(status=status.HTTP_200_OK)

@@ -6,8 +6,10 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from model_utils.models import TimeStampedModel
+from rest_framework_api_key.models import AbstractAPIKey
 from simple_history.models import HistoricalRecords
 
+from siteapps.license_constants import DEFAULT_LICENSE, LICENSE_CHOICES
 from siteapps.validators import validate_no_profanity
 
 
@@ -63,6 +65,37 @@ class User(AbstractUser, TimeStampedModel):
     # The number of warnings the user has received
     warnings = models.IntegerField(default=0)
 
+    # Additional flag to indicate if user is a volunteer
+    is_volunteer = models.BooleanField(default=False)
+    # Flag to indicate an expert user. Their votes will provide direct validation for category, species and activity
+    # (i.e. no consensus necessary)
+    is_expert = models.BooleanField(
+        default=False,
+        help_text="Expert user votes directly validate Category, Species and Activity without need for additional consensus",
+    )
+    # Phone number if needed
+    phone_number = models.CharField("Phone Number", max_length=25, blank=True)
+
+    # Developer role: grants programmatic/API access. Staff and superusers are always considered developers.
+    is_developer = models.BooleanField(
+        default=False,
+        help_text="Grants developer/API access. Staff and superusers are automatically considered developers.",
+    )
+
+    @property
+    def has_developer_access(self) -> bool:
+        """Returns True if this user has developer-level access (developer role, staff, or superuser)."""
+        return bool(self.is_developer or self.is_staff or self.is_superuser)
+
+    # Default license applied to new sightings submitted by this user
+    default_license = models.CharField(
+        max_length=32,
+        choices=LICENSE_CHOICES,
+        default=DEFAULT_LICENSE,
+        db_default=DEFAULT_LICENSE,  # DB-level default prevents NULL from non-ORM inserts
+        help_text="Default license applied to new sightings and media",
+    )
+
     # History of model instance changes
     history = HistoricalRecords()
 
@@ -84,3 +117,20 @@ class BannedEmail(TimeStampedModel):
 
     email = models.EmailField("email address", unique=True)
     ban_reason = models.CharField(max_length=800, default="")
+
+
+class UserAPIKey(AbstractAPIKey):
+    """API key linked to a specific user account."""
+
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        related_name="api_keys",
+    )
+
+    class Meta(AbstractAPIKey.Meta):
+        verbose_name = "User API Key"
+        verbose_name_plural = "User API Keys"
+
+    def __str__(self):
+        return f"{self.name} ({self.user})"
