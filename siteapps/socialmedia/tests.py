@@ -2,11 +2,13 @@ import json
 
 from allauth.account.models import EmailAddress
 from dateutil import parser
+from django.conf import settings
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient, force_authenticate
 
-from siteapps.socialmedia.models import InappropriateContentReport, Media, MediaPost, TextComment
+from siteapps.socialmedia.models import BulkUploadSession, InappropriateContentReport, Media, MediaPost, TextComment
 from siteapps.species.models import SpeciesName
 from siteapps.users.models import BannedEmail, User
 
@@ -141,3 +143,62 @@ class SocialMediaPostAPITestCase(TestCase):
         self.client.get("/v1/socialmedia/api/posts/reports/review", format="json")
 
     # test_edit_post removed - covered in test_api_comprehensive.py
+
+
+class BulkUploadSessionDeleteAPITestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create(email="bulk-delete@test.com")
+        self.user.set_password("password123")
+        self.user.save()
+
+        token, _created = Token.objects.get_or_create(user=self.user)
+        self.client = APIClient()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+    def _create_post(self, title: str) -> MediaPost:
+        return MediaPost.objects.create(
+            created_by=self.user,
+            title=title,
+            encounter_datetime=timezone.now(),
+            geoprivacy=settings.PRIVACY_SETTING_PUBLIC,
+        )
+
+    def test_delete_bulk_upload_removes_unique_associated_posts(self):
+        post = self._create_post("Unique post")
+        session = BulkUploadSession.objects.create(
+            user=self.user,
+            name="Session A",
+            image_count=1,
+            post_ids=[str(post.id)],
+        )
+
+        response = self.client.delete(f"/v1/socialmedia/api/bulk-upload/{session.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get("deleted_post_count"), 1)
+        self.assertEqual(response.json().get("retained_shared_post_count"), 0)
+        self.assertFalse(BulkUploadSession.objects.filter(id=session.id).exists())
+        self.assertFalse(MediaPost.objects.filter(id=post.id).exists())
+
+    def test_delete_bulk_upload_keeps_posts_shared_with_other_sessions(self):
+        post = self._create_post("Shared post")
+        session_one = BulkUploadSession.objects.create(
+            user=self.user,
+            name="Session One",
+            image_count=1,
+            post_ids=[str(post.id)],
+        )
+        BulkUploadSession.objects.create(
+            user=self.user,
+            name="Session Two",
+            image_count=1,
+            post_ids=[str(post.id)],
+        )
+
+        response = self.client.delete(f"/v1/socialmedia/api/bulk-upload/{session_one.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json().get("deleted_post_count"), 0)
+        self.assertEqual(response.json().get("retained_shared_post_count"), 1)
+        self.assertFalse(BulkUploadSession.objects.filter(id=session_one.id).exists())
+        self.assertTrue(MediaPost.objects.filter(id=post.id).exists())

@@ -8,16 +8,35 @@ from siteapps.socialmedia.moderation import (
     IssueWarningView,
 )
 from siteapps.socialmedia.views import (
+    BulkUploadSessionAddPostView,
+    BulkUploadSessionBirdCallsView,
+    BulkUploadSessionCreateView,
+    BulkUploadSessionDetailView,
+    BulkUploadSessionGPXView,
+    BulkUploadSessionListView,
     CreateCommentView,
     CreatePostView,
+    CreateUserLocationView,
+    DeleteUserLocationView,
     EditPostView,
+    GetClustersByBoundingBoxView,
     GetPostByIdView,
     GetPostResponsesAuthenticatedView,
     GetPostResponsesNoAuthView,
     GetPostsByBoundingBoxView,
     GetRecentPostsView,
+    GetSiteConfigurationView,
     LikeCommentView,
     LikePostView,
+    ListSightingTypesView,
+    ListUserLocationsView,
+    UpdateAnimalCountView,
+    UpdateLocationView,
+    UpdatePostDescriptionView,
+    UpdatePostTitleView,
+    UpdateSightingSpeciesView,
+    UpdateUserLocationView,
+    VoteQualityMetricView,
 )
 
 urlpatterns = [
@@ -28,7 +47,14 @@ urlpatterns = [
     path("api/posts/like/", LikePostView.as_view(), name="like_post"),
     re_path(r"^api/feed/get/$", GetRecentPostsView.as_view(), name="get_posts"),
     path("api/feed/getbb/", GetPostsByBoundingBoxView.as_view(), name="get_posts_by_bbox"),
+    path("api/feed/clusters/", GetClustersByBoundingBoxView.as_view(), name="get_clusters_by_bbox"),
     path("api/posts/<uuid:post_id>/", GetPostByIdView.as_view(), name="get_post_by_id"),
+    path("api/posts/<uuid:post_id>/quality/<str:metric>/", VoteQualityMetricView.as_view(), name="vote_quality_metric"),
+    path("api/posts/<uuid:post_id>/species/", UpdateSightingSpeciesView.as_view(), name="update_sighting_species"),
+    path("api/posts/<uuid:post_id>/animal-count/", UpdateAnimalCountView.as_view(), name="update_animal_count"),
+    path("api/posts/<uuid:post_id>/description/", UpdatePostDescriptionView.as_view(), name="update_post_description"),
+    path("api/posts/<uuid:post_id>/title/", UpdatePostTitleView.as_view(), name="update_post_title"),
+    path("api/posts/<uuid:post_id>/location/", UpdateLocationView.as_view(), name="update_location"),
     path("api/posts/responses/get/noauth", GetPostResponsesNoAuthView.as_view(), name="get_post_responses_noauth"),
     path("api/posts/responses/get/auth", GetPostResponsesAuthenticatedView.as_view(), name="get_post_responses_auth"),
     path("api/posts/reports/create", CreateInappropriateContentReportView.as_view(), name="report_content"),
@@ -36,4 +62,32 @@ urlpatterns = [
     path("api/posts/reports/clear", ClearReportView.as_view(), name="clear_report"),
     path("api/posts/reports/warn", IssueWarningView.as_view(), name="issue_warning"),
     path("api/posts/reports/ban", BanUserView.as_view(), name="ban_user"),
+    # Site configuration
+    path("api/site-config/", GetSiteConfigurationView.as_view(), name="get_site_config"),
+    # Sighting types
+    path("api/sighting-types/", ListSightingTypesView.as_view(), name="list_sighting_types"),
+    # User sighting locations
+    path("api/locations/", ListUserLocationsView.as_view(), name="list_user_locations"),
+    path("api/locations/create/", CreateUserLocationView.as_view(), name="create_user_location"),
+    path("api/locations/<uuid:location_id>/", UpdateUserLocationView.as_view(), name="update_user_location"),
+    path("api/locations/<uuid:location_id>/delete/", DeleteUserLocationView.as_view(), name="delete_user_location"),
+    # Bulk upload sessions
+    path("api/bulk-upload/", BulkUploadSessionCreateView.as_view(), name="bulk_upload_create"),
+    path("api/bulk-upload/list/", BulkUploadSessionListView.as_view(), name="bulk_upload_list"),
+    path("api/bulk-upload/<uuid:session_id>/", BulkUploadSessionDetailView.as_view(), name="bulk_upload_detail"),
+    path(
+        "api/bulk-upload/<uuid:session_id>/add-post/",
+        BulkUploadSessionAddPostView.as_view(),
+        name="bulk_upload_add_post",
+    ),
+    path(
+        "api/bulk-upload/<uuid:session_id>/gpx/",
+        BulkUploadSessionGPXView.as_view(),
+        name="bulk_upload_gpx",
+    ),
+    path(
+        "api/bulk-upload/<uuid:session_id>/bird-calls/",
+        BulkUploadSessionBirdCallsView.as_view(),
+        name="bulk_upload_bird_calls",
+    ),
 ]

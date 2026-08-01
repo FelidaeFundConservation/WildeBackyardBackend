@@ -6,10 +6,28 @@ from rest_framework import authentication, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from siteapps.species.models import SpeciesName
+from siteapps.species.models import SpeciesName, Taxon
 
 
 # Create your views here.
+class GetTaxaView(APIView):
+    """GET /v1/species/api/taxa/
+    Returns all active Taxon records sorted by common name.
+    Used by the DQA species-edit panel and suggestion engine.
+    """
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        qs = (
+            Taxon.objects.filter(is_active=True)
+            .values("id", "inat_id", "name", "preferred_common_name", "iconic_taxon_name", "observations_count")
+            .order_by("preferred_common_name", "name")
+        )
+        return Response(status=status.HTTP_200_OK, data={"taxa": list(qs)})
+
+
 @extend_schema(
     summary="Get all species names",
     description="Retrieve a list of all available species names",
