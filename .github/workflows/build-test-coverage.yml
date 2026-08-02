@@ -5,13 +5,19 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch or commit SHA to test (defaults to main)'
+        required: false
+        type: string
+        default: 'main'
   workflow_call:
     inputs:
       branch:
         description: 'Branch or commit SHA to test'
         required: false
         type: string
-        default: ''
+        default: 'main'
       skip_tests:
         description: 'Skip tests execution'
         required: false
@@ -36,7 +42,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch || github.event.inputs.branch || github.ref }}
+          ref: ${{ inputs.branch || github.event.inputs.branch || 'main' }}
         
       - name: Update package list
         run: sudo apt-get update
