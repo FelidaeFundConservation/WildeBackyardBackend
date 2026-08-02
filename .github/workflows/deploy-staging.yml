@@ -39,7 +39,7 @@ env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_REGION: us-central1
   ENVIRONMENT: staging
-  APP_SERVICE_NAME: wildebackyard-api
+  APP_SERVICE_NAME: wildebackyard-api-staging
   PYTHON_VERSION: '3.10'
   DJANGO_SETTINGS_MODULE: config.settings.wildebackyard_api
   WEBSITE_HOSTNAME: ${{ secrets.WEBSITE_HOSTNAME }}
