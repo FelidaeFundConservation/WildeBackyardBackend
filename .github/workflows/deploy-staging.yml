@@ -39,6 +39,7 @@ env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_REGION: us-central1
   ENVIRONMENT: staging
+  APP_SERVICE_NAME: wildebackyard-api
   PYTHON_VERSION: '3.10'
   DJANGO_SETTINGS_MODULE: config.settings.wildebackyard_api
   WEBSITE_HOSTNAME: ${{ secrets.WEBSITE_HOSTNAME }}
@@ -226,7 +227,7 @@ jobs:
         id: deployment
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          URL="https://${VERSION}-dot-wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
+          URL="https://${VERSION}-dot-${APP_SERVICE_NAME}-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
           echo "url=$URL" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -355,7 +356,7 @@ jobs:
       - name: Check application health
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          URL="https://${VERSION}-dot-wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
+          URL="https://${VERSION}-dot-${APP_SERVICE_NAME}-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
 
           # Check if site is up
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL || echo "000")
@@ -393,7 +394,7 @@ jobs:
       - name: Promote version
         run: |
           VERSION=$(echo $GITHUB_SHA | cut -c1-7)
-          gcloud app services set-traffic wildebackyard-api \
+          gcloud app services set-traffic ${APP_SERVICE_NAME} \
             --splits=${VERSION}=1 \
             --project=$GCP_PROJECT_ID \
             --quiet
@@ -410,7 +411,7 @@ jobs:
         run: |
           if [ "${{ needs.smoke-test.result }}" = "success" ]; then
             echo "✅ Deployment to staging successful!"
-            echo "URL: https://wildebackyard-api-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
+            echo "URL: https://${APP_SERVICE_NAME}-dot-${GCP_PROJECT_ID}.wl.r.appspot.com"
           else
             echo "❌ Deployment failed or was skipped"
             exit 1
