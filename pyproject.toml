@@ -35,6 +35,7 @@ dependencies = [
     "requests==2.27.1",
     "s2cell==1.8.0",
     "whitenoise==6.7.0",
+    "alt-profanity-check==1.7.2",
 ]
 
 [build-system]

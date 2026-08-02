@@ -10,6 +10,7 @@ from simple_history.models import HistoricalRecords
 
 from siteapps.license_constants import DEFAULT_LICENSE, LICENSE_CHOICES
 from siteapps.species.models import SpeciesName, Taxon
+from siteapps.validators import validate_no_profanity
 
 User = get_user_model()
 
@@ -152,7 +153,7 @@ class TextComment(TimeStampedModel):
     created_by = models.ForeignKey(User, related_name="created_by_user", on_delete=models.SET_NULL, null=True)
 
     # The text content of the comment
-    text_content = models.TextField(max_length=4000, null=True)
+    text_content = models.TextField(max_length=4000, null=True, validators=[validate_no_profanity])
 
     # Like count
     upvoted_by = models.ManyToManyField(User, blank=True, related_name="upvoted_by")
@@ -164,7 +165,7 @@ class MediaPost(TextComment):
     replies = models.ManyToManyField(TextComment, related_name="post_replies", blank=True)
 
     # Title of the post
-    title = models.TextField(max_length=80)
+    title = models.TextField(max_length=80, validators=[validate_no_profanity])
 
     # The media the comment contains, if any
     media = models.ForeignKey(Media, related_name="post_media", on_delete=models.SET_NULL, null=True)
@@ -477,8 +478,8 @@ class UserSightingLocation(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     user = models.ForeignKey(User, related_name="sighting_locations", on_delete=models.CASCADE)
-    name = models.CharField(max_length=100, help_text="Name for this location (e.g., 'Backyard', 'North Trail')")
-    description = models.TextField(max_length=500, blank=True, help_text="Optional description of the location")
+    name = models.CharField(max_length=100, help_text="Name for this location (e.g., 'Backyard', 'North Trail')", validators=[validate_no_profanity])
+    description = models.TextField(max_length=500, blank=True, help_text="Optional description of the location", validators=[validate_no_profanity])
 
     latitude = models.FloatField()
     longitude = models.FloatField()
@@ -545,7 +546,7 @@ class BulkUploadSession(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bulk_upload_sessions")
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, validators=[validate_no_profanity])
     image_count = models.PositiveIntegerField(default=0)
 
     # Post UUIDs submitted as part of this session

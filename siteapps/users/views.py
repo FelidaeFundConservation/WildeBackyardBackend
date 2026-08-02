@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from siteapps.license_constants import LICENSE_CHOICES
-from siteapps.socialmedia.mixins import createResponse400
+from siteapps.socialmedia.mixins import check_profanity, createResponse400
 from siteapps.socialmedia.models import MediaPost
 from siteapps.users.models import User
 
@@ -98,6 +98,10 @@ class ChangeUsernameView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
                 data={"error": message},
             )
+
+        profanity_error = check_profanity(new_username)
+        if profanity_error is not None:
+            return profanity_error
 
         request.user.name = new_username
         request.user.save()

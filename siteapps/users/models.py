@@ -10,6 +10,7 @@ from rest_framework_api_key.models import AbstractAPIKey
 from simple_history.models import HistoricalRecords
 
 from siteapps.license_constants import DEFAULT_LICENSE, LICENSE_CHOICES
+from siteapps.validators import validate_no_profanity
 
 
 def generate_random_name():
@@ -56,8 +57,8 @@ class User(AbstractUser, TimeStampedModel):
     email = models.EmailField("email address", unique=True)
 
     #: Keep only a name field instead of first & last names
-    name = models.CharField("Name", max_length=255, default=generate_random_name)
-    bio = models.CharField("Bio", max_length=10000, default="")
+    name = models.CharField("Name", max_length=255, default=generate_random_name, validators=[validate_no_profanity])
+    bio = models.CharField("Bio", max_length=10000, default="", validators=[validate_no_profanity])
     first_name = None  # type: ignore
     last_name = None  # type: ignore
 

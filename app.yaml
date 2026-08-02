@@ -6,11 +6,7 @@ env_variables:
   DJANGO_SETTINGS_MODULE: "config.settings.wildebackyard_api"
   PYTHON_ENV: "production"
   CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
-  WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_prod"
-  # Mailgun SMTP — required for password reset and email verification emails.
-  MAILGUN_SMTP_PASSWORD: "008d44ee941867754c5b5b8219d57fbc-03fd4b1a-5dc38526"
-  # Web frontend URL — used for email verification links and post-confirmation redirects
-  WEB_APP_URL: "https://wildebackyard.com"
+  WILDEBACKYARD_API_DATABASE_URL: "postgres://wildepod_wildebackyard_api_user:%2FnoABg6yCIUL5IMmueBRyYcqPMwvouxPBPXRbI%2BP%2BMU%3D@/wildebackyard_api_staging"
 
 # Cloud SQL configuration for flexible environment
 beta_settings:
@@ -27,7 +23,7 @@ automatic_scaling:
 resources:
   cpu: 1
   memory_gb: 0.5
-  disk_size_gb: 20
+  disk_size_gb: 10
 
 liveness_check:
   path: "/"

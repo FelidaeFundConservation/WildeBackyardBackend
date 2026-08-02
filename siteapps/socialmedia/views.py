@@ -28,7 +28,7 @@ from siteapps.species.models import SpeciesName, Taxon
 from siteapps.users.models import BannedEmail
 
 from .geo_utils import calculate_offset_coordinates, get_continental_us_center
-from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, createResponse400
+from .mixins import LatLngValidationMixin, PostInputsValidationMixin, PrivacySettingValidationMixin, check_profanity, createResponse400
 from .models import (
     InappropriateContentReport,
     IUCNHabitatClassification,
@@ -1276,6 +1276,10 @@ class UpdatePostTitleView(APIView):
         if not title:
             return Response({"error": "'title' is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        profanity_error = check_profanity(title)
+        if profanity_error is not None:
+            return profanity_error
+
         try:
             post = MediaPost.objects.get(id=post_id)
         except MediaPost.DoesNotExist:
@@ -1319,6 +1323,10 @@ class UpdatePostDescriptionView(APIView):
 
     def post(self, request, post_id):
         description = (request.data.get("description") or "").strip()
+
+        profanity_error = check_profanity(description)
+        if profanity_error is not None:
+            return profanity_error
 
         try:
             post = MediaPost.objects.get(id=post_id)
@@ -1589,6 +1597,10 @@ class CreateCommentView(APIView):
         if comment_text is None or len(comment_text) == 0:
             return createResponse400("The provided comment text is empty.")
 
+        profanity_error = check_profanity(comment_text)
+        if profanity_error is not None:
+            return profanity_error
+
         # If everything's fine, create and add the comment
         media_post.first().replies.add(TextComment.objects.create(text_content=comment_text, created_by=request.user))
 
@@ -1810,6 +1822,8 @@ class PostViewValidation:
                 geocoded_location_country,
                 post_title,
             ),
+            check_profanity(post_title),
+            check_profanity(data.get("postBody")),
         ]
         for error_response in errors:
             if error_response is not None:
@@ -2458,6 +2472,12 @@ class CreateUserLocationView(APIView):
         if not name:
             return Response({"error": "Location name is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        for field_value in [name, description]:
+            if field_value:
+                profanity_error = check_profanity(field_value)
+                if profanity_error is not None:
+                    return profanity_error
+
         if latitude is None or longitude is None:
             return Response({"error": "Latitude and longitude are required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2539,8 +2559,14 @@ class UpdateUserLocationView(APIView):
 
         if "name" in data:
             location.name = (data["name"] or "").strip()
+            profanity_error = check_profanity(location.name)
+            if profanity_error is not None:
+                return profanity_error
         if "description" in data:
             location.description = (data["description"] or "").strip()
+            profanity_error = check_profanity(location.description)
+            if profanity_error is not None:
+                return profanity_error
         if "latitude" in data:
             try:
                 location.latitude = float(data["latitude"])
@@ -2620,6 +2646,9 @@ class BulkUploadSessionCreateView(APIView):
         from siteapps.socialmedia.models import BulkUploadSession
 
         name = (request.data.get("name") or "Bulk Upload").strip()
+        profanity_error = check_profanity(name)
+        if profanity_error is not None:
+            return profanity_error
         image_count = int(request.data.get("image_count", 0))
         session = BulkUploadSession.objects.create(
             user=request.user,
@@ -2700,6 +2729,10 @@ class BulkUploadSessionDetailView(APIView):
             return Response({"error": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
         if len(new_name) > 255:
             return Response({"error": "name must be 255 characters or fewer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profanity_error = check_profanity(new_name)
+        if profanity_error is not None:
+            return profanity_error
 
         session.name = new_name
         session.save(update_fields=["name"])
