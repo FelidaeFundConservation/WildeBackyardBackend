@@ -1,0 +1,44 @@
+runtime: custom
+env: flex
+service: wildebackyard-api
+
+env_variables:
+  DJANGO_SETTINGS_MODULE: "config.settings.wildebackyard_api"
+  PYTHON_ENV: "production"
+  CLOUD_SQL_CONNECTION_NAME: "wildepod-339517:us-west2:wildepoddb"
+  DB_USER: "wildepod_wildebackyard_api_user"
+  DB_NAME: "wildebackyard_api_prod"
+  # Web frontend URL — used for email verification links and post-confirmation redirects
+  WEB_APP_URL: "https://wildebackyard.com"
+
+# Cloud SQL configuration for flexible environment
+beta_settings:
+  cloud_sql_instances: "wildepod-339517:us-west2:wildepoddb"
+
+# Flexible environment scaling
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 1
+  cool_down_period_sec: 120
+  cpu_utilization:
+    target_utilization: 0.5
+
+resources:
+  cpu: 1
+  memory_gb: 0.5
+  disk_size_gb: 20
+
+liveness_check:
+  path: "/"
+  check_interval_sec: 30
+  timeout_sec: 4
+  failure_threshold: 4
+  success_threshold: 2
+
+readiness_check:
+  path: "/"
+  check_interval_sec: 5
+  timeout_sec: 4
+  failure_threshold: 2
+  success_threshold: 2
+  app_start_timeout_sec: 300
