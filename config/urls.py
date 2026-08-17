@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """wilde_backyard URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
