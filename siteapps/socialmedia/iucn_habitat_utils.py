@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """
 Utility functions for looking up IUCN habitat classification codes from PostGIS raster tables.
 """
