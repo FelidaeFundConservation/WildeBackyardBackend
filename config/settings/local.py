@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """Local env to do something quick, dirty and destructive. Uses a sqlite db to play around
 """
 

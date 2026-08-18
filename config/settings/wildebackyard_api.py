@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """Django settings for wildebackyard-api environment"""
 
 import os

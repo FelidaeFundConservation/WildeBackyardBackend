@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """URL configuration for habitat classification and GeoNames API."""
 
 from django.urls import path
