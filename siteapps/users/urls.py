@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from allauth.account.views import PasswordChangeView
 from dj_rest_auth.registration.views import RegisterView, ResendEmailVerificationView
 from dj_rest_auth.views import LoginView, LogoutView

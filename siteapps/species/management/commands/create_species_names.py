@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from django.core.management.base import BaseCommand
 
 from siteapps.species.models import SpeciesName
