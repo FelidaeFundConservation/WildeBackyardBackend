@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from types import SimpleNamespace
 
 from django.test import SimpleTestCase, override_settings

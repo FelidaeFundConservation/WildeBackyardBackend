@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """Test-specific settings that use SQLite and don't require external services"""
 
 from .base import *  # noqa
