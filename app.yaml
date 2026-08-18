@@ -25,7 +25,7 @@ automatic_scaling:
 
 resources:
   cpu: 1
-  memory_gb: 0.5
+  memory_gb: 2.0
   disk_size_gb: 20
 
 liveness_check:
