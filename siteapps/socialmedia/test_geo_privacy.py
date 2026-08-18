@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """
 Tests for geographic utilities and privacy-based lat/lon return
 """

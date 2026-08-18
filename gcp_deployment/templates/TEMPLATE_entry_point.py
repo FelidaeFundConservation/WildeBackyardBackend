@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """
 Application entry point template for custom GCP App Engine deployments.
 

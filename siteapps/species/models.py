@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from django.db import models
 from model_utils.models import TimeStampedModel
 

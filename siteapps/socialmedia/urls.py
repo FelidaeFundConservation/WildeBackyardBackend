@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from django.urls import path, re_path
 
 from siteapps.socialmedia.moderation import (

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """API views for querying IUCN habitat classification and GeoNames place data."""
 
 from django.contrib.gis.geos import Point

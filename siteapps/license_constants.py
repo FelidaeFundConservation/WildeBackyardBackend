@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 # Creative Commons and rights-based license constants.
 # These are referenced by User.default_license and MediaPost.license_code.
 

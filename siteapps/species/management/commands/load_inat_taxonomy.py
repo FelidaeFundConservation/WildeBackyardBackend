@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """Management command: load_inat_taxonomy
 
 Fetches North American vertebrate species (excluding Actinopterygii) from the
