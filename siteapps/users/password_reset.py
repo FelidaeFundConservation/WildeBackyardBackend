@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.dispatch import receiver

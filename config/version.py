@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """
 Version information for the application.
 This file is automatically updated by the deployment script.
