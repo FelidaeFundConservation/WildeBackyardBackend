@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 from django.contrib import admin, messages
 from django.db import transaction
 from django.urls import reverse

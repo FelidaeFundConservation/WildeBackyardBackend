@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """Django models for habitat classification and GeoNames data."""
 
 from django.contrib.gis.db import models

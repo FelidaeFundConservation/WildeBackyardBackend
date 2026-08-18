@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# SPDX-License-Identifier: MIT
+# See LICENSE file in the repository root for full license text.
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
