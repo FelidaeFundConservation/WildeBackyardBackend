@@ -398,6 +398,7 @@ update_app_yaml() {
 # Cloud SQL Configuration
 vpc_access_connector:
   name: projects/${PROJECT_ID}/locations/${REGION}/connectors/wildepod-connector
+  egress_setting: all-traffic
 
 beta_settings:
   cloud_sql_instances: ${CONNECTION_NAME}
