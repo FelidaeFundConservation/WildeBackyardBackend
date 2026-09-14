@@ -19,12 +19,12 @@ class TestMailgunIPAllowlistConfig(unittest.TestCase):
     def test_app_yaml_routes_all_traffic_through_vpc_connector(self):
         content = (self.repo_root / "app.yaml").read_text(encoding="utf-8")
 
-        self._assert_vpc_allowlist_config_present(content)
+        self._assert_vpc_allowlist_config_present(content, expected_connector_name="wildepod-connector")
 
     def test_staging_yaml_routes_all_traffic_through_vpc_connector(self):
         content = (self.repo_root / "staging.yaml").read_text(encoding="utf-8")
 
-        self._assert_vpc_allowlist_config_present(content)
+        self._assert_vpc_allowlist_config_present(content, expected_connector_name="wildepod-connector")
 
     def test_deploy_script_preserves_all_traffic_egress_setting(self):
         content = (self.repo_root / "gcp_deployment" / "scripts" / "deploy_gcp.sh").read_text(encoding="utf-8")
@@ -40,11 +40,16 @@ class TestMailgunIPAllowlistConfig(unittest.TestCase):
         self.assertIn("# vpc_access_connector:", content)
         self.assertIn('#   egress_setting: all-traffic', content)
 
-    def _assert_vpc_allowlist_config_present(self, content):
+    def _assert_vpc_allowlist_config_present(self, content, expected_connector_name):
         parsed = self._load_yaml(content)
 
         self.assertIn("vpc_access_connector", parsed)
-        self.assertTrue(parsed["vpc_access_connector"]["name"])
+        connector_name = parsed["vpc_access_connector"]["name"]
+        self.assertIn("/connectors/", connector_name)
+        self.assertTrue(
+            connector_name.endswith(f"/connectors/{expected_connector_name}"),
+            f"Expected sanctioned connector '{expected_connector_name}', got '{connector_name}'",
+        )
         self.assertEqual(parsed["vpc_access_connector"]["egress_setting"], "all-traffic")
 
     def _load_yaml(self, content):
