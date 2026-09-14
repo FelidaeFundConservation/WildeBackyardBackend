@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: MIT
 # See LICENSE file in the repository root for full license text.
 """Tests for App Engine egress configuration used by Mailgun IP allowlisting."""
-
-import re
 from pathlib import Path
 import unittest
 
