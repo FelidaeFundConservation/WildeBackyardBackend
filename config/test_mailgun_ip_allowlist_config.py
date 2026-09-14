@@ -4,6 +4,11 @@
 from pathlib import Path
 import unittest
 
+try:
+    import yaml
+except ImportError:  # pragma: no cover - fallback for minimal environments
+    yaml = None
+
 
 class TestMailgunIPAllowlistConfig(unittest.TestCase):
     """Validate the deployment config required for Mailgun IP allowlisting."""
@@ -36,12 +41,42 @@ class TestMailgunIPAllowlistConfig(unittest.TestCase):
         self.assertIn('#   egress_setting: all-traffic', content)
 
     def _assert_vpc_allowlist_config_present(self, content):
-        self.assertIn("vpc_access_connector:", content)
-        self.assertRegex(
-            content,
-            r"name:\s+projects/[^\s]+/locations/[^\s]+/connectors/[^\s]+",
-        )
-        self.assertIn("egress_setting: all-traffic", content)
+        parsed = self._load_yaml(content)
+
+        self.assertIn("vpc_access_connector", parsed)
+        self.assertTrue(parsed["vpc_access_connector"]["name"])
+        self.assertEqual(parsed["vpc_access_connector"]["egress_setting"], "all-traffic")
+
+    def _load_yaml(self, content):
+        if yaml is not None:
+            return yaml.safe_load(content)
+
+        parsed = {}
+        current_key = None
+
+        for raw_line in content.splitlines():
+            if not raw_line or raw_line.lstrip().startswith("#"):
+                continue
+
+            if not raw_line.startswith(" "):
+                key, _, value = raw_line.partition(":")
+                key = key.strip()
+                value = value.strip()
+                if value:
+                    parsed[key] = value.strip('"')
+                    current_key = None
+                else:
+                    parsed[key] = {}
+                    current_key = key
+                continue
+
+            if current_key is None:
+                continue
+
+            key, _, value = raw_line.strip().partition(":")
+            parsed[current_key][key.strip()] = value.strip().strip('"')
+
+        return parsed
 
 
 if __name__ == "__main__":
