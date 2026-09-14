@@ -48,9 +48,11 @@ entrypoint: gunicorn -t 2400 -b :$PORT <env-name>:app
 #   EXAMPLE_VAR: "value"
 
 # VPC Access Connector (optional)
-# Uncomment if you need to access resources in a VPC network:
+# Uncomment if you need to route all outbound traffic through a sanctioned
+# static egress path (for example, to support Mailgun IP allowlisting):
 # vpc_access_connector:
 #   name: "projects/<project-id>/locations/<region>/connectors/<connector-name>"
+#   egress_setting: all-traffic
 
 # Handlers (optional)
 # Custom routing for static files, etc.

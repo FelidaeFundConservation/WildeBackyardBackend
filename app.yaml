@@ -2,6 +2,12 @@ runtime: custom
 env: flex
 service: wildebackyard-api
 
+# Route outbound traffic through the sanctioned VPC connector so Mailgun can
+# allowlist the service's egress IPs.
+vpc_access_connector:
+  name: projects/wildepod-339517/locations/us-west2/connectors/wildepod-connector
+  egress_setting: all-traffic
+
 env_variables:
   DJANGO_SETTINGS_MODULE: "config.settings.wildebackyard_api"
   PYTHON_ENV: "production"
